@@ -7,6 +7,47 @@ local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
 
 local targetUnit = nil
 
+function X.ConsiderTombstone(hero, tombstone)
+    if J.CanNotUseAction(hero) or hero:IsDisarmed() or J.IsRetreating(hero)
+        or J.GetHP(hero) < 0.45 or not J.IsValid(tombstone) or not J.CanBeAttacked(tombstone)
+        or not J.IsInRange(hero, tombstone, hero:GetAttackRange() + 200) then return 0 end
+    local target = J.GetProperTarget(hero)
+    -- Only a secured one-hit finish justifies temporarily leaving the source
+    -- of zombies alive. Low percentage HP alone is not evidence of a fast kill.
+    if J.IsValidHero(target) and not J.IsSuspiciousIllusion(target)
+        and J.CanBeAttacked(target) and J.IsInRange(hero, target, hero:GetAttackRange())
+        and J.CanKillTarget(target, hero:GetAttackDamage(), DAMAGE_TYPE_PHYSICAL)
+        and not J.HasMovableUndyingModifier(target, 1.0) then return 0 end
+    local allies, enemies, seen = 1, 0, {[hero]=true}
+    for _, ally in pairs(J.GetAlliesNearLoc(hero:GetLocation(), 1600)) do
+        if J.IsValidHero(ally) and not J.IsSuspiciousIllusion(ally) and not seen[ally] then
+            allies, seen[ally] = allies + 1, true
+        end
+    end
+    for _, enemy in pairs(J.GetEnemiesNearLoc(hero:GetLocation(), 1600)) do
+        if J.IsValidHero(enemy) and not J.IsSuspiciousIllusion(enemy) and not seen[enemy] then
+            enemies, seen[enemy] = enemies + 1, true
+        end
+    end
+    if enemies > allies then return 0 end
+    return J.IsInRange(hero, tombstone, hero:GetAttackRange()) and 0.98 or 0.82
+end
+
+function X.GetTombstoneDesire(hero)
+    local best, bestDesire, bestDistance = nil, 0, math.huge
+    for _, unit in pairs(GetUnitList(UNIT_LIST_ENEMIES)) do
+        if J.IsValid(unit) and string.find(unit:GetUnitName(), 'tombstone') then
+            local desire = X.ConsiderTombstone(hero, unit)
+            local distance = GetUnitToUnitDistance(hero, unit)
+            if desire > 0 and (desire > bestDesire or (desire == bestDesire and distance < bestDistance)) then
+                best, bestDesire, bestDistance = unit, desire, distance
+            end
+        end
+    end
+    if best then bot, targetUnit = hero, best end
+    return bestDesire
+end
+
 function X.GetDesire(bot__)
     bot = bot__
 
@@ -321,11 +362,8 @@ function X.GetDesire(bot__)
 
                 if string.find(unitName, 'tombstone')
                 then
-                    if #tAllyHeroes_all >= #tEnemyHeroes_all and not J.IsRetreating(bot)
-                    then
-                        if J.IsInRange(bot, unit, botAttackRange + 200) then return RemapValClamped(J.GetHP(bot), 0.25, 0.9, 0.4, 0.96) end
-                        return 0.56
-                    end
+                    local desire = X.ConsiderTombstone(bot, unit)
+                    if desire > 0 then return desire end
                 end
 
                 if string.find(unitName, 'undying_zombie')

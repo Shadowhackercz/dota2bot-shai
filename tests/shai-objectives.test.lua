@@ -13,7 +13,7 @@ local location, ancient = {}, {GetLocation=function() return {} end}
 local tormentor = {GetUnitName=function() return 'npc_dota_miniboss' end}
 for i=1,5 do
     local member = {pos=i}
-    member.IsAlive, member.CanBeSeen = function() return true end, function() return true end
+    member.IsAlive, member.CanBeSeen = function() return state.dead ~= i end, function() return true end
     member.IsBot = function() return i ~= 2 end -- human mid without a ping
     member.GetLevel, member.GetPlayerID = function() return 15 end, function() return i end
     member.GetLocation = function() return location end
@@ -28,6 +28,7 @@ for i=1,5 do
     members[i]=member
 end
 local bot = members[4]
+bot.GetUnitName = function() return 'npc_dota_hero_lion' end
 GetBot = function() return bot end
 GetTeamPlayers = function() return {1,2,3,4,5} end
 GetTeamMember = function(i) return members[i] end
@@ -54,7 +55,8 @@ J.GetPosition = function(u) return u.pos end
 J.GetProperTarget = function() return nil end
 J.IsTormentor = function(u) return u == tormentor end
 J.GetHP = function() return state.hp end
-J.GetAliveAllyCoreCount, J.GetNumOfAliveHeroes = function() return 3 end, function() return 5 end
+J.GetAliveAllyCoreCount = function() return state.dead and state.dead <= 3 and 2 or 3 end
+J.GetNumOfAliveHeroes = function() return state.dead and 4 or 5 end
 J.GetFirstBotInTeam = function() return members[1] end
 package.loaded['bots/FunLib/jmz_func'] = J
 package.loaded['bots/FunLib/localization'] = {}
@@ -68,6 +70,15 @@ bot.tormentor_state, state.near = true, true
 assert(GetDesire() > 0.7, 'Human elsewhere without a ping must not veto a healthy team attempt')
 Think(); assert(state.action == 'attack', 'A sufficiently grouped team should attack the visible objective')
 assert(GetDesire() > 0.7, 'Repeated evaluations must retain valid readiness')
+GetTower = function() return nil end
+J.GetCoresAverageNetworth = function() return 30000 end
+state.time = 2100
+assert(GetDesire() > 0.7, 'Safe strong team must remain eligible after T3 loss and high net worth')
+state.dead = 2
+assert(GetDesire() > 0.7, 'Four healthy allies with two cores can plan the first attempt')
+state.action = nil
+Think(); assert(state.action == 'attack', 'Four sufficiently grouped allies with two cores can attack')
+state.dead = nil
 state.hp = 0.2
 assert(GetDesire() == 0, 'Cached healthy flag must not survive current low health')
 state.hp, state.damage = 0.9, 10

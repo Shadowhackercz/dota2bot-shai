@@ -65,8 +65,11 @@ package.loaded['bots/FunLib/enemy_role_estimation'] = {UpdateEnemyHeroPositions=
 for _, name in ipairs({'localization','aba_item','aba_role'}) do package.loaded['bots/FunLib/'..name] = {} end
 package.loaded['bots/Customize/general'] = {Enable=true, ThinkLess=1}
 local actualDofile = dofile
+local specialDesire, tomb = 0, {}
 dofile = function(path)
-    if path == 'bots/FunLib/aba_special_units' then return {} end
+    if path == 'bots/FunLib/aba_special_units' then return {
+        GetTombstoneDesire=function() return specialDesire end,
+        Think=function() attacked=tomb end} end
     return actualDofile(path)
 end
 local roam = dofile('bots/mode_team_roam_generic.lua')
@@ -91,4 +94,10 @@ checkTarget(a)
 OnEnd()
 b.alive, now, candidate = true, 201.5, b
 checkTarget(b) -- leaving the mode must clear the old commitment
+specialDesire = 0.98
+assert(GetDesireHelper() == specialDesire, 'Tombstone must precede an eligible hero-help branch')
+roam.Think()
+assert(attacked == tomb, 'A prior hero target must not overwrite the selected Tombstone action')
+specialDesire = 0
+checkTarget(b) -- no stale special-unit flag after yielding to hero combat
 print('PASS: bounded retreat stability, immediate danger/exclusions and real team-roam target lock')

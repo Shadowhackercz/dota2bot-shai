@@ -78,6 +78,8 @@ function GetDesire()
     return res
 end
 function GetDesireHelper()
+    ShouldAttackSpecialUnit = false
+    hTargetCreep = nil
     if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then
         return BOT_MODE_DESIRE_NONE
     end
@@ -103,6 +105,14 @@ function GetDesireHelper()
     end
 
     ItemOpsDesire()
+
+    -- A nearby safe Tombstone is a fight objective, ahead of hero-help and
+    -- incidental last hits; the special-unit policy can yield a secured kill.
+    local tombstoneDesire = AttackSpecialUnit.GetTombstoneDesire(bot)
+    if tombstoneDesire > 0 then
+        ShouldAttackSpecialUnit = true
+        return tombstoneDesire
+    end
 
     local target
     target, ShouldHelpWhenCoreIsTargeted = X.ConsiderHelpWhenCoreIsTargeted()
@@ -318,6 +328,7 @@ function Think()
 
     if ShouldAttackSpecialUnit then
         AttackSpecialUnit.Think()
+        return
     end
 
     if towerCreepMode then

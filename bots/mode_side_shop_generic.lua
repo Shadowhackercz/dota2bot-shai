@@ -18,31 +18,39 @@ if bot.tormentor_kill_time == nil then bot.tormentor_kill_time = 0 end
 
 local nCoreCountInLoc = 0
 local nSuppCountInLoc = 0
+local lastTraceTime, lastTraceReason = -math.huge, nil
+local decisionReason = 'not-ready'
+local function Decline(reason)
+    decisionReason = reason
+    return BOT_MODE_DESIRE_NONE
+end
 
 function GetDesire()
 	-- local cacheKey = 'GetSideShopDesire'..tostring(bot:GetPlayerID())
 	-- local cachedVar = J.Utils.GetCachedVars(cacheKey, 0.6 * (1 + Customize.ThinkLess))
 	-- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
 	local res = GetDesireHelper()
+	if DotaTime() >= 15 * 60 and decisionReason ~= lastTraceReason and DotaTime() >= lastTraceTime + 10 then
+		local position = TormentorLocation ~= 0 and ('; x='..tostring(TormentorLocation.x)..'; y='..tostring(TormentorLocation.y)) or ''
+		print('[SHAI] tormentor hero='..bot:GetUnitName()..'; reason='..decisionReason..'; desire='..tostring(res)..position)
+		lastTraceTime, lastTraceReason = DotaTime(), decisionReason
+	end
 	-- J.Utils.SetCachedVars(cacheKey, res)
 	return res
 end
 function GetDesireHelper()
-	if not bot:IsAlive() then return BOT_MODE_DESIRE_NONE end
+	decisionReason = 'not-ready'
+	if not bot:IsAlive() then return Decline('dead') end
 	nCoreCountInLoc, nSuppCountInLoc = 0, 0
 	canDoTormentor = false
 	bot.tormentor_team_healthy = false
 	-- 如果在打高地 就别撤退去干别的
 	if J.Utils.IsTeamPushingSecondTierOrHighGround(bot) then
-		return BOT_MODE_DESIRE_NONE
+		return Decline('team-push')
 	end
 	local enemiesAtAncient = J.Utils.CountEnemyHeroesNear(GetAncient(GetTeam()):GetLocation(), 3200)
     if enemiesAtAncient >= 1 then
-        return BOT_MODE_DESIRE_NONE
-    end
-    -- 核心已经很肥 不需要浪费时间去打tormentor
-    if J.GetCoresAverageNetworth() >= 23000 then
-        return BOT_MODE_DESIRE_NONE
+        return Decline('base-threat')
     end
 
     if DotaTime() > 300 and DotaTime() - bot.tormentor_kill_time <= nRestForSeconds then
@@ -52,7 +60,7 @@ function GetDesireHelper()
     J.Utils['GameStates'] = J.Utils['GameStates'] or {}
     J.Utils['GameStates']['defendPings'] = J.Utils['GameStates']['defendPings'] or { pingedTime = GameTime() }
     if GameTime() - J.Utils['GameStates']['defendPings'].pingedTime <= 5.0 then
-		return BOT_MODE_DESIRE_NONE
+		return Decline('defend-ping')
 	end
 
     -- update vars for tormentor
@@ -72,10 +80,11 @@ function GetDesireHelper()
 
     local nAveCoreLevel = 0
     local nAveSuppLevel = 0
+    local coreCount, supportCount = 0, 0
 
     local nInRangeEnemy = J.GetLastSeenEnemiesNearLoc(bot:GetLocation(), 1200)
     if #nInRangeEnemy > 0 and not J.IsInLaningPhase() then
-        return 0
+        return Decline('nearby-enemies')
     end
     local tAliveAllies = {}
     for i = 1, #GetTeamPlayers( GetTeam() ) do
@@ -131,17 +140,11 @@ function GetDesireHelper()
             end
 
             -- get average levels
-            if J.IsCore(member) then
-                if memberLevel < 13 then
-                    nAveCoreLevel = 0
+            if member:IsAlive() then
+                if J.IsCore(member) then
+                    nAveCoreLevel, coreCount = nAveCoreLevel + memberLevel, coreCount + 1
                 else
-                    nAveCoreLevel = nAveCoreLevel + member:GetLevel()
-                end
-            else
-                if memberLevel < 11 then
-                    nAveSuppLevel = 0
-                else
-                    nAveSuppLevel = nAveSuppLevel + member:GetLevel()
+                    nAveSuppLevel, supportCount = nAveSuppLevel + memberLevel, supportCount + 1
                 end
             end
 
@@ -163,7 +166,7 @@ function GetDesireHelper()
 
     if #tAllyInTormentorLocation <= 1 and nHumanCountInLoc == 0
     and DotaTime() > (J.IsModeTurbo() and (25 * 60) or (40 * 60)) then
-        return BOT_MODE_DESIRE_NONE
+        return Decline('late-and-distant')
     end
 
     local hEnemyAncient = GetAncient(GetOpposingTeam())
@@ -173,23 +176,24 @@ function GetDesireHelper()
         and J.GetEnemiesAroundAncient(bot, 4000) > 0
         or (J.IsDoingRoshan(bot) and bot:GetActiveModeDesire() >= BOT_MODE_DESIRE_HIGH)
     ) then
-        return BOT_MODE_DESIRE_NONE
+        return Decline('more-important-objective')
     end
 
     if #J.GetEnemiesNearLoc(GetAncient(GetTeam()):GetLocation(), 2000) >= 2
-    or (GetTower(GetTeam(), TOWER_TOP_3) == nil or GetTower(GetTeam(), TOWER_MID_3) == nil or GetTower(GetTeam(), TOWER_BOT_3) == nil) -- stop when any these towers fall
     then
-        return BOT_MODE_DESIRE_NONE
+        return Decline('base-threat')
     end
 
-    nAveCoreLevel = nAveCoreLevel / 3
-    nAveSuppLevel = nAveSuppLevel / 2
+    nAveCoreLevel = coreCount > 0 and nAveCoreLevel / coreCount or 0
+    nAveSuppLevel = supportCount > 0 and nAveSuppLevel / supportCount or 0
 
     if nAveSuppLevel < 11 then
-        return BOT_MODE_DESIRE_NONE
+        return Decline('support-level')
     end
 
     local bGoodRightClickDamage = X.IsGoodRighClickDamage()
+    if not bGoodRightClickDamage then return Decline('damage') end
+    if nAveCoreLevel < 13 then return Decline('core-level') end
 
     -- TODO: reduce wasting time waiting for someone as the location is very far now
     -- Someone go check Tormentor
@@ -217,6 +221,7 @@ function GetDesireHelper()
                     if not J.IsRealInvisible(bot) and (#tInRangeEnemy > #tInRangeAlly) then
                         return BOT_MODE_DESIRE_LOW
                     else
+                        decisionReason = 'scout'
                         return BOT_MODE_DESIRE_VERYHIGH
                     end
                 end
@@ -232,15 +237,14 @@ function GetDesireHelper()
     and bGoodRightClickDamage
     and nAveCoreLevel >= 13
     and nAveSuppLevel >= 11
-    and (  (bot.tormentor_kill_time == 0 and nAliveAlly >= 5)
-        or (bot.tormentor_kill_time == 0 and nAliveAlly >= 4 and nCoreCountInLoc >= 3 and nSuppCountInLoc >= 1)
+    and (  (bot.tormentor_kill_time == 0 and nAliveAlly >= 4 and J.GetAliveAllyCoreCount() >= 2)
         or (bot.tormentor_kill_time > 0 and nAliveAlly >= 3 and J.GetAliveAllyCoreCount() >= 2)
         or (nAttackingTormentorCount >= 2 and nCoreCountInLoc >= 2)
     ) then
         bot.tormentor_team_healthy = X.IsTeamHealthy()
 
         if bot.tormentor_team_healthy == false then
-            return BOT_MODE_DESIRE_NONE
+            return Decline('health')
         end
 
         canDoTormentor = true
@@ -265,6 +269,7 @@ function GetDesireHelper()
 
         local nInRangeEnemy = J.GetEnemiesNearLoc(bot:GetLocation(), 1200)
 
+        decisionReason = 'assemble-or-attack'
         return nDesire - (#nInRangeEnemy * (0.9 / 5))
     end
 
@@ -273,7 +278,7 @@ function GetDesireHelper()
     end
 
     canDoTormentor = false
-    return BOT_MODE_DESIRE_NONE
+    return Decline(bot.tormentor_state and 'available-allies' or 'spawn-or-scout-pending')
 end
 
 local fNextMovementTime = 0
@@ -425,7 +430,7 @@ function X.IsTeamHealthy()
 	local nHealthyAlly = 0
 	for i = 1, #GetTeamPlayers( GetTeam() ) do
 		local member = GetTeamMember(i)
-		if J.IsValid(member) and (J.GetHP(member) > 0.5 or not member:IsBot()) then
+		if J.IsValid(member) and member:IsAlive() and (J.GetHP(member) > 0.5 or not member:IsBot()) then
 			nHealthyAlly = nHealthyAlly + 1
 		end
 	end
