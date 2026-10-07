@@ -67,3 +67,5 @@ Další herní ověření: celý All Pick zápas, zejména zda raněný bot pře
 Následující audit a opravy: [SHAI-BEHAVIOR-AUDIT.md](SHAI-BEHAVIOR-AUDIT.md). Opraveny rezervace many a ústup Wraith Kinga, přerušování mimo dosah u WK/Liona a přepisování bezpečnostních limitů při pushování. Všechny regresní testy spouští `tools/Test-SHAI.ps1`; herní porovnání celých zápasů zůstává otevřené.
 
 Rune mód nyní opravuje blokace obou říčních míst a nečinnosti, vyhodnocuje contest, jasný záměr lidského spojence, přípravu na spawn a okamžitý last hit. Znovu čte stav před akcí a nepředpokládá opakovaně runu na ověřeném prázdném místě. Ověřeno testem `shai-runes`; cílový herní test je mid v All Pick v prvních 10 minutách. Podrobné hranice a omezení jsou v navazující části auditu.
+
+Po hlášení ze zápasu Sniper vs. Shadow Fiend byla doplněna dostatečná priorita říčních run pro zdravý mid bez Bottle a prostorové/bojové kontroly Sniperova Take Aim. Testy nyní porovnávají rune prioritu s linkováním a ověřují skutečný Sniper modul. Gank CM v 11:30 uživatel hodnotí kladně. Přepínání pohybu a skutečné provedení nových runových rozhodnutí zůstávají k hernímu ověření; viz audit.

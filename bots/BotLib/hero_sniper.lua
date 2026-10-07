@@ -448,13 +448,26 @@ function X.ConsiderE()
 
 	if not abilityE:IsFullyCastable()
 		or bot:IsDisarmed()
+		or not J.IsAttacking(bot)
+		or J.IsRetreating(bot)
+		or J.GetHP(bot) < 0.6
 	then return 0 end
 
 	local nAttackRange = bot:GetAttackRange()
-	local nSkillLV = abilityE:GetLevel()
-	local nDamage = bot:GetAttackDamage()
 
 	local npcTarget = bot:GetAttackTarget()
+	-- Preserve space to reposition before committing to Take Aim.
+	for _, enemy in pairs(J.GetNearbyHeroes(bot, math.min(nAttackRange + 200, 1600), true, BOT_MODE_NONE)) do
+		if J.IsValidHero(enemy) and not J.IsSuspiciousIllusion(enemy) and not enemy:IsStunned() then
+			local distance = GetUnitToUnitDistance(bot, enemy)
+			if distance < 550
+			or (enemy:IsFacingLocation(bot:GetLocation(), 35)
+				and distance < 550 + enemy:GetCurrentMovementSpeed())
+			then
+				return BOT_ACTION_DESIRE_NONE
+			end
+		end
+	end
 	
 	if J.IsValidHero( npcTarget )
 		and not npcTarget:IsAttackImmune()

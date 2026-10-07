@@ -92,6 +92,41 @@ local lion = dofile('bots/BotLib/hero_lion.lua')
 check('Lion must not chase an out of range interrupt', function() assert(lion.ConsiderW() == 0) end)
 state.distance = 550
 check('Lion should interrupt in range', function() assert(lion.ConsiderW() > 0) end)
+-- Take Aim decisions use the actual Sniper module, independently of other spells.
+Vector = function(x,y,z) return {x=x,y=y,z=z} end
+GetHeightLevel = function() return 0 end
+function bot:IsDisarmed() return false end
+function bot:GetAttackTarget() return enemy end
+function bot:GetAttackRange() return 1000 end
+function bot:GetAttackDamage() return 100 end
+function enemy:IsAttackImmune() return false end
+function enemy:IsStunned() return false end
+function enemy:GetCurrentMovementSpeed() return 300 end
+function enemy:IsFacingLocation() return state.approaching == true end
+J.IsAttacking = function() return state.attacking ~= false end
+J.IsRetreating = function() return state.retreating == true end
+J.GetHP = function() return state.hp or 1 end
+J.IsSuspiciousIllusion = no
+local sniper = dofile('bots/BotLib/hero_sniper.lua')
+state.distance = 400
+check('Sniper must not use Take Aim next to an enemy', function() assert(sniper.ConsiderE() == 0) end)
+state.distance, state.approaching = 700, true
+check('Sniper must not use Take Aim against an approaching enemy', function() assert(sniper.ConsiderE() == 0) end)
+state.distance = 900
+check('Sniper should use Take Aim with enough approach buffer', function() assert(sniper.ConsiderE() > 0) end)
+state.distance, state.approaching = 800, false
+check('Sniper should use Take Aim at a safe distance', function() assert(sniper.ConsiderE() > 0) end)
+state.hp = 0.4
+check('Wounded Sniper must not use Take Aim', function() assert(sniper.ConsiderE() == 0) end)
+state.hp, state.retreating = 1, true
+check('Retreating Sniper must not use Take Aim', function() assert(sniper.ConsiderE() == 0) end)
+state.retreating, state.attacking = false, false
+check('Sniper must already be attacking before Take Aim', function() assert(sniper.ConsiderE() == 0) end)
+state.attacking = true
+local closeEnemy = setmetatable({}, {__index=enemy})
+J.GetNearbyHeroes = function() return {enemy, closeEnemy} end
+GetUnitToUnitDistance = function(_, target) return target == closeEnemy and 400 or state.distance end
+check('A second close enemy must prevent Take Aim against a distant target', function() assert(sniper.ConsiderE() == 0) end)
 for _, failure in ipairs(failures) do print('FAIL: '..failure) end
 assert(#failures == 0, tostring(#failures)..' combat regressions failed')
-print('PASS: real Wraith King mana reservation and Wraith King/Lion interrupt decisions')
+print('PASS: real Wraith King mana reservation, Wraith King/Lion interrupts and Sniper Take Aim safety')

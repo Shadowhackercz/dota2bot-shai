@@ -255,25 +255,25 @@ function GetDesire()
 					local nRuneType = rune.type
 					-- Water rune support (local addition)
 					if nRuneType == RUNE_WATER and (bBottle or botHP < 0.6 or botMP < 0.5) then
-						return X.GetScaledDesire(BOT_MODE_DESIRE_HIGH, rune.distance, 3200)
+						return X.GetRiverDesire(BOT_MODE_DESIRE_HIGH, rune.distance, 3200)
 					elseif nRuneType == RUNE_WATER and not bBottle then
-						return X.GetScaledDesire(BOT_MODE_DESIRE_MODERATE, rune.distance, nProximityRadius)
+						return X.GetRiverDesire(BOT_MODE_DESIRE_MODERATE, rune.distance, nProximityRadius)
 					end
 
 					if bBottle or (not J.IsEarlyGame() and botPos <= 3) then
-						return X.GetScaledDesire(BOT_MODE_DESIRE_HIGH, rune.distance, nProximityRadius * 2.5)
+						return X.GetRiverDesire(BOT_MODE_DESIRE_HIGH, rune.distance, nProximityRadius * 2.5)
 					else
-						return X.GetScaledDesire(BOT_MODE_DESIRE_MODERATE, rune.distance, nProximityRadius * 2.5)
+						return X.GetRiverDesire(BOT_MODE_DESIRE_MODERATE, rune.distance, nProximityRadius * 2.5)
 					end
 				elseif rune.status == RUNE_STATUS_UNKNOWN and RiverCheckWindow() then
 					if bBottle or (not J.IsEarlyGame() and botPos <= 3) then
-						return X.GetScaledDesire(BOT_MODE_DESIRE_HIGH, rune.distance, nProximityRadius * 2.5)
+						return X.GetRiverDesire(BOT_MODE_DESIRE_HIGH, rune.distance, nProximityRadius * 2.5)
 					else
-						return X.GetScaledDesire(BOT_MODE_DESIRE_MODERATE, rune.distance, nProximityRadius)
+						return X.GetRiverDesire(BOT_MODE_DESIRE_MODERATE, rune.distance, nProximityRadius)
 					end
 				elseif rune.status == RUNE_STATUS_MISSING and RiverPreSpawnWindow() then
 					local desire = botPos == 2 and BOT_MODE_DESIRE_HIGH or BOT_MODE_DESIRE_MODERATE
-					return X.GetScaledDesire(desire, rune.distance, nProximityRadius)
+					return X.GetRiverDesire(desire, rune.distance, nProximityRadius)
 				end
 			end
 		end
@@ -743,6 +743,17 @@ function X.GetScaledDesire(nBase, nCurrDist, nMaxDist)
 		resDesire = RemapValClamped(hp, 0, 0.8, 0, resDesire)
 	end
 	return resDesire
+end
+
+function X.GetRiverDesire(base, distance, maxDistance)
+	local desire = X.GetScaledDesire(base, distance, maxDistance)
+	-- A positive desire below laning's 0.446 never wins arbitration for Sniper.
+	-- Only boost a healthy nearby mid; earlier safety/claim gates still apply.
+	if botPos == 2 and botHP >= 0.6 and distance <= 1800 then
+		local floor = bot.rune.normal.status == RUNE_STATUS_AVAILABLE and 0.6 or 0.54
+		desire = math.max(desire, floor)
+	end
+	return desire
 end
 
 local vGoOutLoc = nil
