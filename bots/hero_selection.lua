@@ -43,6 +43,7 @@ local okMatchupLib, HeroMatchups = pcall(require, GetScriptDirectory()..'/FunLib
 if not okMatchupLib then HeroMatchups = nil end
 HeroPositionMap = HeroPositionMap.GetHeroPositions()
 HeroPositionMap = SHAI.FilterHeroPositions(HeroPositionMap)
+print('[SHAI] hero selection loading; team='..tostring(GetTeam()))
 
 if GAMEMODE_TURBO == nil then GAMEMODE_TURBO = 23 end
 
@@ -226,6 +227,7 @@ end
 --==============================================================================
 
 SupportedHeroes = GetAllHeroNames(HeroPositionMap)
+print('[SHAI] enabled bot heroes='..tostring(#SupportedHeroes))
 
 tSelectPoolList = {
 	[1] = GetPositionedPool(HeroPositionMap, 1),
@@ -730,7 +732,7 @@ local function AllPickHeros()
 	local teamPlayers = GetTeamPlayers(GetTeam(), true)
 
 	-- Shuffle internal pick order when all-bot team to mix patterns
-	if not ShuffledPickOrder[sTeamName] and not Utils.IsHumanPlayerInTeam(GetTeam()) then
+	if not SHAI.HeroPoolEnabled and not ShuffledPickOrder[sTeamName] and not Utils.IsHumanPlayerInTeam(GetTeam()) then
 		X.ShufflePickOrder(teamPlayers)
 		ShuffledPickOrder[sTeamName] = true
 	end
@@ -742,8 +744,15 @@ local function AllPickHeros()
 		and GameTime() >= (PickSchedule.NextPickAt[i] or math.huge)
 		then
 			local finalPick = PickHeroForBotSlot(i, id)
-			if finalPick == nil then return end -- All enabled heroes may be banned/taken.
+			if finalPick == nil then
+				if not PickSchedule.BlockedReported then
+					print('[SHAI] draft blocked: enabled heroes are banned or already selected')
+					PickSchedule.BlockedReported = true
+				end
+				return
+			end
 			SelectHero(id, finalPick)
+			print('[SHAI] pick; team='..tostring(GetTeam())..'; slot='..tostring(i)..'; hero='..finalPick)
 
 			-- Mark this slot as done so it won’t pick again
 			PickSchedule.NextPickAt[i] = math.huge
@@ -929,14 +938,13 @@ local function InitPickScheduleOnce()
 	end
 
 	-- Tweak these three to taste:
-	local base  = GameTime() + 3          -- when the *first* bot may pick
-	local step  = GetTeam() * 3           -- spacing between slots
-	local jitter_min, jitter_max = 1, 3   -- small variability per slot
+	local base  = GameTime() + SHAI.InitialPickDelay
+	local step  = SHAI.PickInterval
 
 	local teamPlayers = GetTeamPlayers(GetTeam(), true)
 	for slot = 1, #teamPlayers do
 		-- tiny jitter per-slot for a more organic feel
-		local jitter = RandomFloat(jitter_min, jitter_max)
+		local jitter = RandomFloat(0, 0.3)
 		PickSchedule.NextPickAt[slot] = base + (slot - 1) * step + jitter
 	end
 

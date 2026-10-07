@@ -31,9 +31,18 @@ Pool je v `bots/Customize/shai.lua`, nezávisle na případném starém `game/Cu
 - Carry: Wraith King, Luna, Sven.
 - Mid: Zeus, Dragon Knight, Sniper.
 - Offlane: Axe, Tidehunter, Centaur Warrunner.
-- Support: Lion, Vengeful Spirit, Witch Doctor, Crystal Maiden, Lich, Warlock.
+- Pozice 4: Lion, Vengeful Spirit, Witch Doctor.
+- Pozice 5: Crystal Maiden, Lich, Warlock.
 
-Rozdělení je orientační; draft používá existující váhy vhodnosti pro role. Omezení lze vypnout přes `HeroPoolEnabled = false`, jednotlivé hrdiny přidat do `HeroPool`. Nedávat prázdný pool ani nezabanovat všechny jeho členy: skript záměrně nevybere zakázaného hrdinu jako fallback.
+Draft přednostně vybírá z příslušného seznamu v `RolePools`; `HeroPool` se z nich automaticky sestaví. Omezení lze vypnout přes `HeroPoolEnabled = false`, jednotlivé hrdiny přidat do `RolePools`. Při vyčerpání role může vybrat jiného povoleného hrdinu. Nedávat prázdný pool ani nezabanovat všechny jeho členy: skript záměrně nevybere zakázaného hrdinu jako fallback.
+
+Po spuštění botího draftu jsou jednotlivé výběry rozestoupené přibližně po sekundě, stejně pro Radiant i Dire. Zděděné čekání na lidský výběr může začátek odložit. Výchozí konfigurace vypíná trash talk i GPT odpovědi; starší externí `game/Customize/general.lua` může tato nastavení přepsat.
+
+## Když se zápas nespustí
+
+Čekání na hledání lobby/serveru je potřeba odlišit od prodlev při výběru hrdinů. Zkontrolovat **Local Host**; samotné nastavení Local Dev Script neurčuje hostování zápasu. Zkrácení draftu neřeší hledání serveru.
+
+Po načtení výběru hrdinů skript vypisuje do herní konzole zprávy začínající `[SHAI]`, včetně počtu povolených hrdinů a jednotlivých výběrů. Tyto zprávy a prefixy `[WARN]` / `[ERROR]` se zobrazují i bez zapnutého DebugMode. Pro záznam konzole lze před novým pokusem zadat `con_logfile "shai-console.log"`; záznam vypnout přes `con_logfile ""`. Hledat log v adresáři `game/dota` instalace Doty. Nepřítomnost zpráv sama o sobě nerozlišuje chybu hostování od chyby při načítání Lua.
 
 První podporovaný testovací režim je All Pick, následně Turbo. Ostatní zděděné režimy nebyly pro SHAI ověřeny. Herní logika hrdinů je zatím původní OHA; nová jména a pool neznamenají hotová vylepšení AI.
 
@@ -48,4 +57,4 @@ npm.cmd install --prefix .tools/lua --no-package-lock --ignore-scripts fengari-n
 .\.tools\lua\node_modules\.bin\fengari.cmd -e "local ok, err = pcall(dofile, 'tests/shai-selection.test.lua'); if not ok then print(err); os.exit(1) end"
 ```
 
-Kontrola ověřuje omezený pool, kompletní drafty, duplicity mezi týmy, lidského hrdinu mimo pool, malé pooly a vyčerpání přes bany. Nenahrazuje test v Dotě.
+Kontrola ověřuje omezený pool, kompletní drafty, role a časování výběru, duplicity mezi týmy, lidského hrdinu mimo pool, malé pooly a vyčerpání přes bany. Nenahrazuje test v Dotě.

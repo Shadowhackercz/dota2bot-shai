@@ -72,7 +72,12 @@ end
 -- Override the print function
 local orig_print = print
 function print(...)
-    if not Utils.DebugMode then return end
+    local first = select(1, ...)
+    local important = type(first) == 'string' and
+        (string.find(first, '[SHAI]', 1, true) == 1
+        or string.find(first, '[WARN]', 1, true) == 1
+        or string.find(first, '[ERROR]', 1, true) == 1)
+    if not Utils.DebugMode and not important then return end
 
     local args = {...}
     for i, v in ipairs(args) do

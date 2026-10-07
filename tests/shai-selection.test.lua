@@ -23,7 +23,12 @@ end
 local restricted = SHAI.FilterHeroPositions(positions)
 for hero in pairs(restricted) do assert(SHAI.IsHeroEnabled(hero)) end
 assert(not restricted.npc_dota_hero_pudge)
-for role = 1, 5 do assert(#SHAI.GetRolePool(restricted, role) > 0) end
+for role = 1, 5 do
+    local pool = SHAI.GetRolePool(restricted, role)
+    assert(#pool == 3)
+    for _, hero in ipairs(pool) do assert(hero == SHAI.RolePools[role][1]
+        or hero == SHAI.RolePools[role][2] or hero == SHAI.RolePools[role][3]) end
+end
 local tiny = { npc_dota_hero_axe = {0, 0, 80, 0, 0} }
 assert(#SHAI.GetRolePool(tiny, 3) == 1)
 assert(SHAI.GetRolePool(tiny, 5)[1] == 'npc_dota_hero_axe')
@@ -70,7 +75,7 @@ local customize = {Enable = true, Ban = {}, Radiant_Names = {}, Dire_Names = {},
     Radiant_Heros = {'npc_dota_hero_pudge'}, Dire_Heros = {}, Allow_Repeated_Heroes = false}
 package.loaded['bots/FunLib/custom_loader'] = customize
 
-local selected, human = {}, {}
+local selected, human, pickedAt = {}, {}, {}
 GetTeamPlayers = function(team)
     return team == 2 and {0,1,2,3,4} or {5,6,7,8,9}
 end
@@ -84,18 +89,27 @@ SelectHero = function(id, hero)
         assert(picked ~= hero or other == id or mode == GAMEMODE_1V1MID, 'Duplicate hero')
     end
     selected[id] = hero
+    pickedAt[id] = now
 end
 local originalPrint = print
 print = function() end -- Upstream draft diagnostics are noisy.
 local function draft(team)
     currentTeam = team
+    local started = now
     dofile('bots/hero_selection.lua')
-    for _ = 1, 15 do now = now + 10; Think() end
+    for _ = 1, 32 do now = now + 0.25; Think() end
+    for _, id in ipairs(GetTeamPlayers(team)) do
+        if selected[id] and not human[id] then assert(pickedAt[id] - started <= 6) end
+    end
 end
 for _ = 1, 25 do
     selected, human = {}, {}
     draft(2); draft(3)
     for id = 0, 9 do assert(selected[id], 'Unfilled bot slot') end
+    for id = 0, 9 do
+        local role = id % 5 + 1
+        assert(contains(SHAI.RolePools[role], selected[id]), 'Bot assigned to wrong role pool')
+    end
 end
 -- Human remains outside the pool and consumes a slot, not a bot whitelist entry.
 selected, human = {[0] = 'npc_dota_hero_pudge'}, {[0] = true}
