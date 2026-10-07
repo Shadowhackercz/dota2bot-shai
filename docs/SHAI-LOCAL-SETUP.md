@@ -44,7 +44,7 @@ Po spuštění botího draftu jsou jednotlivé výběry rozestoupené přibližn
 
 Po načtení výběru hrdinů skript vypisuje do herní konzole zprávy začínající `[SHAI]`, včetně počtu povolených hrdinů a jednotlivých výběrů. Tyto zprávy a prefixy `[WARN]` / `[ERROR]` se zobrazují i bez zapnutého DebugMode. Pro záznam konzole lze před novým pokusem zadat `con_logfile "shai-console.log"`; záznam vypnout přes `con_logfile ""`. Hledat log v adresáři `game/dota` instalace Doty. Nepřítomnost zpráv sama o sobě nerozlišuje chybu hostování od chyby při načítání Lua.
 
-První podporovaný testovací režim je All Pick, následně Turbo. Ostatní zděděné režimy nebyly pro SHAI ověřeny. Herní logika hrdinů je zatím původní OHA; nová jména a pool neznamenají hotová vylepšení AI.
+První podporovaný testovací režim je All Pick, následně Turbo. Ostatní zděděné režimy nebyly pro SHAI ověřeny. Většina herní logiky je převzatá z OHA; konkrétní opravy SHAI eviduje audit níže. Nová jména a pool neznamenají hotová vylepšení AI.
 
 SHAI nepoužívá smoke před časem 0:00. Původní OHA jej používalo automaticky v poslední minutě před začátkem bez koordinovaného plánu. Pozdější pravidla pro použití smoke zatím zůstávají zděděná.
 
@@ -60,3 +60,5 @@ npm.cmd install --prefix .tools/lua --no-package-lock --ignore-scripts fengari-n
 ```
 
 Kontrola ověřuje omezený pool, kompletní drafty, role a časování výběru, duplicity mezi týmy, lidského hrdinu mimo pool, malé pooly a vyčerpání přes bany. Nenahrazuje test v Dotě.
+
+Všechny kontroly draftu i rozhodování nyní spouští `.\tools\Test-SHAI.ps1`. Přehled skutečně ověřených oprav a zbývajících herních testů je v [SHAI-BEHAVIOR-AUDIT.md](SHAI-BEHAVIOR-AUDIT.md).

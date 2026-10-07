@@ -63,3 +63,5 @@ Místní Dota je propojena junctionem s projektovým `bots/`. Uživatel potvrdil
 Regresní test `tests/shai-roshan.test.lua` spouští skutečný Roshan mód se simulovaným stavem hry: ztráta DPS, nízké zdraví, okolní nepřítel, početní nevýhoda, iluze a dokončení Roshana. Běží přes Fengari, nikoli v herním Lua VM. Původní odhad DPS a mapových podmínek zůstává přibližný a tato změna nepotvrzuje, že je rozhodování o Roshanovi již kompletně správné.
 
 Další herní ověření: celý All Pick zápas, zejména zda raněný bot přestane upřednostňovat Roshana a zda tým ruší objektiv po ztrátě poškození. Pro ladění jednotlivých hrdinů začít s Wraith Kingem, Zeusem, Axem, Lionem a Crystal Maiden. Zbývající kandidáti zachovávají variabilitu draftu. Potom cíleně řešit linku, ústup a schopnosti; neslibovat kvalitnější všech 15 hrdinů jen na základě společných oprav.
+
+Následující audit a opravy: [SHAI-BEHAVIOR-AUDIT.md](SHAI-BEHAVIOR-AUDIT.md). Opraveny rezervace many a ústup Wraith Kinga, přerušování mimo dosah u WK/Liona a přepisování bezpečnostních limitů při pushování. Všechny regresní testy spouští `tools/Test-SHAI.ps1`; herní porovnání celých zápasů zůstává otevřené.

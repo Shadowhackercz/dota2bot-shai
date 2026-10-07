@@ -1,10 +1,12 @@
 # SHAI - Dota 2 Bot Scripts
 
 Development fork of [Open Hyper AI](https://github.com/forest0xia/dota2bot-OpenHyperAI).
-SHAI currently restricts bot picks to 15 focus heroes and uses the `.SHAI` name suffix.
+SHAI currently restricts bot picks to 15 focus heroes and uses short randomized names such as `SHAI.Nova`.
 Human picks remain unrestricted. Hero logic is inherited and has not yet been polished.
 
 See [local setup](docs/SHAI-LOCAL-SETUP.md) and [project plan](docs/PLAN-VLASTNI-BOTI.md).
+
+See the [behavior audit](docs/SHAI-BEHAVIOR-AUDIT.md) for verified decision fixes and remaining in-game checks. Run `tools/Test-SHAI.ps1` for the offline regression suite.
 Initial development targets **All Pick in a Local Host lobby**; Turbo is a secondary target.
 The inherited upstream description below is retained for reference, not a SHAI quality claim.
 

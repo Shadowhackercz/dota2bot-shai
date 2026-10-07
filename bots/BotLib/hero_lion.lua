@@ -535,6 +535,7 @@ function X.ConsiderW()
 			and J.CanCastOnNonMagicImmune( npcEnemy )
 		then
 			if npcEnemy:IsChanneling()
+				and J.IsInRange(bot, npcEnemy, nCastRange)
 			then
 				if talent8:IsTrained()
 				then

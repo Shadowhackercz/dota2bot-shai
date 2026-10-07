@@ -212,7 +212,7 @@ function ____exports.GetPushDesireHelper(bot, lane)
         return BOT_MODE_DESIRE_EXTRA_LOW
     end
     if jmz.IsDefending(bot) and nModeDesire >= 0.8 then
-        nMaxDesire = 0.75
+        nMaxDesire = math.min(nMaxDesire, 0.75)
     end
     local human, humanPing = jmz.GetHumanPing()
     if human ~= nil and humanPing ~= nil and not humanPing.normal_ping and DotaTime() > 0 then
@@ -223,7 +223,7 @@ function ____exports.GetPushDesireHelper(bot, lane)
             5
         )
         if isPinged and lane == pingedLane and GameTime() < humanPing.time + pingTimeDelta then
-            return 0.9
+            return math.min(0.9, nMaxDesire)
         end
     end
     if hEnemyAncient and hEnemyAncient ~= nil then
@@ -241,7 +241,7 @@ function ____exports.GetPushDesireHelper(bot, lane)
     local nEffAlliesNearAncient = #jmz.GetAlliesNearLoc(teamAncientLoc, 4500) + #jmz.Utils.GetAllyIdsInTpToLocation(teamAncientLoc, 4500)
     local nEnemiesAroundAncient = jmz.GetEnemiesAroundLoc(teamAncientLoc, 4500)
     if nEnemiesAroundAncient > 0 and nEffAlliesNearAncient < 1 then
-        nMaxDesire = 0.65
+        nMaxDesire = math.min(nMaxDesire, 0.65)
     end
     local networthAdvantage = gameState.teamNetworth - gameState.enemyNetworth
     local enemyAverageLevel = jmz.GetAverageLevel(true)

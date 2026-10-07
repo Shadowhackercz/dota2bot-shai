@@ -173,7 +173,9 @@ function GetDesireHelper()
         and bot:GetLevel() >= 6
     then
         local abilityR = bot:GetAbilityByName("skeleton_king_reincarnation")
-        if abilityR:GetCooldownTimeRemaining() <= 1.0 and bot:GetMana() >= 160 then
+        if abilityR ~= nil and abilityR:GetLevel() > 0
+            and abilityR:GetCooldownTimeRemaining() <= 1.0
+            and bot:GetMana() >= abilityR:GetManaCost() then
             return BOT_MODE_DESIRE_NONE
         end
     end
@@ -395,7 +397,7 @@ function GetDesireHelper()
     -- nDesire = nDesire + X.GetUnitDesire(1200) -- (left commented as original)
     nDesire = nDesire + X.RetreatWhenTowerTargetedDesire()
 
-    return Min(nDesire, 1.0)
+    return Clamp(nDesire, 0, 1.0)
 end
 
 function X.LowChanceToRun()

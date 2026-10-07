@@ -237,6 +237,7 @@ function X.ConsiderQ()
 			and J.CanCastOnTargetAdvanced( npcEnemy )
 		then
 			if npcEnemy:IsChanneling()
+				and J.IsInRange(bot, npcEnemy, abilityQ:GetCastRange())
 			then
 				return BOT_ACTION_DESIRE_HIGH, npcEnemy
 			end
@@ -472,6 +473,7 @@ function X.ShouldSaveMana( nAbility )
 	if nLV >= 6
 	and nAbility ~= nil
 	and abilityR ~= nil
+	and abilityR:GetLevel() > 0
 	and abilityR:GetCooldownTimeRemaining() <= 3.0
 	and ( bot:GetMana() - nAbility:GetManaCost() < abilityR:GetManaCost() )
 	then

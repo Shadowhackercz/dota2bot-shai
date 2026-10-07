@@ -361,7 +361,7 @@ export function GetPushDesireHelper(bot: Unit, lane: Lane): BotModeDesire {
 
     // If we are actively defending, cap the max desire slightly lower
     if (jmz.IsDefending(bot) && nModeDesire >= 0.8) {
-        nMaxDesire = 0.75;
+        nMaxDesire = math.min(nMaxDesire, 0.75);
     }
 
     // Respect allied "attack here" human ping on a tower if it matches lane
@@ -369,7 +369,7 @@ export function GetPushDesireHelper(bot: Unit, lane: Lane): BotModeDesire {
     if (human !== null && humanPing !== null && !humanPing.normal_ping && DotaTime() > 0) {
         const [isPinged, pingedLane] = jmz.IsPingCloseToValidTower(GetOpposingTeam(), humanPing, 700, 5.0);
         if (isPinged && lane === pingedLane && GameTime() < humanPing.time + pingTimeDelta) {
-            return 0.9 as BotModeDesire;
+            return math.min(0.9, nMaxDesire) as BotModeDesire;
         }
     }
 
@@ -398,7 +398,7 @@ export function GetPushDesireHelper(bot: Unit, lane: Lane): BotModeDesire {
     const nEffAlliesNearAncient = jmz.GetAlliesNearLoc(teamAncientLoc, 4500).length + jmz.Utils.GetAllyIdsInTpToLocation(teamAncientLoc, 4500).length;
     const nEnemiesAroundAncient = jmz.GetEnemiesAroundLoc(teamAncientLoc, 4500);
     if (nEnemiesAroundAncient > 0 && nEffAlliesNearAncient < 1) {
-        nMaxDesire = 0.65;
+        nMaxDesire = math.min(nMaxDesire, 0.65);
     }
 
     // Enhanced local threat assessment - consider team advantages
