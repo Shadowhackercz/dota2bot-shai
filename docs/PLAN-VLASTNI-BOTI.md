@@ -16,7 +16,7 @@ Datum: 7. 10. 2026.
 - Výchozí commit: `cb814c6c8dc51ed08045d6efd9f4a48147992711`.
 - Vývojová větev: `codex/script-foundation`.
 - `origin`: https://github.com/Shadowhackercz/dota2bot-shai.git
-- Zdrojové botí soubory zatím bez změn. Průzkum zůstává v `docs/PRUZKUM-DOTA2-BOTI.md`.
+- První úpravy: název SHAI, uzavřený pool 15 hrdinů, omezený draft a helper pro místní instalaci. Podrobnosti v `docs/SHAI-LOCAL-SETUP.md`.
 
 ## Spolupráce týmu a člověka
 
@@ -49,4 +49,4 @@ Konkrétní syntaxe a délky časovačů jsou návrh, nikoli již implementovan�
 4. Zavést malý, testovatelný týmový protokol; poté napojovat jednotlivé módy.
 5. Ověřovat proti původní verzi, s prohozenými stranami a bez bonusů obtížnosti.
 
-Tento dokument zaznamenává směr projektu. Herní logika ani integrace do instalace Doty nebyly v přípravné fázi měněny.
+Místní Dota je propojena junctionem s projektovým `bots/`. Samostatné testy draftu prošly; načtení a chování v rozehraném zápase zatím musí ověřit první herní test. Logika schopností jednotlivých hrdinů zatím zůstává převzatá z OHA.

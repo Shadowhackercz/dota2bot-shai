@@ -69,3 +69,4 @@ game/Customize
 
 # Local research downloads and source snapshots
 .research/
+.tools/

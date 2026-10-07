@@ -38,9 +38,11 @@ local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
 local HeroPositionMap = require( GetScriptDirectory()..'/FunLib/aba_hero_pos_weights' )
 local heroUnitNames = require( GetScriptDirectory()..'/FretBots/HeroNames')
 local Customize = require(GetScriptDirectory()..'/FunLib/custom_loader')
+local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local okMatchupLib, HeroMatchups = pcall(require, GetScriptDirectory()..'/FunLib/aba_matchups')
 if not okMatchupLib then HeroMatchups = nil end
 HeroPositionMap = HeroPositionMap.GetHeroPositions()
+HeroPositionMap = SHAI.FilterHeroPositions(HeroPositionMap)
 
 if GAMEMODE_TURBO == nil then GAMEMODE_TURBO = 23 end
 
@@ -176,6 +178,7 @@ end
 
 -- Build a weighted/screened list for a position, then cut to top-k
 local function GetPositionedPool(heroPosMap, position)
+    if SHAI.HeroPoolEnabled then return SHAI.GetRolePool(heroPosMap, position) end
     local heroList = {}
 	-- Pick from weighted options for the pos first.
     for heroName, roleWeights in pairs(heroPosMap) do
@@ -206,9 +209,14 @@ local function GetPositionedPool(heroPosMap, position)
 		end
     end
 
-	-- In case pool is small (rare), re-merge another pass
+	-- Fill in one bounded pass; a small pool must not recurse indefinitely.
 	if #sortedHeroNames < 6 then
-		sortedHeroNames = Utils.CombineTablesUnique(sortedHeroNames, GetPositionedPool(heroPosMap, position))
+		for _, hero in ipairs(heroList) do
+			if not Utils.HasValue(sortedHeroNames, hero.name) then
+				table.insert(sortedHeroNames, hero.name)
+			end
+			if #sortedHeroNames >= 6 then break end
+		end
 	end
     return sortedHeroNames
 end
@@ -420,7 +428,9 @@ end
 
 local function AlreadyPickedOnTeam(sHero)
 	for id = 0, 20 do
-		if IsTeamPlayer(id) and GetSelectedHeroName(id) == sHero then
+		-- Standard drafts share unique heroes across teams; 1v1 may mirror.
+		if GetSelectedHeroName(id) == sHero
+		and (GetGameMode() ~= GAMEMODE_1V1MID or GetTeamForPlayer(id) == GetTeam()) then
 			return true
 		end
 	end
@@ -436,6 +446,7 @@ end
 -- Single source of truth whether a hero can be picked *right now* by this team
 function X.CanPickHero(team, sHero)
 	if not sHero then return false end
+	if not SHAI.IsHeroEnabled(sHero) then return false end
 
 	-- Bans always block
 	if X.IsBannedHero(sHero) then return false end
@@ -469,7 +480,7 @@ end
 function X.GetNotRepeatHero(nTable)
 	if type(nTable) ~= "table" or #nTable == 0 then return nil end
 	local pick = X.GetRandomAvailableHero(GetTeam(), nTable)
-	return pick or nTable[1]
+	return pick
 end
 
 -- Kept for compatibility when code checks "repeatness" only
@@ -700,8 +711,10 @@ local function PickHeroForBotSlot(i, id)
 
 	-- Final safety: ensure policy still holds (e.g., late ban added)
 	if not X.CanPickHero(team, pick) then
-		pick = X.GetRandomAvailableHero(team, rolePool) or preselect
+		pick = X.GetRandomAvailableHero(team, rolePool)
+		    or X.GetRandomAvailableHero(team, SupportedHeroes)
 	end
+	if not X.CanPickHero(team, pick) then return nil end
 
 	-- Update per-team weak count if needed
 	if Utils.HasValue(WeakHeroes, pick) then
@@ -729,6 +742,7 @@ local function AllPickHeros()
 		and GameTime() >= (PickSchedule.NextPickAt[i] or math.huge)
 		then
 			local finalPick = PickHeroForBotSlot(i, id)
+			if finalPick == nil then return end -- All enabled heroes may be banned/taken.
 			SelectHero(id, finalPick)
 
 			-- Mark this slot as done so it won’t pick again
@@ -1084,9 +1098,13 @@ function OneVsOneLogic()
 		if not oboselect and IsPlayerBot(i) and IsPlayerInHeroSelectionControl(i) and GetSelectedHeroName(i) == "" then
 			if Utils.IsHumanPlayerInAnyTeam() then
 				hero = GetSelectedHumanHero(GetOpposingTeam());
+				if not X.CanPickHero(GetTeam(), hero) then
+					hero = X.GetRandomAvailableHero(GetTeam(), tSelectPoolList[2])
+					    or X.GetRandomAvailableHero(GetTeam(), SupportedHeroes)
+				end
 			else
 				hero = X.GetRandomAvailableHero(GetTeam(), tSelectPoolList[2])
-				     or sSelectList[2]
+				     or X.GetRandomAvailableHero(GetTeam(), SupportedHeroes)
 			end
 			if hero ~= nil then
 				SelectHero(i, hero);
@@ -1102,7 +1120,9 @@ function OneVsOneLogic()
 			if X.CanPickHero(GetTeam(), tech) then
 				SelectHero(i, tech);
 			else
-				local fallback = X.GetRandomAvailableHero(GetTeam(), tSelectPoolList[2]) or sSelectList[2]
+				local fallback = X.GetRandomAvailableHero(GetTeam(), tSelectPoolList[2])
+				    or X.GetRandomAvailableHero(GetTeam(), SupportedHeroes)
+				if fallback == nil then return end
 				SelectHero(i, fallback)
 				if Utils.HasValue(WeakHeroes, fallback) then
 					WeakHeroCount[GetTeam()] = WeakHeroCount[GetTeam()] + 1
