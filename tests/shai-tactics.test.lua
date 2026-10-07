@@ -4,6 +4,7 @@ GetScriptDirectory = function() return 'bots' end
 BOT_MODE_DESIRE_NONE, BOT_MODE_DESIRE_HIGH, BOT_MODE_DESIRE_ABSOLUTE = 0, 0.7, 1
 BOT_MODE_DESIRE_VERYHIGH, BOT_MODE_DESIRE_MODERATE = 0.8, 0.5
 BOT_MODE_NONE, BOT_MODE_ROSHAN, BOT_MODE_ITEM, BOT_MODE_EVASIVE_MANEUVERS = 0, 1, 2, 3
+BOT_MODE_RETREAT = 20
 UNIT_LIST_ALL, TEAM_NEUTRAL, TEAM_NONE = 0, 4, 5
 GetTeam, GetOpposingTeam = function() return 2 end, function() return 3 end
 DotaTime, GameTime = function() return 1200 end, function() return 1200 end
@@ -11,13 +12,14 @@ Clamp = function(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 Min = math.min
 RemapValClamped = function(v, a, b, lo, hi) return lo + Clamp((v-a)/(b-a), 0, 1)*(hi-lo) end
 GetUnitList, GetDroppedItemList, GetTeamPlayers = function() return {} end, function() return {} end, function() return {} end
-local state = {hp = 0.6, fountain = true, fight = true, rLevel = 0, rCost = 100, mana = 250}
+local state = {hp = 0.6, fountain = true, fight = true, rLevel = 0, rCost = 100, mana = 250, time=1200}
+DotaTime = function() return state.time end
 local ultimate = {}
 function ultimate:GetLevel() return state.rLevel end
 function ultimate:GetCooldownTimeRemaining() return 0 end
 function ultimate:GetManaCost() return state.rCost end
 local bot = {}
-function bot:GetActiveMode() return BOT_MODE_NONE end
+function bot:GetActiveMode() return state.mode or BOT_MODE_NONE end
 function bot:GetActiveModeDesire() return 0.9 end
 function bot:IsAlive() return true end
 function bot:GetUnitName() return 'npc_dota_hero_skeleton_king' end
@@ -33,7 +35,7 @@ function bot:GetHealthRegen() return 0 end
 function bot:GetManaRegen() return 0 end
 function bot:GetMana() return state.mana end
 function bot:GetMaxMana() return 500 end
-function bot:GetAbilityByName() return ultimate end
+function bot:GetAbilityByName(name) return name == 'skeleton_king_reincarnation' and ultimate or nil end
 function bot:DistanceFromFountain() return 5000 end
 function bot:WasRecentlyDamagedByAnyHero() return false end
 function bot:GetAssignedLane() return 2 end
@@ -70,6 +72,30 @@ state.rLevel, state.hp, state.fountain, state.fight = 0, 1, false, false
 retreat.ShouldRun, retreat.ConsiderCompleteItem, retreat.RetreatWhenTowerTargetedDesire = function() return 0 end,
     function() return 0 end, function() return 0 end
 assert(GetDesireHelper() == 0, 'Safe healthy bot must not return negative retreat desire')
+
+-- Real ordinary retreat calculation: a disappearing nearby threat must not
+-- instantly turn the bot around; special exclusions and new danger stay immediate.
+local threat = {GetTeam=function() return 3 end, HasModifier=no,
+    GetUnitName=function() return 'npc_dota_hero_axe' end}
+GetUnitList = function() return state.threat and {threat} or {} end
+GetUnitToUnitDistance = function() return 900 end
+J.IsValid, J.IsValidHero = function(unit) return unit ~= nil end, function(unit) return unit ~= nil end
+J.IsSuspiciousIllusion, J.IsMeepoClone, J.IsInRange = no, no, no
+J.IsInLaningPhase = no
+J.WeAreStronger = function() return not state.threat end
+state.mode, state.hp, state.threat = BOT_MODE_RETREAT, 0.45, true
+local heldRetreat = GetDesire()
+assert(heldRetreat >= 0.65)
+state.time, state.hp, state.threat = 1200.3, 1, false
+assert(GetDesire() == heldRetreat, 'Real retreat must survive a brief threat drop')
+state.time = 1201
+assert(GetDesire() == 0, 'Real retreat must release after calm persists')
+state.time, state.hp, state.threat = 1202, 0.45, true
+assert(GetDesire() >= 0.65)
+state.time, state.mode = 1202.1, BOT_MODE_EVASIVE_MANEUVERS
+assert(GetDesire() == 0, 'Special mode exclusion must bypass held retreat immediately')
+state.time, state.mode, state.hp, state.threat = 1203, BOT_MODE_NONE, 1, false
+assert(GetDesire() == 0, 'Special exclusion must clear retreat memory')
 
 -- Push caps must survive defense and allied attack pings.
 local enums = {Lane = {Top=1, Mid=2, Bot=3}, Team = {Radiant=2},

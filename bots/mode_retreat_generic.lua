@@ -2,6 +2,9 @@ local X = {}
 
 local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
 local Customize = require(GetScriptDirectory()..'/Customize/general')
+local Stability = require(GetScriptDirectory()..'/FunLib/shai_decision_stability')
+local stabilizeRetreat = Stability.NewRetreatGuard()
+local ordinaryRetreat = false
 
 local bot = GetBot()
 
@@ -121,9 +124,10 @@ function GetDesire()
     -- local cacheKey = 'GetRetreatDesire'..tostring(bot:GetPlayerID())
     -- local cachedVar = J.Utils.GetCachedVars(cacheKey, 0.35 * (1 + Customize.ThinkLess))
     -- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
+    ordinaryRetreat = false
     local res = GetDesireHelper()
     -- J.Utils.SetCachedVars(cacheKey, res)
-    return res
+    return stabilizeRetreat(res, DotaTime(), botActiveMode == BOT_MODE_RETREAT, ordinaryRetreat)
 end
 
 function GetDesireHelper()
@@ -397,6 +401,7 @@ function GetDesireHelper()
     -- nDesire = nDesire + X.GetUnitDesire(1200) -- (left commented as original)
     nDesire = nDesire + X.RetreatWhenTowerTargetedDesire()
 
+    ordinaryRetreat = true
     return Clamp(nDesire, 0, 1.0)
 end
 

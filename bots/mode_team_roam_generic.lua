@@ -8,6 +8,7 @@ local Localization = require(GetScriptDirectory()..'/FunLib/localization')
 local Customize = require(GetScriptDirectory()..'/Customize/general')
 Customize.ThinkLess = Customize.Enable and Customize.ThinkLess or 1
 local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
+local Stability = require(GetScriptDirectory()..'/FunLib/shai_decision_stability')
 local Item = require(GetScriptDirectory()..'/FunLib/aba_item')
 local Roles = require(GetScriptDirectory()..'/FunLib/aba_role')
 local AttackSpecialUnit = dofile(GetScriptDirectory()..'/FunLib/aba_special_units')
@@ -47,18 +48,14 @@ local IsAvoidingAbilityZone = false
 local hTargetCreep = nil
 
 -- Target stickiness + desire clamp
-local TARGET_LOCK_SEC = 1.2
 local targetLockUntil = -90
 
 local function SetStickyTarget(t)
-    if t == nil then return end
-    -- Don't switch targets too fast
-    if targetUnit ~= nil and targetUnit ~= t and DotaTime() < targetLockUntil then
-        return
-    end
-    targetUnit = t
-    bot:SetTarget(t)
-    targetLockUntil = DotaTime() + TARGET_LOCK_SEC
+    targetUnit, targetLockUntil = Stability.SelectTarget(targetUnit, t, targetLockUntil, DotaTime(), function(unit)
+        return J.IsValidHero(unit) and J.CanBeAttacked(unit)
+            and GetUnitToUnitDistance(bot, unit) <= 1800
+    end)
+    if targetUnit ~= nil then bot:SetTarget(targetUnit) end
 end
 
 local function CapForLanePush(desire)
@@ -111,7 +108,6 @@ function GetDesireHelper()
     target, ShouldHelpWhenCoreIsTargeted = X.ConsiderHelpWhenCoreIsTargeted()
     if ShouldHelpWhenCoreIsTargeted then
         SetStickyTarget(target)
-        targetUnit = target
         return RemapValClamped(J.GetHP(bot), 0, 0.5, BOT_MODE_DESIRE_NONE, 0.98)
     end
 
@@ -121,7 +117,6 @@ function GetDesireHelper()
     target, ShouldHelpAlly = ConsiderHelpAlly()
     if ShouldHelpAlly then
         SetStickyTarget(target)
-        targetUnit = target
         return RemapValClamped(J.GetHP(bot), 0, 0.6, BOT_MODE_DESIRE_NONE, 0.98)
     end
 
@@ -284,6 +279,7 @@ end
 function OnStart() end
 
 function OnEnd()
+    targetUnit, targetLockUntil = nil, -90
     towerTime = 0
     towerCreepMode = false
     PickedItem = nil
