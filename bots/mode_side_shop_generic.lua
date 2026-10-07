@@ -18,7 +18,6 @@ if bot.tormentor_kill_time == nil then bot.tormentor_kill_time = 0 end
 
 local nCoreCountInLoc = 0
 local nSuppCountInLoc = 0
-local bHumanInTeam = false
 
 function GetDesire()
 	-- local cacheKey = 'GetSideShopDesire'..tostring(bot:GetPlayerID())
@@ -29,6 +28,10 @@ function GetDesire()
 	return res
 end
 function GetDesireHelper()
+	if not bot:IsAlive() then return BOT_MODE_DESIRE_NONE end
+	nCoreCountInLoc, nSuppCountInLoc = 0, 0
+	canDoTormentor = false
+	bot.tormentor_team_healthy = false
 	-- 如果在打高地 就别撤退去干别的
 	if J.Utils.IsTeamPushingSecondTierOrHighGround(bot) then
 		return BOT_MODE_DESIRE_NONE
@@ -62,7 +65,7 @@ function GetDesireHelper()
     local nAliveAlly = 0
 
     local nTormentorSpawnInterval = J.IsModeTurbo() and 5 or 10
-    local nTormentorSpawnTime = J.IsModeTurbo() and 10 or 20
+    local nTormentorSpawnTime = J.IsModeTurbo() and 7.5 or 15
 
     local nHumanCountInLoc = 0
     local nAttackingTormentorCount = 0
@@ -111,10 +114,6 @@ function GetDesireHelper()
                     nAttackingTormentorCount = nAttackingTormentorCount + 1
                 end
 
-                if member.tormentor_team_healthy == nil then member.tormentor_team_healthy = false end
-                if member.tormentor_team_healthy == true then
-                    bot.tormentor_team_healthy = true
-                end
 
                 if J.IsCore(member) then
                     if GetUnitToLocationDistance(member, TormentorLocation) <= 900
@@ -159,9 +158,6 @@ function GetDesireHelper()
                 bot.tormentor_kill_time = member.tormentor_kill_time
             end
 
-            if not member:IsBot() and not bHumanInTeam then
-                bHumanInTeam = true
-            end
         end
     end
 
@@ -236,17 +232,12 @@ function GetDesireHelper()
     and bGoodRightClickDamage
     and nAveCoreLevel >= 13
     and nAveSuppLevel >= 11
-    and (not bHumanInTeam or (bHumanInTeam and X.DidHumanPingedOrAtLocation()))
     and (  (bot.tormentor_kill_time == 0 and nAliveAlly >= 5)
         or (bot.tormentor_kill_time == 0 and nAliveAlly >= 4 and nCoreCountInLoc >= 3 and nSuppCountInLoc >= 1)
         or (bot.tormentor_kill_time > 0 and nAliveAlly >= 3 and J.GetAliveAllyCoreCount() >= 2)
         or (nAttackingTormentorCount >= 2 and nCoreCountInLoc >= 2)
     ) then
-        if bot.tormentor_state == true and bot.tormentor_team_healthy == false and bot == J.GetFirstBotInTeam() then
-            if X.IsTeamHealthy() then
-                bot.tormentor_team_healthy = true
-            end
-        end
+        bot.tormentor_team_healthy = X.IsTeamHealthy()
 
         if bot.tormentor_team_healthy == false then
             return BOT_MODE_DESIRE_NONE
@@ -309,6 +300,7 @@ function Think()
     if bot.tormentor_state == true and not X.IsEnoughAllies(vWaitingLocation, 1600) then
         if X.GetClosestBot() == bot and DotaTime() > fStillAlive + 15.0 then
             if GetUnitToLocationDistance(bot, TormentorLocation) <= 350 then
+                bTormentorAlive = false
                 local nNeutralCreeps = bot:GetNearbyNeutralCreeps(900)
                 for i = #nNeutralCreeps, 1, -1 do
                     if J.IsValid(nNeutralCreeps[i]) and string.find(nNeutralCreeps[i]:GetUnitName(), 'miniboss') then
@@ -445,24 +437,17 @@ end
 local tTeamDamage = {}
 local fThresholdChatTime = 0
 function X.IsGoodRighClickDamage()
-    if bot.tormentor_kill_time > 0 then return true end
+    tTeamDamage = {}
 
     for i = 1, #GetTeamPlayers( GetTeam() ) do
 		local member = GetTeamMember(i)
 		if member ~= nil
         and member:CanBeSeen()
+        and member:IsAlive()
         and J.IsCore(member)
         and not J.DoesUnitHaveTemporaryBuff(member)
         then
-            local memberPosition = J.GetPosition(member)
             local attackDamage = member:GetAttackDamage() * member:GetAttackSpeed()
-            if memberPosition == 1 then
-                attackDamage = attackDamage * 0.50
-            elseif memberPosition == 2 then
-                attackDamage = attackDamage * 0.25
-            elseif memberPosition == 3 then
-                attackDamage = attackDamage * 0.25
-            end
 
             local id = member:GetPlayerID()
 			if tTeamDamage[id] == nil then tTeamDamage[id] = 0 end
@@ -512,3 +497,5 @@ function X.DidHumanPingedOrAtLocation()
 
     return false
 end
+
+return X

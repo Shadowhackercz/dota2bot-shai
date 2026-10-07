@@ -294,13 +294,14 @@ function X.ConsiderQ()
 
 	--对线期的使用
 	if bot:GetActiveMode() == BOT_MODE_LANING
+		or (J.IsInLaningPhase() and bot:WasRecentlyDamagedByAnyHero(2.0))
 	then
-		local hLaneCreepList = bot:GetNearbyLaneCreeps( nCastRange + 50, true )
+		local hLaneCreepList = bot:GetNearbyLaneCreeps( nCastRange, true )
 		for _, creep in pairs( hLaneCreepList )
 		do
 			if J.IsValid( creep )
 				and not creep:HasModifier( "modifier_fountain_glyph" )
-				and J.IsEnemyTargetUnit( creep, 1400 )
+				and (J.IsEnemyTargetUnit(creep, 1400) or bot:WasRecentlyDamagedByAnyHero(2.0))
 				and J.WillKillTarget( creep, nDamage, DAMAGE_TYPE_MAGICAL, nCastPoint )
 			then
 				return BOT_ACTION_DESIRE_HIGH, creep

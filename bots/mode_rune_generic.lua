@@ -106,17 +106,32 @@ function X.CanFightRuneEnemy(enemy, rune)
 	return ourDamage >= theirDamage * 0.8 and J.GetHP(bot) >= 0.5
 end
 
+function X.HasWaterRuneValue(rune, distance)
+	if botHP < 0.9 or botMP < 0.85 or distance <= 250 then return true end
+	if bBottle then
+		local bottle = bot:GetItemInSlot(bot:FindItemSlot('item_bottle'))
+		if bottle and bottle:GetCurrentCharges() < 3 then return true end
+	end
+	local location = GetRuneSpawnLocation(rune)
+	-- Denying the opponent's refill is useful even with full resources.
+	if #RealHeroes(J.GetEnemiesNearLoc(location, 1600)) > 0
+		or #J.GetLastSeenEnemiesNearLoc(location, 1600) > 0 then return true end
+	return false
+end
+
 -- Wisdom rune state
 local radiantWRLocation = Vector(-7948.152344, 768.207825, 256.000000)
 local direWRLocation = Vector(8029.234375, -1125.811768, 256.000000)
 local wisdomRuneSpots = { [TEAM_RADIANT] = radiantWRLocation, [TEAM_DIRE] = direWRLocation }
 local nShrineOfWisdomTime = 0
 local nShrineOfWisdomTeam = TEAM_RADIANT
+local collectingWisdom = false
 
 --------------------------------------------------------------------
 -- GetDesire  (reference structure, with local additions)
 --------------------------------------------------------------------
 function GetDesire()
+	collectingWisdom = false
 	if not bot:IsAlive() then return BOT_MODE_DESIRE_NONE end
 	X.InitRune()
 
@@ -148,6 +163,12 @@ function GetDesire()
 		end
 	end
 
+	-- Critical team tasks take precedence over both river runes and Wisdom.
+	if J.Utils.IsTeamPushingSecondTierOrHighGround(bot)
+		or J.Utils.CountEnemyHeroesNear(GetAncient(GetTeam()):GetLocation(), 3200) >= 1 then
+		return BOT_MODE_DESIRE_NONE
+	end
+
 	-- Wisdom Rune
 	if bot:GetLevel() < 30 then
 		nShrineOfWisdomTime = X.GetCurrentWisdomTime()
@@ -159,12 +180,6 @@ function GetDesire()
 		and bot.rune and bot.rune.wisdom and bot.rune.wisdom[nShrineOfWisdomTime]
 		then
 			local wisdom = bot.rune.wisdom[nShrineOfWisdomTime]
-
-			if DotaTime() < wisdom.time + 3.5 then
-				if not bot:WasRecentlyDamagedByAnyHero(3.0) then
-					return BOT_MODE_DESIRE_ABSOLUTE
-				end
-			end
 
 			local nEnemyTowers = bot:GetNearbyTowers(700, true)
 			local nInRangeEnemy = J.GetEnemiesNearLoc(bot:GetLocation(), 1200)
@@ -180,20 +195,18 @@ function GetDesire()
 				local vLocation = wisdom.spot[nShrineOfWisdomTeam].location
 				if bChecked == false then
 					if bot == X.GetWisdomAlly(vLocation) then
-						return X.GetWisdomDesire(vLocation)
+						local desire = X.GetWisdomDesire(vLocation)
+						collectingWisdom = desire > 0
+						if collectingWisdom and not wisdom.spot[nShrineOfWisdomTeam].announced then
+							print('[SHAI] wisdom team='..tostring(GetTeam())..'; hero='..bot:GetUnitName()
+								..'; cycle='..tostring(nShrineOfWisdomTime)..'; x='..tostring(vLocation.x)..'; y='..tostring(vLocation.y))
+							wisdom.spot[nShrineOfWisdomTeam].announced = true
+						end
+						return desire
 					end
 				end
 			end
 		end
-	end
-
-	-- Don't leave high ground push or ancient defense for runes (local addition)
-	if J.Utils.IsTeamPushingSecondTierOrHighGround(bot) then
-		return BOT_MODE_DESIRE_NONE
-	end
-	local enemiesAtAncient = J.Utils.CountEnemyHeroesNear(GetAncient(GetTeam()):GetLocation(), 3200)
-	if enemiesAtAncient >= 1 then
-		return BOT_MODE_DESIRE_NONE
 	end
 
 	-- Core rune logic using bot.rune state (reference pattern)
@@ -257,6 +270,7 @@ function GetDesire()
 					if nRuneType == RUNE_WATER and (bBottle or botHP < 0.6 or botMP < 0.5) then
 						return X.GetRiverDesire(BOT_MODE_DESIRE_HIGH, rune.distance, 3200)
 					elseif nRuneType == RUNE_WATER and not bBottle then
+						if not X.HasWaterRuneValue(rune.location, rune.distance) then return BOT_MODE_DESIRE_NONE end
 						return X.GetRiverDesire(BOT_MODE_DESIRE_MODERATE, rune.distance, nProximityRadius)
 					end
 
@@ -295,6 +309,11 @@ end
 
 function OnEnd()
 	Bottle = nil
+	collectingWisdom = false
+	local wisdom = bot.rune and bot.rune.wisdom and bot.rune.wisdom[nShrineOfWisdomTime]
+	if wisdom then
+		for _, spot in pairs(wisdom.spot) do spot.captureStart = nil end
+	end
 end
 
 --------------------------------------------------------------------
@@ -315,44 +334,25 @@ function Think()
 	end
 
 	-- Wisdom Rune
-	if nShrineOfWisdomTeam and DotaTime() >= 7 * 60
+	if collectingWisdom and nShrineOfWisdomTeam and DotaTime() >= 7 * 60
 	and bot.rune and bot.rune.wisdom and bot.rune.wisdom[nShrineOfWisdomTime]
 	then
 		local wisdom = bot.rune.wisdom[nShrineOfWisdomTime]
 		if wisdom then
 			local vLocation = wisdom.spot[nShrineOfWisdomTeam].location
-			local nInRangeEnemy = J.GetEnemiesNearLoc(vLocation, 1600)
-
-			if wisdom.spot[nShrineOfWisdomTeam].status == false then
-				for _, enemyHero in pairs(nInRangeEnemy) do
-					if J.IsValidHero(enemyHero)
-					and ((not enemyHero:IsBot())
-						or (GetUnitToLocationDistance(enemyHero, vLocation) + 400 < GetUnitToLocationDistance(bot, vLocation)))
-					then
-						wisdom.spot[nShrineOfWisdomTeam].status = true
-					end
+			local spot = wisdom.spot[nShrineOfWisdomTeam]
+			if not spot.status then
+				if GetUnitToLocationDistance(bot, vLocation) < 250
+					and #RealHeroes(J.GetEnemiesNearLoc(vLocation, 300)) == 0 then
+					spot.captureStart = spot.captureStart or DotaTime()
+					if DotaTime() >= spot.captureStart + 3.5 then spot.status = true end
+					bot:Action_ClearActions(false)
+					return
 				end
-
-				if GetUnitToLocationDistance(bot, vLocation) < 250 then
-					if wisdom.spot[nShrineOfWisdomTeam].status == false then
-						wisdom.time = DotaTime()
-					end
-					wisdom.spot[nShrineOfWisdomTeam].status = true
-				end
-
+				spot.captureStart = nil
+				if #RealHeroes(J.GetEnemiesNearLoc(vLocation, 1200)) > 0 then return end
 				bot.rune.location = vLocation
-				bot:Action_MoveDirectly(vLocation)
-				return
-			else
-				nInRangeEnemy = J.GetEnemiesNearLoc(vLocation, 300)
-				if GetUnitToLocationDistance(bot, vLocation) < 300 and #nInRangeEnemy > 0 then
-					wisdom.spot[nShrineOfWisdomTeam].status = false
-					wisdom.time = DotaTime()
-				end
-			end
-
-			if DotaTime() < wisdom.time + 3.5 then
-				bot:Action_ClearActions(false)
+				bot:Action_MoveToLocation(vLocation)
 				return
 			end
 		end
@@ -584,6 +584,9 @@ function X.GetBestRune()
 					if checked and checked >= math.floor(DotaTime() / 120) * 120 and not RiverPreSpawnWindow() then canCheck = false end
 					if RiverPreSpawnWindow() and dist > 600 and HasImmediateLastHit() then canCheck = false end
 				end
+				if IsRiverRune(rune) and ((status == RUNE_STATUS_AVAILABLE and GetRuneType(rune) == RUNE_WATER)
+					or (status ~= RUNE_STATUS_AVAILABLE and DotaTime() < 360))
+					and not X.HasWaterRuneValue(rune, dist) then canCheck = false end
 				-- Mid prioritizes a useful river rune over a slightly closer bounty.
 				local score = dist
 				if IsRiverRune(rune) and botPos == 2 and dist <= 2400 then score = score - 700 end
@@ -859,13 +862,8 @@ function X.UpdateWisdom()
 	end
 end
 
-local nMinuteLast = 0
 function X.GetCurrentWisdomTime()
-	local nMinuteCurr = math.floor(DotaTime() / 60)
-	if nMinuteCurr > nMinuteLast and nMinuteCurr % 7 == 0 then
-		nMinuteLast = nMinuteCurr
-	end
-	return nMinuteLast
+	return math.max(0, math.floor(DotaTime() / 420) * 7)
 end
 
 function X.GetWisdomAlly(vLocation)
@@ -873,7 +871,12 @@ function X.GetWisdomAlly(vLocation)
 	local targetDistance = math.huge
 	for i = 1, 5 do
 		local member = GetTeamMember(i)
-		if J.IsValidHero(member) and not J.IsDoingTormentor(member) then
+		-- A human already controlling the circle has a clear claim; distance
+		-- elsewhere must not silently assign the trip to a human.
+		if J.IsValidHero(member) and member:IsAlive() and not member:IsBot()
+			and GetUnitToLocationDistance(member, vLocation) < 300 then return nil end
+		if J.IsValidHero(member) and member:IsAlive() and member:IsBot()
+		and not J.IsSuspiciousIllusion(member) and not J.IsDoingTormentor(member) then
 			local memberDistance = GetUnitToLocationDistance(member, vLocation)
 			if memberDistance < targetDistance then
 				target = member

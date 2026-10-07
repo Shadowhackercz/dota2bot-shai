@@ -24,9 +24,10 @@ Clamp = function(v,lo,hi) return math.max(lo,math.min(hi,v)) end
 RemapValClamped = function(v,a,b,lo,hi) return lo+Clamp((v-a)/(b-a),0,1)*(hi-lo) end
 local bot, human = {}, {}
 local support = {IsBot=function() return true end}
-function bot:GetLevel() return state.time >= 420 and 30 or 5 end -- isolate normal runes from Wisdom
+function bot:GetLevel() return not state.wisdom and state.time >= 420 and 30 or 5 end
 function bot:GetUnitName() return 'npc_dota_hero_zuus' end
 function bot:FindItemSlot() return state.bottle and 0 or -1 end
+function bot:GetItemInSlot() return {GetCurrentCharges=function() return state.bottleCharges or 2 end} end
 function bot:GetActiveMode() return BOT_MODE_NONE end
 function bot:GetActiveModeDesire() return 0 end
 function bot:GetAssignedLane() return 2 end
@@ -49,6 +50,10 @@ function bot:GetAttackRange() return 600 end
 function bot:GetAttackDamage() return 80 end
 function bot:GetLocation() return {} end
 function bot:GetNearbyCreeps() return {} end
+function bot:GetNearbyTowers() return {} end
+function bot:WasRecentlyDamagedByTower() return false end
+function bot:HasModifier() return false end
+function bot:Action_ClearActions() state.action = 'wait' end
 function bot:GetNearbyLaneCreeps() return state.lastHit and {{}} or {} end
 function bot:GetEstimatedDamageToTarget(_, target, _, damageType)
     assert(target == human, 'Rune fight estimated damage against self')
@@ -63,6 +68,10 @@ GetTeamMember = function(i)
 end
 GetTeamPlayers = function() return state.human and {0,1} or {0} end
 GetUnitToLocationDistance = function(unit,loc)
+    if loc.x ~= nil then
+        if loc.x > 0 then return 5000 end
+        return unit == bot and (state.wisdomDistance or 900) or (state.humanWisdomDistance or 1500)
+    end
     return loc.id==state.rune and (unit==bot and state.distance or (unit==support and 200 or state.humanDistance)) or 5000
 end
 GetAncient = function() return {GetLocation=function() return {} end} end
@@ -82,6 +91,10 @@ J.WillKillTarget = function() return state.lastHit end
 J.GetAttackProDelayTime = function() return 0.3 end
 J.CanNotUseAction = function() return false end
 J.IsLateGame = function() return false end
+J.IsMeepoClone, J.IsDoingTormentor, J.IsRealInvisible, J.IsDefending, J.IsInTeamFight =
+    function() return false end, function() return false end, function() return false end,
+    function() return false end, function() return false end
+GetTower = function() return nil end
 J.GetDistanceFromEnemyFountain = function() return 9000 end
 package.loaded['bots/FunLib/jmz_func'] = J
 package.loaded['bots/Customize/general'] = {Enable=true,ThinkLess=1}
@@ -105,9 +118,9 @@ for _, time in ipairs({121, 241, 361, 481}) do
 end
 setup({rune=RUNE_POWERUP_1, idle=true})
 assert(GetDesire() > 0, 'Idle bot must be able to start rune mode')
-setup({bottle=false, distance=1200})
+setup({bottle=false, distance=1200, hp=0.8})
 assert(GetDesire() > 0.446, 'Healthy no-Bottle mid must prioritize available rune above early laning')
-setup({bottle=false, distance=1200, status=RUNE_STATUS_UNKNOWN, time=110})
+setup({bottle=false, distance=1200, hp=0.8, status=RUNE_STATUS_UNKNOWN, time=110})
 assert(GetDesire() > 0.446, 'Healthy no-Bottle mid must prepare above early laning priority')
 setup({bottle=false, distance=1200, time=361, enemies={human}, humanDistance=600})
 assert(GetDesire() > 0.446, 'No-Bottle mid must prioritize a safe power rune contest')
@@ -115,6 +128,18 @@ setup({bottle=false, distance=1200, enemies={human}, incoming=900})
 assert(GetDesire() == 0, 'No-Bottle priority boost must not bypass lethal contest safety')
 setup({bottle=false, distance=1200, status=RUNE_STATUS_UNKNOWN, time=110, lastHit=true})
 assert(GetDesire() == 0, 'No-Bottle priority boost must preserve immediate pre-spawn last hits')
+setup({bottle=false, distance=1200, lastHit=true})
+assert(GetDesire() == 0, 'Full no-Bottle mid must keep lane income instead of a useless distant water rune')
+setup({bottle=true, bottleCharges=3, distance=1200})
+assert(GetDesire() == 0, 'Full Bottle and full resources do not justify a distant uncontested water rune')
+setup({bottle=false, distance=1200, hp=0.8})
+assert(GetDesire() > 0.446, 'Missing health makes water rune worth rotating for')
+setup({bottle=false, distance=1200, mp=0.7})
+assert(GetDesire() > 0.446, 'Missing mana makes water rune worth rotating for')
+setup({bottle=false, distance=800, enemies={human}, humanDistance=600})
+assert(GetDesire() > 0.446, 'Full mid should still deny an enemy water refill by contesting')
+setup({bottle=false, distance=200})
+assert(GetDesire() > 0, 'Secure a water rune already within a short approach even when full')
 setup({human=true})
 assert(GetDesire() > 0, 'Human merely present on mid must not claim a rune')
 setup({human=true, distance=1700})
@@ -171,4 +196,28 @@ setup({pushing=true})
 assert(GetDesire() == 0, 'Do not abandon high ground push')
 setup({baseThreat=true})
 assert(GetDesire() == 0, 'Defend ancient before runes')
+setup({wisdom=true, time=481, human=true, humanWisdomDistance=600})
+assert(GetDesire() > 0.7, 'Wisdom collector must be a bot even when a closer human is elsewhere')
+assert(bot.rune.wisdom[7] ~= nil, 'Wisdom cycle must work when evaluation first occurs after minute seven')
+state.wisdomDistance = 100
+Think(); assert(state.action == 'wait' and not bot.rune.wisdom[7].spot[TEAM_RADIANT].status)
+state.time = 483
+state.enemies = {human}
+Think(); assert(not bot.rune.wisdom[7].spot[TEAM_RADIANT].status, 'Contested shrine must not be marked collected')
+state.enemies, state.time = {}, 484
+Think()
+state.time = 486
+Think(); assert(not bot.rune.wisdom[7].spot[TEAM_RADIANT].status, 'Capture must restart after contest')
+state.time = 487.6
+Think(); assert(bot.rune.wisdom[7].spot[TEAM_RADIANT].status, 'Remain in the circle through the full uncontested capture')
+setup({wisdom=true, time=841})
+assert(GetDesire() > 0.7 and bot.rune.wisdom[14], 'Wisdom cycle must renew after fourteen minutes')
+state.wisdomDistance = 100
+Think()
+OnEnd()
+assert(bot.rune.wisdom[14].spot[TEAM_RADIANT].captureStart == nil, 'Leaving rune mode must cancel capture memory')
+setup({wisdom=true, time=421, human=true, humanWisdomDistance=100})
+assert(GetDesire() <= 0.7, 'A human inside the shrine circle has a clear claim')
+setup({wisdom=true, time=421, baseThreat=true})
+assert(GetDesire() == 0, 'Wisdom must not override ancient defense')
 originalPrint('PASS: real rune mode pickup, human claims, 1v1 contests, danger, spawn preparation, last hits and scout memory')

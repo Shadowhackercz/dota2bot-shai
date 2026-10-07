@@ -6000,6 +6000,10 @@ function J.GetCurrentRoshanLocation()
 end
 
 function J.GetTormentorLocation(team)
+	-- Prefer the actual visible objective after map-position changes.
+	for _, unit in pairs(GetUnitList(UNIT_LIST_NEUTRAL_CREEPS)) do
+		if J.IsTormentor(unit) then return unit:GetLocation() end
+	end
 	-- 7.41: Tormentor's spawn preference switched (day/night swap)
 	if J.CheckTimeOfDay() == 'day'
 	then
@@ -6010,6 +6014,12 @@ function J.GetTormentorLocation(team)
 end
 
 function J.GetTormentorWaitingLocation(team)
+	for _, unit in pairs(GetUnitList(UNIT_LIST_NEUTRAL_CREEPS)) do
+		if J.IsTormentor(unit) then
+			local waiting = J.GetXUnitsTowardsLocation2(unit:GetLocation(), GetAncient(team):GetLocation(), 1200)
+			if IsLocationPassable(waiting) then return waiting end
+		end
+	end
 	-- 7.41: Tormentor's spawn preference switched (day/night swap)
 	local timeOfday = J.CheckTimeOfDay()
 	if timeOfday == 'day' then
