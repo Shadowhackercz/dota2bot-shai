@@ -6921,6 +6921,8 @@ end
 
 local roshDeathTime = 0
 X.ConsiderItemDesire['item_smoke_of_deceit'] = function(item)
+	-- SHAI has no coordinated pregame invasion plan yet; save smoke for later.
+	if DotaTime() < 0 then return BOT_ACTION_DESIRE_NONE end
 	local nRadius = 1200
 	local sCastType = 'none'
 	local hEffectTarget = nil
@@ -6930,11 +6932,6 @@ X.ConsiderItemDesire['item_smoke_of_deceit'] = function(item)
 	local nInRangeAlly = J.GetAllyList(bot, nRadius)
 	local nInRangeEnemy = J.GetNearbyHeroes(bot,nRadius, true, BOT_MODE_NONE)
 	local nInRangeTower = bot:GetNearbyTowers(nRadius, true)
-
-	if DotaTime() < 0 and DotaTime() > -60
-	then
-		return BOT_ACTION_DESIRE_HIGH, hEffectTarget, sCastType, sCastMotive
-	end
 
 	if (nInRangeEnemy ~= nil and #nInRangeEnemy == 0)
 	or (nInRangeTower ~= nil and #nInRangeTower == 0)

@@ -58,9 +58,20 @@ end
 package.loaded['bots/FunLib/utils'] = utils
 local teamNames = require('bots/FunLib/aba_team_names')
 assert(teamNames.defaultPostfix == 'SHAI')
-for _, namesForTeam in pairs(teamNames.generateTeams({})) do
-    for _, name in ipairs(namesForTeam) do assert(name:match('%.SHAI$')) end
+for _ = 1, 25 do
+    local seen = {}
+    for _, namesForTeam in pairs(teamNames.generateTeams({})) do
+        assert(#namesForTeam == 12)
+        for _, name in ipairs(namesForTeam) do
+            assert(name:match('^SHAI%.[%a]+$') and #name <= 11)
+            assert(not seen[name], 'Duplicate bot name across teams')
+            seen[name] = true
+        end
+    end
 end
+local customNames = teamNames.generateTeams({Radiant = {'MyBot', 'Random'}, Dire = {'SHAI.Nova'}})
+assert(customNames.Radiant[1] == 'MyBot' and customNames.Dire[1] == 'SHAI.Nova')
+for _, name in ipairs(customNames.Radiant) do assert(name ~= 'SHAI.Nova') end
 package.loaded['bots/FunLib/aba_global_overrides'] = {}
 package.loaded['bots/FretBots/matchups_data'] = {}
 package.loaded['bots/FunLib/aba_matchups'] = {}

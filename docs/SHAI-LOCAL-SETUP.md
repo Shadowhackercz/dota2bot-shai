@@ -20,7 +20,7 @@ Pro jinou knihovnu Steam použít parametr `-DotaPath 'D:\SteamLibrary\steamapps
 2. Nastavit server **Local Host**, mód **All Pick**.
 3. Pro **Radiant i Dire** vybrat **Local Dev Script** a doplnit volná místa boty.
 4. Pro výchozí test zvolit obtížnost **Unfair**. Nepřidávat FretBots/Buff ani jejich ekonomické bonusy.
-5. Zahájit zápas. Automaticky generovaná botí jména mají příponu **`.SHAI`**. Vlastní ručně nastavená jména ji mohou vynechat.
+5. Zahájit zápas. Automaticky generovaná botí jména jsou krátká, například **`SHAI.Nova`**, a neopakují se mezi týmy. Vlastní ručně nastavená jména zůstávají zachována.
 
 Steam Workshop položka SHAI zatím není publikovaná. Náš GitHub fork sám nevytvoří novou nabídku ve Workshopu; nyní používáme Local Dev Script.
 
@@ -45,6 +45,8 @@ Po spuštění botího draftu jsou jednotlivé výběry rozestoupené přibližn
 Po načtení výběru hrdinů skript vypisuje do herní konzole zprávy začínající `[SHAI]`, včetně počtu povolených hrdinů a jednotlivých výběrů. Tyto zprávy a prefixy `[WARN]` / `[ERROR]` se zobrazují i bez zapnutého DebugMode. Pro záznam konzole lze před novým pokusem zadat `con_logfile "shai-console.log"`; záznam vypnout přes `con_logfile ""`. Hledat log v adresáři `game/dota` instalace Doty. Nepřítomnost zpráv sama o sobě nerozlišuje chybu hostování od chyby při načítání Lua.
 
 První podporovaný testovací režim je All Pick, následně Turbo. Ostatní zděděné režimy nebyly pro SHAI ověřeny. Herní logika hrdinů je zatím původní OHA; nová jména a pool neznamenají hotová vylepšení AI.
+
+SHAI nepoužívá smoke před časem 0:00. Původní OHA jej používalo automaticky v poslední minutě před začátkem bez koordinovaného plánu. Pozdější pravidla pro použití smoke zatím zůstávají zděděná.
 
 ## Vývoj a ověření
 
