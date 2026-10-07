@@ -214,6 +214,19 @@ function X.SkillsComplement()
 	local aether = J.IsItemAvailable( "item_aether_lens" )
 	if aether ~= nil then aetherRange = 250 end
 --	if talent4:IsTrained() then aetherRange = aetherRange + talent4:GetSpecialValueInt( "value" ) end
+
+	-- Secure an intended hero engagement before drain or a slower damage spell.
+	castWDesire, castWTarget, sMotive = X.ConsiderEngagementHex()
+	if castWDesire > 0 then
+		J.SetReportMotive(bDebugMode, sMotive)
+		J.SetQueuePtToINT(bot, true)
+		if talent8:IsTrained() then
+			bot:ActionQueue_UseAbilityOnLocation(abilityW, castWTarget)
+		else
+			bot:ActionQueue_UseAbilityOnEntity(abilityW, castWTarget)
+		end
+		return
+	end
 	
 
 	castEDesire, castETarget, sMotive = X.ConsiderE()
@@ -271,6 +284,24 @@ function X.SkillsComplement()
 	end
 
 
+end
+
+function X.ConsiderEngagementHex()
+	if not abilityW:IsFullyCastable() or lastCastQTime > DotaTime() - 0.8
+		or J.IsRetreating(bot)
+		or not (J.IsGoingOnSomeone(bot) or J.IsAttacking(bot)) then return 0 end
+	local target = botTarget
+	if not J.IsValidHero(target) then target = bot:GetAttackTarget() end
+	if not J.IsValidHero(target) or target:GetTeam() == bot:GetTeam()
+		or not target:CanBeSeen() or J.IsSuspiciousIllusion(target)
+		or not J.IsInRange(bot, target, abilityW:GetCastRange() + aetherRange)
+		or not J.CanCastOnNonMagicImmune(target)
+		or not (talent8:IsTrained() or J.CanCastOnTargetAdvanced(target))
+		or J.IsDisabled(target) or J.IsTaunted(target) then return 0 end
+	if talent8:IsTrained() then
+		return BOT_ACTION_DESIRE_HIGH, target:GetLocation(), 'W-SHAI-engagement'
+	end
+	return BOT_ACTION_DESIRE_HIGH, target, 'W-SHAI-engagement'
 end
 
 function X.ConsiderStopDrain()

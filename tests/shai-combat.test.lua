@@ -92,6 +92,92 @@ local lion = dofile('bots/BotLib/hero_lion.lua')
 check('Lion must not chase an out of range interrupt', function() assert(lion.ConsiderW() == 0) end)
 state.distance = 550
 check('Lion should interrupt in range', function() assert(lion.ConsiderW() > 0) end)
+-- Actual Lion ability dispatch: ready control must precede offensive drain.
+function bot:IsChanneling() return false end
+function bot:Action_ClearActions() end
+function bot:GetTeam() return 2 end
+function bot:GetAttackTarget() return enemy end
+function enemy:GetTeam() return state.allied and 2 or 3 end
+function enemy:CanBeSeen() return state.visible ~= false end
+J.GetAlliesNearLoc = function() return {} end
+J.IsItemAvailable = function() return nil end
+J.SetReportMotive = function() end
+J.IsAttacking = function() return state.attacking == true end
+J.IsGoingOnSomeone = function() return state.engaging == true end
+J.IsRetreating = function() return state.retreating == true end
+J.IsSuspiciousIllusion = function() return state.illusion == true end
+J.IsDisabled = function() return state.disabled == true end
+J.IsTaunted = no
+J.CanCastOnNonMagicImmune = function() return state.immune ~= true end
+J.CanCastOnTargetAdvanced = function() return state.blocked ~= true end
+J.GetProperTarget = function() return state.properTarget and enemy or nil end
+function bot:ActionQueue_UseAbilityOnEntity(_, target) state.cast = 'entity'; state.castTarget = target end
+function bot:ActionQueue_UseAbilityOnLocation(_, target) state.cast = 'location'; state.castTarget = target end
+-- Other considerations are deliberately eligible, to expose order conflicts.
+lion.ConsiderE = function() state.consideredDrain = true; return 0.8, enemy end
+lion.ConsiderQ, lion.ConsiderR = function() return 0 end, function() return 0 end
+state.engaging, state.properTarget = true, true
+local function lionDecision()
+    state.cast, state.castTarget, state.consideredDrain = nil, nil, false
+    lion.SkillsComplement()
+end
+check('Lion should Hex before eligible Mana Drain on engagement', function()
+    lionDecision(); assert(state.castTarget == enemy and not state.consideredDrain)
+end)
+state.engaging, state.properTarget, state.attacking = false, false, true
+check('Lion should Hex its actual hero attack target outside offensive modes', function()
+    lionDecision(); assert(state.castTarget == enemy and not state.consideredDrain)
+end)
+local function rejectOpening(name, field, value)
+    state[field] = value
+    check(name, function() lionDecision(); assert(state.consideredDrain, 'Opening Hex must yield to remaining spell decisions') end)
+    state[field] = nil
+end
+rejectOpening('Lion must not chase with opening Hex outside cast range', 'distance', 700)
+state.distance = 550
+rejectOpening('Lion must not open Hex on a disabled target', 'disabled', true)
+rejectOpening('Lion must not open Hex on an illusion', 'illusion', true)
+rejectOpening('Lion must not open Hex on an unseen target', 'visible', false)
+rejectOpening('Lion must not open Hex on immune target', 'immune', true)
+rejectOpening('Lion must respect targeted spell protection', 'blocked', true)
+rejectOpening('Lion must not open an engagement while retreating', 'retreating', true)
+rejectOpening('Lion must not Hex an allied target', 'allied', true)
+state.qReady = false
+check('Lion must not open with unavailable Hex', function()
+    lionDecision(); assert(state.consideredDrain)
+end)
+state.qReady = true
+state.attacking = false
+check('Lion must not Hex a hero just because it is nearby', function()
+    lionDecision(); assert(state.consideredDrain)
+end)
+state.attacking = true
+function ability:IsTrained() return state.aoe == true end
+state.aoe = true
+check('Lion AoE Hex talent must use a location action', function()
+    lionDecision(); assert(state.cast == 'location' and not state.consideredDrain)
+end)
+state.aoe = false
+-- Keep the existing short gap after an Impale command; no immediate CC stacking.
+state.attacking = false
+lion.ConsiderE = function() return 0 end
+lion.ConsiderQ = function() return 0.8, {} end
+lionDecision()
+lion.ConsiderQ = function() return 0 end
+lion.ConsiderE = function() state.consideredDrain = true; return 0.8, enemy end
+state.attacking = true
+check('Lion must not immediately stack opening Hex after Impale', function()
+    lionDecision(); assert(state.consideredDrain)
+end)
+DotaTime = function() return 101 end
+check('Lion opening Hex must become eligible after the Impale command gap', function()
+    lionDecision(); assert(not state.consideredDrain)
+end)
+J.CanNotUseAbility = function() return true end
+check('Lion must preserve the existing busy/silenced/queued-action guard', function()
+    lionDecision(); assert(state.cast == nil and not state.consideredDrain)
+end)
+J.CanNotUseAbility = no
 -- Take Aim decisions use the actual Sniper module, independently of other spells.
 Vector = function(x,y,z) return {x=x,y=y,z=z} end
 GetHeightLevel = function() return 0 end
@@ -129,4 +215,4 @@ GetUnitToUnitDistance = function(_, target) return target == closeEnemy and 400 
 check('A second close enemy must prevent Take Aim against a distant target', function() assert(sniper.ConsiderE() == 0) end)
 for _, failure in ipairs(failures) do print('FAIL: '..failure) end
 assert(#failures == 0, tostring(#failures)..' combat regressions failed')
-print('PASS: real Wraith King mana reservation, Wraith King/Lion interrupts and Sniper Take Aim safety')
+print('PASS: real Wraith King mana reservation, interrupts, Lion engagement dispatch and Sniper Take Aim safety')
