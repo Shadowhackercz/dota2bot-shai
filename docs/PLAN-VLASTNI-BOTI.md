@@ -49,4 +49,17 @@ Konkrétní syntaxe a délky časovačů jsou návrh, nikoli již implementovan�
 4. Zavést malý, testovatelný týmový protokol; poté napojovat jednotlivé módy.
 5. Ověřovat proti původní verzi, s prohozenými stranami a bez bonusů obtížnosti.
 
-Místní Dota je propojena junctionem s projektovým `bots/`. Samostatné testy draftu prošly; načtení a chování v rozehraném zápase zatím musí ověřit první herní test. Logika schopností jednotlivých hrdinů zatím zůstává převzatá z OHA.
+Místní Dota je propojena junctionem s projektovým `bots/`. Uživatel potvrdil načtení a začátek zápasu; celý zápas a střední/pozdní fáze zatím nejsou ověřené. Logika schopností jednotlivých hrdinů zatím zůstává převzatá z OHA.
+
+## První opravy rozhodování
+
+- Pool zůstává 15 hrdinů, tři kandidáti pro každou pozici. Další hrdiny zatím nezapínat.
+- Smoke se nepoužívá automaticky před 0:00. Krátká generovaná jména mají formát `SHAI.Nova`.
+- Roshan: kontrola dostatečného poškození se přepočítává při každém vyhodnocení, místo aby jednou dosažená připravenost zůstala trvale zapamatovaná.
+- Iluze se nezapočítávají do seznamu pro tuto kontrolu ani do počtu core hrdinů bez volného místa.
+- Bot pod 40 % zdraví neupřednostňuje Roshan mód. Jde o počáteční konzervativní hranici, kterou je potřeba vyhodnotit ve hře; samotný zákaz módu nezaručuje konkrétní pohyb k léčení.
+- Naléhavost dokončení viditelného Roshana se počítá z podílu jeho zdraví 0–0,5. Dřívější rozsah 0–100 dával téměř maximální naléhavost už při 49 % zdraví.
+
+Regresní test `tests/shai-roshan.test.lua` spouští skutečný Roshan mód se simulovaným stavem hry: ztráta DPS, nízké zdraví, okolní nepřítel, početní nevýhoda, iluze a dokončení Roshana. Běží přes Fengari, nikoli v herním Lua VM. Původní odhad DPS a mapových podmínek zůstává přibližný a tato změna nepotvrzuje, že je rozhodování o Roshanovi již kompletně správné.
+
+Další herní ověření: celý All Pick zápas, zejména zda raněný bot přestane upřednostňovat Roshana a zda tým ruší objektiv po ztrátě poškození. Pro ladění jednotlivých hrdinů začít s Wraith Kingem, Zeusem, Axem, Lionem a Crystal Maiden. Zbývající kandidáti zachovávají variabilitu draftu. Potom cíleně řešit linku, ústup a schopnosti; neslibovat kvalitnější všech 15 hrdinů jen na základě společných oprav.

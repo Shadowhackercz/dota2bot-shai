@@ -1,4 +1,5 @@
 local bot = GetBot()
+if bot == nil then return end
 local botName = bot:GetUnitName();
 if bot == nil or bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
 
@@ -16,7 +17,6 @@ local DoingRoshanMessage = DotaTime()
 
 local sinceRoshAliveTime = 0
 local roshTimeFlag = false
-local initDPSFlag = false
 
 local Roshan
 
@@ -27,6 +27,8 @@ function GetDesire()
 end
 function GetDesireHelper()
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return BOT_MODE_DESIRE_NONE end
+    -- Recover rather than starting or continuing a voluntary objective while wounded.
+    if J.GetHP(bot) < 0.4 then return BOT_MODE_DESIRE_NONE end
     if Roshan == nil then
         local nCreeps = bot:GetNearbyNeutralCreeps(700)
         for _, creepOrRoshan in pairs(nCreeps)
@@ -76,7 +78,7 @@ function GetDesireHelper()
     if J.Utils.IsValidUnit(Roshan) then
         local roshHP = Roshan:GetHealth() / Roshan:GetMaxHealth()
         if roshHP < 0.5 and #lEnemyHeroesAroundLoc == 0 then
-            return RemapValClamped(roshHP, 100, 0, BOT_MODE_DESIRE_MODERATE, BOT_MODE_DESIRE_ABSOLUTE )
+            return RemapValClamped(roshHP, 0.5, 0, BOT_MODE_DESIRE_MODERATE, BOT_MODE_DESIRE_ABSOLUTE )
         end
     end
 
@@ -91,7 +93,7 @@ function GetDesireHelper()
     local nCoreWithNoEmptySlot = 0
     local aliveHeroesList = {}
     for _, h in pairs(GetUnitList(UNIT_LIST_ALLIED_HEROES)) do
-        if h:IsAlive()
+        if h:IsAlive() and not h:IsIllusion()
         then
             if J.Utils.CountBackpackEmptySpace(h) <= 0 and J.IsCore(h) then
                 nCoreWithNoEmptySlot = nCoreWithNoEmptySlot + 1
@@ -120,10 +122,8 @@ function GetDesireHelper()
         end
     end
 
-    if J.HasEnoughDPSForRoshan(aliveHeroesList)
-    then
-        initDPSFlag = true
-    end
+    -- Recompute every evaluation: deaths and lost damage must cancel readiness.
+    local hasEnoughDPS = #aliveHeroesList > 0 and J.HasEnoughDPSForRoshan(aliveHeroesList)
 
     if J.IsRoshanCloseToChangingSides()
     then
@@ -143,7 +143,7 @@ function GetDesireHelper()
     end
 
     if shouldKillRoshan
-    and initDPSFlag
+    and hasEnoughDPS
     then
         local human, humanPing = J.GetHumanPing()
         if human ~= nil and DotaTime() > 5.0 then
@@ -160,9 +160,7 @@ function GetDesireHelper()
         local mul = RemapValClamped(DotaTime(), sinceRoshAliveTime, sinceRoshAliveTime + (2.5 * 60), 1, 2)
         local nRoshanDesire = (GetRoshanDesire() * mul)
 
-        if hasSameOrMoreHero or (not hasSameOrMoreHero and J.HasEnoughDPSForRoshan(aliveHeroesList)) then
-            return Clamp(nRoshanDesire, 0, 0.95)
-        end
+        return Clamp(nRoshanDesire, 0, 0.95)
     end
 
     return BOT_ACTION_DESIRE_NONE
