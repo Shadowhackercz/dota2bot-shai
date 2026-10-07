@@ -49,3 +49,26 @@ Použít stejný pool, obtížnost a žádné ekonomické buffy. Porovnat více 
 Zaznamenat čas, hrdinu, zdraví/manu a situaci pro: zbytečnou smrt při dohánění, ústup z vyhraného fightu, farmení během obrany, nevyužitý vyhraný fight a opakované změny cíle. U carry navíc CS v 10. minutě a u supporta dostupnost na lince. Smrt sama o sobě není chyba: hodnotit, zda dosáhla smysluplného výsledku. Teprve opakované situace použít pro změny vah, chase limitů a rozdělení týmových úkolů.
 
 Priorita dalšího kola zůstává vyvážená: bezpečnost ústupu a pohybu, týmová aktivita, a současně schopnosti pěti hlavních testovaných hrdinů. V této změně se nezavádí chatový protokol, obecný bojový přepis ani nový farm algoritmus.
+
+## Navazující opravy říčních run pro prvních 5–10 minut
+
+Původní rune mód byl samostatně spuštěn v simulaci a potvrdil nulovou naléhavost u druhého říčního místa v čase 2:01, u nečinného bota, při pouhé přítomnosti lidského spoluhráče 1500 jednotek od runy a při jediném okolním nepříteli bez okolních spojenců. U prvního říčního místa přitom totožná dostupná vodní runa měla kladnou prioritu.
+
+Opravy a počáteční taktické hranice:
+
+- Odstraněno plošné vypnutí u druhého místa mezi 2. a 6. minutou a zákaz rune módu při nečinnosti.
+- Bot se do počtu spojenců započítá přesně jednou; iluze nezvyšují týmovou převahu. Stav u cíle se kontroluje z viditelných jednotek a počtu nepřátel nedávno viděných podle existujícího helperu (posledních 5 sekund). Počty se berou maximem, ne součtem, aby se nezapočítávaly stejné hrozby dvakrát. Jde o konzervativní odhad, nikoli přesné sjednocení ID.
+- Contest je dovolen při dostatečném počtu spojenců, zdraví alespoň 45 % a součtu odhadovaného příchozího poškození za 3 sekundy pod 80 % současného zdraví. Sílu všech spojenců ani jejich úmysl zapojit se tento odhad nezná; hranice vyžadují herní doladění.
+- Pro přímý útok během contestu se porovnává vlastní poškození proti nepříteli, nikoli proti sobě. Bot vyžaduje alespoň 50 % zdraví a vlastní odhad poškození alespoň 80 % soupeřova. Odhad zahrnuje pouze aktuálně dostupné schopnosti; pod 20 % many se vlastní odhad dále konzervativně omezuje na fyzické poškození. Nepřítel musí být v okolním seznamu v dosahu přibližně vlastního útoku; nezavádí se obecné pronásledování.
+- Je-li dostupná runa do 250 jednotek, bot upřednostní příkaz ke sebrání před útokem; příkaz může zahrnovat krátké přiblížení. Pokud je protivník těsně u runy (do 180) a bot dál než 900, může ji vzdát jako velmi pravděpodobně prohraný závod.
+- Člověku runu přenechá po čerstvém normálním pingu do 5 sekund, nebo když je do 600 jednotek, přinejmenším podobně blízko jako bot a míří k místu / sbírá runu / stojí do 150 jednotek. Lidé se neúčastní automatického výběru nejbližšího botího sběrače; pouhé stání na midu neblokuje runy. Starší zvláštní pravidlo pro varovné pingy zůstává zachováno.
+- Neznámá říční místa kontroluje v All Pick okně od 12 sekund před sudou minutou do 20 sekund po ní, první okno začíná 1:48. Známá dostupná runa není omezena tímto oknem. Vzdálenější kontrolu před spawnem provádí mid / držitel Bottle, případně bot již u místa. Jednou blízko ověřené prázdné místo znovu nekontroluje v témže cyklu, dokud se neobjeví potvrzená runa.
+- Mid má při porovnávání blízkých kandidátů preferenci říčního místa odpovídající 700 jednotkám vzdálenosti. Předběžný přesun pro nepotvrzenou runu vzdálenější než 600 odloží při okamžitém last hitu v okolí. Automatický spell combo na protlačení celé wave zatím není zaveden.
+- Nejbližší sběrač se vybírá pouze z botů, kteří smějí dané místo sbírat: u říční runy nedává support přednost před botím core v okolí 1200. Stejná pravidla platí pro výběr kandidáta i sběrače, aby bližší nepovolený support neblokoval mid. Samotný lidský core poblíž supportu automatický sběr nezakazuje.
+- `Think` znovu čte stav a vzdálenost, odmítá neplatný cíl a kontroluje bezpečnost. Přestane usilovat o runu, která mezitím zmizela. Bottle před sebráním použije jen mimo krátké přiblížení a bez viditelných nepřátel u runy. V konzoli jsou omezené zprávy `[SHAI] rune team=...; hero=...; target=...; distance=...; status=...`.
+
+`tests/shai-runes.test.lua` spouští skutečný rune mód: obě říční místa v časech 2:01, 4:01, 6:01 a 8:01, start z nečinnosti, přenechání spoluhráči/ping a jeho expiraci, pickup před útokem, bezpečný contest, přemíru poškození, 1v2, nedávno viděné hrozby, přípravu, okamžitý last hit, opakované scoutingy, změnu stavu, smrt a prioritu obrany/pushování. Tyto simulace potvrzují rozhodnutí skriptu; nepotvrzují přesnost enginového damage odhadu nebo provedení akcí ve hře.
+
+Nový regresní test s původním modulem z commitu `2702db2` selhává na blokaci druhého říčního místa. Opravená verze prochází celou sadou včetně rozhodnutí při nízké maně. Wisdom část je v tomto testu záměrně izolovaná.
+
+První podporovaný herní test je All Pick. Turbo časování a Wisdom logika nebyly touto změnou přepracovány. Test na midu: sledovat od 1:45, 3:45 a 5:45, zda bot dokončí okamžitý last hit, vybere smysluplnou stranu, nenechá dostupnou runu při vyrovnané situaci bez pokusu, a zruší nebezpečný contest. Potom sledovat návrat na linku a ztracené CS; celkový výsledek zatím není ověřen zápasem.

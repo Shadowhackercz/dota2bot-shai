@@ -7,7 +7,7 @@ if (-not (Test-Path -LiteralPath $luaCli)) {
 Push-Location $projectRoot
 try {
     foreach ($testFile in @('tests/shai-selection.test.lua', 'tests/shai-roshan.test.lua',
-        'tests/shai-combat.test.lua', 'tests/shai-tactics.test.lua')) {
+        'tests/shai-combat.test.lua', 'tests/shai-tactics.test.lua', 'tests/shai-runes.test.lua')) {
         # Fresh VM per test; explicit exit because Fengari otherwise swallows errors.
         & $luaCli -e "local ok, err = pcall(dofile, '$testFile'); if not ok then print(err); os.exit(1) end"
         if ($LASTEXITCODE -ne 0) { throw "Failed: $testFile" }
