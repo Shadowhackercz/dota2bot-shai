@@ -149,8 +149,14 @@ Nový shai-roshan-chat testuje jeden reply při doručení dvěma botům, cooldo
 
 ## Oprava návodu k ukládání konzole (9. října 2026)
 
-Uživatel přesně podle návodu zadal před lobby/zápasem con_logfile "shai-test-01.log" a po skončení con_logfile "". Soubor se nepodařilo najít v instalaci Doty, Steam userdata, VirtualStore ani obvyklých uživatelských umístěních. Při kontrole již proces dota2 neběžel. Z tohoto zápasu proto zatím není k dispozici záznam pro analýzu a nelze tvrdit, že byly naměřeny herní chyby nebo konkrétní přechody módů.
+Uživatel přesně podle návodu zadal před lobby/zápasem con_logfile "shai-test-01.log" a po skončení con_logfile "". Soubor se nepodařilo najít v instalaci Doty, Steam userdata, VirtualStore ani obvyklých uživatelských umístěních. Při kontrole již proces dota2 neběžel. Konzolový záznam z tohoto zápasu není k dispozici a neznáme konkrétní přechody Lua módů. Později byl zachráněn a dekódován replay; výsledky jsou v navazující sekci níže.
 
 Kontrola textových řetězců místního game/bin/win64/engine2.dll potvrdila -con_logfile, con_logfile_suffix, console.log a condump (včetně formátu condump%03d.txt), nikoli samostatný konzolový con_logfile. Původní instrukce agent neověřil za běhu a byla chybná. Opravený návod používá startovací parametr a povinnou krátkou kontrolu skutečného zápisu před zápasem. Úspěšné runtime uložení na tomto PC zatím potvrzené není. Botí rozhodování se tímto krokem nemění.
 
 Zpětná vazba čekající na velkou revizi: Zeus a Arcane Curse, rozpoznání silného viditelného soupeře a paměť jeho poslední polohy, přerušení nebezpečné farmy, koordinovaný gank/obrana, dorážení při nízkých HP obou stran, Warlockova pozdní nouzová ulti, přesun Roshana a jeho napadnutelnost, rušení objektivů hráčem, scan a glyph v týmu s člověkem. Wisdom navštěvovali a Warlock se pokusil využít nepřátelskou Wisdom; tyto pozitivní projevy zachovat. Jde o hlášení uživatele a statické kandidáty na opravy, nikoli zatím závěry z finálního logu.
+
+## Datová revize zachráněného replaye (9. října 2026)
+
+Replay 9035705167 byl zálohován s kontrolou SHA256 a celý dekódován lokálně pomocí Clarity; nepřehrával se v klientu. Získáno 48 491 combat událostí. Potvrzeno časté Zeusovo sesílání pod Curse (19 z 31 castů v prvních 10 minutách), zásah creepa vedle útočícího výrazně silnějšího Silencera kolem 27:39 a současný Warlockův ult event/smrt na Last Word kolem 31:57. Dire naopak glyph použil přibližně šestkrát, Zeus sbíral water/power runy. Tyto události potvrzují chování, nikoli všechny důvody nebo nesprávnost každého jednotlivého castu. Detailní evidence/omezení: [SHAI-REPLAY-9035705167.md](SHAI-REPLAY-9035705167.md); prioritizované úkoly: [SHAI-TODO.md](SHAI-TODO.md).
+
+Připraven helper kontroly skutečného logu s unikátním start markerem, opakovanou telemetrií všech očekávaných botů, end markerem, časovým pokrytím a přesnou lokální archivací. Nový PowerShell test prošel; herní runtime zápis stále musí potvrdit krátké lobby. Botí gameplay se při datové revizi neměnil.

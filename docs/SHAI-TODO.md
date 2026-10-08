@@ -1,0 +1,38 @@
+# SHAI: aktuální revize a úkoly
+
+Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REPLAY-9035705167.md). Změny níže jsou **plán**, nikoli již implementované herní opravy. Pool zůstává 15 hrdinů. Zachovat fungující sběr říčních/Wisdom run a užitečné support rotace.
+
+## P0: spolehlivý další test
+
+- [x] Zachovat a celé dekódovat poslední replay; publikovat rozlišení evidence/nejistot.
+- [x] Připravit `tools/Check-SHAILog.ps1`: unikátní start marker, kontrola opakované telemetrie, end marker, report časového pokrytí a přesná lokální záloha.
+- [ ] **Ověřit v běžící Dotě:** `-con_logfile`, echo a opakované `[SHAI] behavior` všech 9 botů v krátkém lobby. Nastavení parametru ani úspěšný test helperu nejsou důkaz herního zápisu.
+- [ ] V dalším dlouhém zápase ověřit diagnostiku brzy po načtení; před restartem uložit log po end markeru/ukončení klienta a zachovat `.dem`. Zkontrolovat začátek, konec i mezery každého bota proti délce zápasu.
+- [ ] Doplnit cílené důvody vybraných rozhodnutí při příští implementaci: `unsafe-farm`, `cast-penalty`, `finish-or-retreat`, `group-not-ready`, `objective-unavailable`. Současný trace loguje mód/cíle, ne kompletní rozhodovací strom. Diagnostiku throttlovat.
+
+## P1: boj, farma a přežití
+
+1. **Přerušit nebezpečnou farmu.** Doloženo u Zeuse kolem 27:39. Zohlednit viditelnou hrozbu, nedávný přijatý damage, dosah/rychlost soupeře, sílu obou stran a pomoc v dosahu. Rozhodnout boj nebo únik; farm action nesmí přepsat tento záměr. Ověření: dominantní nepřítel v melee vzdálenosti, skutečný týmový support, i klidná linka bez falešného ústupu.
+2. **Zohlednit Arcane Curse / Last Word před castem.** Zeus má 19 seslání pod Curse v prvních 10 min; Warlock v 31:57 zemřel na Last Word současně s ulti eventem. Model ceny musí rozlišit lehký harass, last hit, únik, důležitý disable/interrupt, kill a záchranu. Nezavádět univerzální zákaz kouzlení. Ověření: nepotřebné Q/W se odmítne, Lion/Shaman smysluplně zastaví soupeře, únik zůstává povolen, last hit pod bezpečnou Curse může být přijat.
+3. **Paměť hrozby ze skutečné viditelnosti.** Silný soupeř na lince má ovlivnit prostor pro farmu; po zmizení uchovat poslední známou polohu s klesající jistotou a rozšiřujícím se dosahem. Sílu odhadovat z dostupných informací, ne ze skrytého inventory/polohy. Ověření: po ztrátě vision nehledá přesnou aktuální lokaci, po dostatečném čase neblokuje polovinu mapy navždy.
+4. **Dorážení versus ústup při nízkém HP.** Hlášeno uživatelem; staticky `LowChanceToRun` vyžaduje >=3 nepřátele a rychlost <330, takže nepokrývá běžný 1v1. Předchází mu zvláštní HP<30 %/2 enemy návrat. Nahradit/sjednotit s odhadem času na zabezpečený kill a vlastní smrt, připravenou schopností, projectile, regenem a známými dalšími hrozbami. Ověření: spolehlivý jeden hit/disable získá přednost; neproveditelný chase nízkého HP cíle ji nezíská. Nízké procento obou HP samo nestačí.
+5. **Warlockova nouzová ulti a channel.** Hlášena otočka při útěku; konkrétní mechanika otočky zatím nepotvrzena. Posoudit cast point, dopadající damage/debuff, pravděpodobnost úniku a skutečný týmový přínos. Může být správné obětovat život za užitečný stun/golem, ale ne za bezvýsledný cast. Ověřit samostatně 1v1, spojence v boji a nedostupný cíl; neodvozovat nula užitku z pouhé současné smrti.
+
+## P2: společný záměr týmu
+
+6. **Koordinovaný gank silného soupeře.** Požadavek uživatele, dostupnost výherního ganku v minulém zápase nepotvrzena. Vybrat účastníky podle skutečného ready disable/damage/HP/many a času příchodu; fáze gather → engage → chain disable → finish/abort. Čtyři/pět botů ani vyplýtvání všech ulti nejsou automatická záruka killu. Nedržet boty nekonečně na místě a nepřekrývat zbytečně dlouhé stuny. Ověření: včasná společná akce, rušení po ztrátě klíčového člena/cooldownu nebo příchodu dalších enemy.
+7. **Společná obrana základny a bezpečný harass.** Hlášeno jednotlivé přiblížení/smrt. Preferovat bezpečný waveclear a cast range; těsnější commit až s lokálně připravenými spojenci a realistickou šancí. U imminent Ancient loss nezpůsobit pasivní nekonečné čekání. Ověření: slabý support nevychází jednotlivě do silného carry; tým umí využít skutečnou engage příležitost.
+8. **Stabilita záměru.** Původní krátké zámky retreat/team-help zůstávají. Nové bezpečnostní/gankové plány musí mít expiraci, okamžité přerušení při nové hrozbě a jediný platný cíl. Další otočky nejprve identifikovat z trace logu, nikoli řešit plošným několikasekundovým ignorováním okolí.
+
+## P3: objektivy a týmové zdroje
+
+9. **Roshan během přesunu.** Lion dostal Roshanův hit a grab/throw kolem 30:17–30:18; špatné útoky do nenapadnutelného Roshana jsou uživatelské hlášení. Ověřit aktuální přesun, skutečnou napadnutelnost a přístupovou cestu. V této době nelovit pohybující cíl a nenechat pathfinding vést boty přímo do něj. Ověření při změnách dne/noci i na obou stranách mapy.
+10. **Dočasné veto objektivů hráčem.** Požadovaná syntaxe: `!stop roshan`, `!stop tormentor`, `!stop objectives`; výchozí blokace 60 herních sekund, `!normal` odstraní hráčské přepisy. Jeden anglický týmový reply, týmově ověřený lidský autor, zrušení platného requestu, expirace/reset mezi zápasy. Veto blokuje dobrovolný plán; neblokuje nezbytnou sebeobranu nebo únik při kontaktu s objektem. Testovat všechny účastníky a současně autonomní mód, ne pouze chatový flag.
+11. **Tormentor: zjistit konkrétní blokaci před laděním prahů.** V minulém exportu není damage na pojmenovaný miniboss/tormentor. Odečíst reason log v době potenciálního pokusu, skutečnou polohu/živý spawn, sílu připravené skupiny a přežití reflectu. Nesnižovat limity jen proto, aby šli ve 35. minutě za každou cenu. Dokončení: bezpečně získaný shard nebo doložený rozumný důvod odmítnutí.
+12. **Scan.** Ve skriptech nenalezeno explicitní `ActionImmediate_Scan`/`GetScanCooldown`; samotný replay export neověřil všechny scan stavy. Nejdříve runtime ověřit API a výsledek, poté jeden týmový správce: rozumná kontrola fog u objektivu či při chybějících soupeřích, sdílený cooldown. Výsledek dává omezenou informaci, ne identity/přesnou polohu všech enemy. Ověření kladného/záporného výsledku i nedostupného scanu bez Lua chyby.
+13. **Glyph.** Dire jej v replayi využil cca 6×, proto úkol není prosté zapnutí. Statický `UseGlyph` naopak automatické použití ve smíšeném týmu blokuje: executor musí být team member 1 a ostatní 4 musí být boti. Rozhodnout společného executora a zohlednit building DPS, čas do pádu, příchozí obranu, waveclear a refresh pravidla aktuálního patche. Ověření proti hero siege i creep-only siege a respekt dostupného cooldownu; nepoužít pouze proto, že budova má pevné procento HP.
+14. **Runy/Wisdom zachovat a doladit.** Zeus opravdu sbíral water/power; XP cykly jsou pozitivní indicie Wisdom, uživatel chválí i pokus o steal. Doladit potřebu HP/many/Bottle, známý zájem soupeře, cenu ztracené wave a bezpečné odepření runy. Neobětovat život slabého midu jen za contest. Potvrdit skutečný capture/XP a případnou možnost zničení water rune přes dostupné API, než ji slibovat.
+
+## Jak úkol uzavřít
+
+Pro každou opravu uchovat konkrétní scénář před/po, očekávanou lepší volbu a důvod, test skutečného Lua modulu a následný nový zápas. Pozitivní trace ani jediný lepší K/D výsledek nejsou celkový důkaz kvality botů. Změny dělat po souvisejících blocích, aby další test rozlišil příčinu.

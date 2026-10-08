@@ -70,3 +70,7 @@ game/Customize
 # Local research downloads and source snapshots
 .research/
 .tools/
+
+# Local match recordings; preserve on disk, do not publish with source.
+artifacts/replays/*.dem
+artifacts/logs/

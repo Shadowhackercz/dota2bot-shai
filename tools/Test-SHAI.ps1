@@ -15,6 +15,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Failed: $testFile" }
     }
     & "$projectRoot\tests\shai-analysis.test.ps1"
+    & "$projectRoot\tests\shai-log-check.test.ps1"
 } finally {
     Pop-Location
 }
