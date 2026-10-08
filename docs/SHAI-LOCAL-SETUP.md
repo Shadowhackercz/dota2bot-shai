@@ -62,3 +62,5 @@ npm.cmd install --prefix .tools/lua --no-package-lock --ignore-scripts fengari-n
 Kontrola ověřuje omezený pool, kompletní drafty, role a časování výběru, duplicity mezi týmy, lidského hrdinu mimo pool, malé pooly a vyčerpání přes bany. Nenahrazuje test v Dotě.
 
 Všechny kontroly draftu i rozhodování nyní spouští `.\tools\Test-SHAI.ps1`. Přehled skutečně ověřených oprav a zbývajících herních testů je v [SHAI-BEHAVIOR-AUDIT.md](SHAI-BEHAVIOR-AUDIT.md).
+
+Postup záznamu módů a hledání podezřelých rozhodnutí je v [SHAI-TESTOVANI-CHOVANI.md](SHAI-TESTOVANI-CHOVANI.md). Vývojová konfigurace nyní zapíná `BehaviorTrace`; vypíná se v `bots/Customize/shai.lua`. Log analyzuje `tools/Analyze-SHAI.ps1`.

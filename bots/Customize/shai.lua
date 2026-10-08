@@ -1,5 +1,7 @@
 -- SHAI development pool. This file is pure Lua, not generated from TypeScript.
 local SHAI = { Name = 'SHAI', HeroPoolEnabled = true, InitialPickDelay = 1, PickInterval = 1 }
+-- Temporary development telemetry; set false for quiet normal play.
+SHAI.BehaviorTrace = true
 
 -- Three candidates per primary role; humans can still select any hero in Dota.
 SHAI.RolePools = {
