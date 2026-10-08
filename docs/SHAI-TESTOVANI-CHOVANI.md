@@ -4,7 +4,14 @@ Wisdom podle uživatele pravidelně navštěvují poblíž příslušného času
 
 ## Záznam zápasu
 
-V `bots/Customize/shai.lua` je pro vývoj zapnuté `BehaviorTrace = true`; lze vypnout bez změny rozhodování. Začít nový zápas. Před ním v konzoli zadat `con_logfile "shai-console.log"`, po testu `con_logfile ""`. Použít pro každý zápas jiný název souboru, aby se nemíchaly záznamy.
+V `bots/Customize/shai.lua` je pro vývoj zapnuté `BehaviorTrace = true`; lze vypnout bez změny rozhodování. **Původní návod s konzolovým `con_logfile` byl chybný a není platný.** Nainstalovaný Source 2 engine obsahuje startovací parametr `-con_logfile`, nikoli tento konzolový příkaz. Parametr je doložený i [záznamem v trackeru Valve](https://github.com/ValveSoftware/Dota-2/issues/2750).
+
+1. Ve Steam → Dota 2 → Vlastnosti → Obecné → Možnosti spuštění přidat `-con_logfile`, ostatní parametry zachovat, a Dotu znovu spustit.
+2. Před dalším zápasem v konzoli zadat `echo SHAI_LOG_CHECK`. V `game/dota/console.log` instalace Doty ověřit, že se kontrolní zpráva skutečně uložila. Zápas nezahajovat jen na základě nastaveného parametru; zápis ještě nebyl na tomto klientu ověřen za běhu.
+3. Pokud se výstup nepropíše hned, ukončit krátký kontrolní běh Doty a soubor zkontrolovat poté. Bufferování může zpozdit zápis. Pro okamžité uložení aktuálního konzolového bufferu lze zkusit `condump`, který je v místním enginu přítomný; hledat nové `condump*.txt` / `condump*.log` v adresáři hry.
+4. Po potvrzení záznamu začít nový zápas. Po jeho dokončení ukončit Dotu, zachovat log pod samostatným názvem a pro další test původní soubor nejprve zálohovat. Parametr po testování odebrat z možností spuštění.
+
+`condump` může zachránit pouze obsah dosud otevřené konzole, nikoli zaručeně celý zápas. Po zavření klienta bez průběžného záznamu nejde chybějící historii tímto příkazem obnovit. Restartovaný klient už obsah staré konzole nemá.
 
 `[SHAI] behavior` sleduje každých nejméně 0,25 herní sekundy aktivní mód. Vypisuje nejvýše jednou za herní sekundu změněný stav a nejméně jednou za 10 sekund při pokračujících callbacks. Obsahuje čas, tým/hráče, hrdinu, mód a jeho naléhavost, HP/manu, pozici, proper target a attack target. Čítače jsou kumulativní: `switches` změny módu zaživa, `rapid` změny do 1 sekundy od předchozí změny, `reversals` návrat A→B→A do 2 sekund od vstupu do B. Smrt/reset času přeruší řetězec. Čítače zachytí i přepnutí, která kvůli omezení výpisu nemají vlastní řádek.
 
@@ -13,7 +20,7 @@ Jde o vzorkování aktivního módu, nikoli všechny kandidátní priority, dův
 ## Vyhledání úseků
 
 ```powershell
-.\tools\Analyze-SHAI.ps1 -LogPath 'C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta\game\dota\shai-console.log'
+.\tools\Analyze-SHAI.ps1 -LogPath 'C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta\game\dota\console.log'
 ```
 
 Výpis ukáže poslední kumulativní počty a úseky s rychlými změnami. Čas je v sekundách od začátku hry. Pro kontrolu začít přibližně 10 sekund před uvedeným časem; výpis je zpožděný omezením četnosti. Pokud log končí před závěrem zápasu, nejde o celkové počty za celý zápas.

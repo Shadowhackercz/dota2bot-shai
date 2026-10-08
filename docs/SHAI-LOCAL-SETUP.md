@@ -64,7 +64,7 @@ Typické odpovědi: `Yes, we can try Roshan. Group up - I will reassess if it be
 
 Čekání na hledání lobby/serveru je potřeba odlišit od prodlev při výběru hrdinů. Zkontrolovat **Local Host**; samotné nastavení Local Dev Script neurčuje hostování zápasu. Zkrácení draftu neřeší hledání serveru.
 
-Po načtení výběru hrdinů skript vypisuje do herní konzole zprávy začínající `[SHAI]`, včetně počtu povolených hrdinů a jednotlivých výběrů. Tyto zprávy a prefixy `[WARN]` / `[ERROR]` se zobrazují i bez zapnutého DebugMode. Pro záznam konzole lze před novým pokusem zadat `con_logfile "shai-console.log"`; záznam vypnout přes `con_logfile ""`. Hledat log v adresáři `game/dota` instalace Doty. Nepřítomnost zpráv sama o sobě nerozlišuje chybu hostování od chyby při načítání Lua.
+Po načtení výběru hrdinů skript vypisuje do herní konzole zprávy začínající `[SHAI]`, včetně počtu povolených hrdinů a jednotlivých výběrů. Tyto zprávy a prefixy `[WARN]` / `[ERROR]` se zobrazují i bez zapnutého DebugMode. Původní konzolový návod `con_logfile` byl chybný. Pro záznam přidat do možností spuštění ve Steamu `-con_logfile`, restartovat Dotu a nejprve ověřit uložení `echo SHAI_LOG_CHECK` do `game/dota/console.log`. Podrobný postup včetně `condump` a bufferování je v [SHAI-TESTOVANI-CHOVANI.md](SHAI-TESTOVANI-CHOVANI.md). Nepřítomnost zpráv sama o sobě nerozlišuje chybu hostování od chyby při načítání Lua.
 
 První podporovaný testovací režim je All Pick, následně Turbo. Ostatní zděděné režimy nebyly pro SHAI ověřeny. Většina herní logiky je převzatá z OHA; konkrétní opravy SHAI eviduje audit níže. Nová jména a pool neznamenají hotová vylepšení AI.
 

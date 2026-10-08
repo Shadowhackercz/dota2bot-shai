@@ -21,7 +21,7 @@ foreach ($line in Get-Content -LiteralPath $LogPath) {
     }
     $previous[$key] = @{rapid=$rapid; reversals=$reversals}
 }
-if ($previous.Count -eq 0) { throw 'No [SHAI] behavior records found. Enable BehaviorTrace and start a new match with con_logfile.' }
+if ($previous.Count -eq 0) { throw 'No [SHAI] behavior records found. Enable BehaviorTrace, use -con_logfile in Steam launch options, and verify recording before a new match.' }
 Write-Output 'Latest observed cumulative counters per bot (suspicion indicators, not error scores):'
 $summaries = foreach ($key in ($previous.Keys | Sort-Object)) {
     [pscustomobject]@{Bot=$key; Rapid=$previous[$key].rapid; Reversals=$previous[$key].reversals}
