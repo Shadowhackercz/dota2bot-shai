@@ -50,6 +50,16 @@ Po prvním příkazu support zůstává na lince. Pokud stejnou linku požádá 
 
 `!pos N` zůstává dostupné pro přímý výběr role. Samotné slovo `mid` bez vykřičníku není příkaz. Nové příkazy mění pouze vlastní tým; lze je napsat i do all chatu. Fungují v pre-game, nikoli jako rozkaz k okamžitému přemístění během rozehraného zápasu. Přidělení role i lane výstup jsou ověřené simulací, herní callback a skutečný příchod na linku je potřeba ověřit v novém zápase.
 
+## Týmová výzva k Roshanovi
+
+Během zápasu napiš `!roshan` nebo `!rosh`. Odpoví jeden živý bot do týmového chatu, anglicky, i když příkaz napíšeš do all chatu. Samotné `rosh` / `roshan` bez vykřičníku není příkaz. Cizí tým ani botí zprávy výzvu nespustí. Mezi odpověďmi stejného mluvčího je minimálně 8 herních sekund; po jeho smrti může odpovědět jiný bot.
+
+Souhlas vyžaduje živého hráče s alespoň 55 % HP do 4500 jednotek od aktuálního místa Roshana a dva skutečné boty ve stejné vzdálenosti, s alespoň 55 % HP a kladným výsledkem jejich Roshanova módu. Alespoň jeden účastník musí být core na úrovni 12+ s alespoň 65 % HP. Tým nesmí být početně oslabený proti živým soupeřům, základna ohrožená, Roshan nedostupný nebo těsně před přesunem a okolí jeho místa nesmí mít známé nepřátele. Odhad fyzického poškození se počítá z této skupiny, nikoli ze vzdálených hrdinů. Ostatním lidem se účast automaticky nepředpokládá.
+
+Při souhlasu zvolení boti dostanou na 30 herních sekund zvýšenou prioritu Roshanova módu 0,95. Během vyhodnocení dál platí jeho původní bezpečnostní kontroly a znovu se ověřují zdraví, přežití, vzdálenost a poškození účastníků i známá hrozba u cíle. Po vypršení se obnoví běžné rozhodování; jde o plán, ne bezpodmínečný příkaz ani záruku zabití. Pohyb ke skutečnému cíli stále řídí Roshanův mód enginu. Automatická obecná hláška o Roshanovi je během platné výzvy potlačená.
+
+Typické odpovědi: `Yes, we can try Roshan. Group up - I will reassess if it becomes unsafe.`, `Not yet - we need more damage.`, `Not now - defend our base.` Důvod se zapisuje i jako `[SHAI] roshan-request`. Pokud mód některého bota ještě nemá inicializovaný evaluator, bot se nepovažuje za připraveného. Odhad poškození není simulace odrazu/útoků Roshana, healů, spellů ani plné fyzické redukce podle aktuálního patche; schopnost přežít se odhaduje HP/rolí/úrovní. Skutečnou jednu odpověď a přesun skupiny je potřeba potvrdit v novém zápase.
+
 ## Když se zápas nespustí
 
 Čekání na hledání lobby/serveru je potřeba odlišit od prodlev při výběru hrdinů. Zkontrolovat **Local Host**; samotné nastavení Local Dev Script neurčuje hostování zápasu. Zkrácení draftu neřeší hledání serveru.

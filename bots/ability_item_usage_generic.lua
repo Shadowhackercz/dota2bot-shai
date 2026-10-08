@@ -11,6 +11,7 @@ local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local Utils = require( GetScriptDirectory()..'/FunLib/utils' )
 local BehaviorTrace = require(GetScriptDirectory()..'/FunLib/shai_behavior_trace')
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
+local RoshanCommands = require(GetScriptDirectory()..'/FunLib/shai_roshan_commands')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
 local Customize = require(GetScriptDirectory()..'/Customize/general')
@@ -403,13 +404,6 @@ function X.SetTalkMessage()
 	if nBotID == J.Role.GetReplyMemberID()
 		and nReplyHumanCount <= nMaxReplyCount
 	then
-		if not bInstallChatCallbackDone and GetGameState() == GAME_STATE_GAME_IN_PROGRESS
-		then
-			bInstallChatCallbackDone = true
-			--print(botName)
-			InstallChatCallback( function( tChat ) X.SetReplyHumanTime( tChat ) end )
-		end
-
 		if sHumanString ~= nil
 			and nReplyHumanTime ~= nil
 			and DotaTime() > nReplyHumanTime + nTalkDelay
@@ -8383,6 +8377,13 @@ end
 
 function AbilityUsageThink()
 	if RefreshBotHandle() then return end
+	if not bInstallChatCallbackDone and GetGameState() == GAME_STATE_GAME_IN_PROGRESS then
+		bInstallChatCallbackDone = true
+		InstallChatCallback(function(chat)
+			if RoshanCommands.Handle(bot, J, chat) then return end
+			if bot:GetPlayerID() == J.Role.GetReplyMemberID() then X.SetReplyHumanTime(chat) end
+		end)
+	end
 	BehaviorTrace.Observe(bot, DotaTime(), SHAI.BehaviorTrace)
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
 	if bot.lastAbilityFrameProcessTime == nil then bot.lastAbilityFrameProcessTime = DotaTime() end

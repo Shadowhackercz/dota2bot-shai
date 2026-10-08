@@ -4991,33 +4991,8 @@ function J.IsRoshanAlive()
 end
 
 function J.HasEnoughDPSForRoshan(heroes)
-    local DPS = 0
-    local DPSThreshold = 0
-    local plannedTimeToKill = 60
-
-    -- Roshan Stats
-    local baseHealth = 6000
-    local baseArmor = 30
-    local armorPerInterval = 0.375
-    local maxHealthBonusPerInterval = 130 * 2
-
-    local roshanHealth = baseHealth + maxHealthBonusPerInterval * math.floor(DotaTime() / 60)
-
-    for _, h in pairs(heroes) do
-        local roshanArmor = baseArmor + armorPerInterval * math.floor(DotaTime() / 60) - J.GetArmorReducers(h)
-
-        -- Only right click damage for now
-        local attackDamage = h:GetAttackDamage()
-        local attackSpeed = h:GetAttackSpeed()
-
-        local dps = attackDamage * attackSpeed * (1 - roshanArmor / (roshanArmor + 20))
-        DPS = DPS + dps
-    end
-
-    DPS =  DPS / #heroes
-
-    DPSThreshold = roshanHealth / plannedTimeToKill
-    return DPS >= DPSThreshold
+    local damage = require(GetScriptDirectory()..'/FunLib/shai_roshan_damage')
+    return damage.Ready(heroes, DotaTime(), J.GetArmorReducers)
 end
 
 function J.IsNotSelf(bot, ally)

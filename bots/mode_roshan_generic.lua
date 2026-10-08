@@ -5,6 +5,7 @@ if bot == nil or bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() o
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local Customize = require( GetScriptDirectory()..'/Customize/general' )
+local RoshanCommands = require(GetScriptDirectory()..'/FunLib/shai_roshan_commands')
 
 local killTime = 0.0
 local shouldKillRoshan = false
@@ -19,13 +20,16 @@ local sinceRoshAliveTime = 0
 local roshTimeFlag = false
 
 local Roshan
+local EvaluateRoshan
 
 function GetDesire()
 	local res = GetDesireHelper()
-	if res > 0.6 then J.ModeAnnounce(bot, 'say_roshan', 30) end
+	if res > 0.6 and (bot.shaiRoshanRequestUntil == nil or DotaTime() >= bot.shaiRoshanRequestUntil) then
+		J.ModeAnnounce(bot, 'say_roshan', 30)
+	end
 	return res
 end
-function GetDesireHelper()
+EvaluateRoshan = function()
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return BOT_MODE_DESIRE_NONE end
     -- Recover rather than starting or continuing a voluntary objective while wounded.
     if J.GetHP(bot) < 0.4 then return BOT_MODE_DESIRE_NONE end
@@ -145,6 +149,11 @@ function GetDesireHelper()
     if shouldKillRoshan
     and hasEnoughDPS
     then
+        -- A team request raises priority only after the existing safety gates.
+        if RoshanCommands.RequestSafe(bot, J) then
+            return 0.95
+        end
+        bot.shaiRoshanRequestUntil, bot.shaiRoshanParticipants = nil, nil
         local human, humanPing = J.GetHumanPing()
         if human ~= nil and DotaTime() > 5.0 then
             if humanPing ~= nil
@@ -165,3 +174,7 @@ function GetDesireHelper()
 
     return BOT_ACTION_DESIRE_NONE
 end
+
+-- Capture this module's evaluator, rather than a mutable global callback.
+bot.shaiRoshanCheck = EvaluateRoshan
+function GetDesireHelper() return EvaluateRoshan() end
