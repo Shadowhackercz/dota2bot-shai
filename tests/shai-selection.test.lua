@@ -152,5 +152,67 @@ Think()
 local mirrored = false
 for id = 0, 4 do if selected[id] == 'npc_dota_hero_zuus' then mirrored = true end end
 assert(mirrored)
+-- Lane aliases exercise the actual chat callback and returned engine lanes.
+GAME_STATE_PRE_GAME, GAME_STATE_GAME_IN_PROGRESS = 5, 6
+local state = GAME_STATE_PRE_GAME
+GetGameState = function() return state end
+InstallChatCallback = function() end
+for _, team in ipairs({TEAM_RADIANT, TEAM_DIRE}) do
+    currentTeam, mode = team, 1
+    local ids = GetTeamPlayers(team)
+    human = {[ids[3]]=true, [ids[4]]=true}
+    local teamKey = team == 2 and 'TEAM_RADIANT' or 'TEAM_DIRE'
+    local roles = package.loaded['bots/FunLib/aba_role'].RoleAssignment
+    roles[teamKey] = {1,2,3,4,5}
+    dofile('bots/hero_selection.lua')
+    SelectHeroChatCallback(ids[3], '!mid', true)
+    assert(roles[teamKey][3] == 2 and roles[teamKey][2] == 3)
+    local lanes = UpdateLaneAssignments()
+    assert(lanes[team == 2 and 3 or 1] == LANE_MID, 'human-first Dire lane mapping team='..team..' lanes='..table.concat(lanes, ','))
+    -- Reset roles for two humans claiming a side lane: core first, support next.
+    roles[teamKey] = {1,2,3,4,5}
+    human = {[ids[2]]=true, [ids[4]]=true}
+    dofile('bots/hero_selection.lua')
+    local command = team == 2 and '!bottom' or '!top'
+    SelectHeroChatCallback(ids[2], command, true)
+    assert(roles[teamKey][2] == 1)
+    SelectHeroChatCallback(ids[4], command, true)
+    assert(roles[teamKey][4] == 5 and roles[teamKey][2] == 1)
+    SelectHeroChatCallback(ids[4], command, true)
+    assert(roles[teamKey][4] == 5, 'same claim must not evict human core')
+    local before = deepcopy(roles[teamKey])
+    SelectHeroChatCallback(team == 2 and 5 or 0, '!mid', false)
+    SelectHeroChatCallback(ids[2], command..' unexpected', true)
+    state = GAME_STATE_GAME_IN_PROGRESS
+    SelectHeroChatCallback(ids[2], '!mid', true)
+    state = GAME_STATE_PRE_GAME
+    for i=1,5 do assert(roles[teamKey][i] == before[i]) end
+    for _, sideCommand in ipairs({'!top', '!bottom'}) do
+        roles[teamKey] = {1,2,3,4,5}
+        human = {[ids[2]]=true}
+        dofile('bots/hero_selection.lua')
+        local safe = (team == 2 and sideCommand == '!bottom') or (team == 3 and sideCommand == '!top')
+        local coreRole, supportRole = safe and 1 or 3, safe and 5 or 4
+        local requested = sideCommand == '!top' and LANE_TOP or LANE_BOT
+        local other = requested == LANE_TOP and LANE_BOT or LANE_TOP
+        SelectHeroChatCallback(ids[2], sideCommand, true)
+        assert(roles[teamKey][2] == coreRole)
+        lanes = UpdateLaneAssignments()
+        local supportIndex = supportRole -- human slot 2 moves first; later bot slots keep their index
+        assert(lanes[supportIndex] == requested, 'first request keeps support')
+        SelectHeroChatCallback(ids[2], sideCommand, true)
+        lanes = UpdateLaneAssignments()
+        assert(lanes[supportIndex] == other, 'repeat sends support to other side lane')
+        assert(roles[teamKey][supportRole] == supportRole, 'support retains build role')
+        SelectHeroChatCallback(ids[2], sideCommand, true)
+        assert(UpdateLaneAssignments()[supportIndex] == other, 'third request must not toggle')
+        SelectHeroChatCallback(ids[2], '!mid', true)
+        assert(UpdateLaneAssignments()[supportIndex] == requested, 'changing lane clears solo request')
+        SelectHeroChatCallback(ids[2], sideCommand, true)
+        SelectHeroChatCallback(ids[2], sideCommand, true)
+        SelectHeroChatCallback(ids[2], '!pos 2', true)
+        assert(UpdateLaneAssignments()[supportIndex] == requested, 'numeric position clears solo relocation')
+    end
+end
 print = originalPrint
-print('PASS: SHAI names, 25 full drafts, mixed human draft, closed pool under bans, small pools, 1v1 and hero load syntax')
+print('PASS: SHAI draft, names, pool, 1v1; real lane chat aliases, two humans, solo repeat and Radiant/Dire assignments')

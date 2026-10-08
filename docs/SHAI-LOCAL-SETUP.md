@@ -38,6 +38,18 @@ Draft přednostně vybírá z příslušného seznamu v `RolePools`; `HeroPool` 
 
 Po spuštění botího draftu jsou jednotlivé výběry rozestoupené přibližně po sekundě, stejně pro Radiant i Dire. Zděděné čekání na lidský výběr může začátek odložit. Výchozí konfigurace vypíná trash talk i GPT odpovědi; starší externí `game/Customize/general.lua` může tato nastavení přepsat.
 
+## Příkazy pro linky před začátkem hry
+
+V pre-game (po výběru hrdinů, před začátkem zápasu) lze napsat do chatu:
+
+- `!mid`: převezmeš mid, tedy pozici 2.
+- `!top`: převezmeš core na horní lince. Radiant pos 3, Dire pos 1.
+- `!bottom` nebo `!bot`: převezmeš core na spodní lince. Radiant pos 1, Dire pos 3.
+
+Po prvním příkazu support zůstává na lince. Pokud stejnou linku požádá druhý hráč, převezme její supportovu roli (5 na safelane, 4 na offlane); jinému člověku se role nebere. Pokud stejný příkaz zopakuje core hráč, botí support dostane druhou boční linku a ponechá si support build. Další opakování jej nevrací zpět. Pokud obě boční linky požadují sólo, supporty automaticky nepřesouváme proti druhému sólo požadavku.
+
+Změna na jiný lane příkaz ruší předchozí sólo požadavek. `!pos N` zůstává dostupné a ruší vlastní lane požadavek. Samotné slovo `mid` bez vykřičníku není příkaz. Nové příkazy mění pouze vlastní tým; lze je napsat i do all chatu. Fungují v pre-game, nikoli jako rozkaz k okamžitému přemístění během rozehraného zápasu. Přidělení role i lane výstup jsou ověřené simulací, herní callback a skutečný příchod na linku je potřeba ověřit v novém zápase.
+
 ## Když se zápas nespustí
 
 Čekání na hledání lobby/serveru je potřeba odlišit od prodlev při výběru hrdinů. Zkontrolovat **Local Host**; samotné nastavení Local Dev Script neurčuje hostování zápasu. Zkrácení draftu neřeší hledání serveru.
