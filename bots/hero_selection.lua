@@ -100,7 +100,7 @@ local SupportedHeroes = {}
 local CorrectRadiantAssignedLanes = false
 local CorrectDireAssignedLanes = false
 local CorrectDirePlayerIndexToLaneIndex = { }
-local laneClaims = {}
+local laneCommandsUsed = false
 
 -- Track how many "durable" etc. have been allowed per role during pool build
 local countDurableHeroes = {}
@@ -566,31 +566,14 @@ local function CorrectPotentialLaneAssignment()
 end
 
 -- Apply explicit side-lane requests after the engine's role/lane correction.
-local function ApplyLaneClaims()
-	if next(laneClaims) == nil then return end
+local function ApplyLaneRoles()
+	if not laneCommandsUsed then return end
 	local players = GetTeamPlayers(GetTeam())
 	local teamName = GetTeam() == TEAM_RADIANT and 'TEAM_RADIANT' or 'TEAM_DIRE'
 	local defaults = GetTeam() == TEAM_RADIANT and tDefaultLaningRadiant or tDefaultLaningDire
 	for i, id in ipairs(players) do
 		local laneIndex = GetTeam() == TEAM_DIRE and CorrectDirePlayerIndexToLaneIndex[i] or i
 		tLaneAssignList[teamName][laneIndex] = defaults[Role.RoleAssignment[teamName][i]]
-	end
-	for id, claim in pairs(laneClaims) do
-		if claim.solo then
-			local destination = claim.lane == LANE_TOP and LANE_BOT or LANE_TOP
-			local blocked = false
-			for _, other in pairs(laneClaims) do
-				if other.solo and other.lane == destination then blocked = true end
-			end
-			if not blocked then
-				for i, pid in ipairs(players) do
-					if IsPlayerBot(pid) and Role.RoleAssignment[teamName][i] == claim.supportRole then
-						local laneIndex = GetTeam() == TEAM_DIRE and CorrectDirePlayerIndexToLaneIndex[i] or i
-						tLaneAssignList[teamName][laneIndex] = destination
-					end
-				end
-			end
-		end
 	end
 end
 
@@ -826,10 +809,6 @@ local function handleCommand(inputStr, PlayerID, bTeamOnly)
     for _, command in ipairs(commands) do
 		local subKey, subVal = command:match("(!%w+)%s*(.*)")
 		if subKey == nil then return end
-		if subKey == '!pos' and GetGameState() == GAME_STATE_PRE_GAME and GetTeamForPlayer(PlayerID) == GetTeam() then
-			if laneClaims[PlayerID] then laneClaims[PlayerID].solo = false; ApplyLaneClaims() end
-			laneClaims[PlayerID] = nil
-		end
 		if subKey == '!mid' or subKey == '!top' or subKey == '!bottom' or subKey == '!bot' then
 			if GetGameState() ~= GAME_STATE_PRE_GAME or GetTeamForPlayer(PlayerID) ~= GetTeam()
 				or subVal ~= '' then return end
@@ -839,18 +818,12 @@ local function handleCommand(inputStr, PlayerID, bTeamOnly)
 			local role = laneCommands.Resolve(subKey, GetTeam(), PlayerID, teamPlayers,
 				Role.RoleAssignment[teamName], IsPlayerBot)
 			if role == nil then print('[SHAI] lane command: lane roles belong to humans'); return end
-			local lane = subKey == '!mid' and LANE_MID or (subKey == '!top' and LANE_TOP or LANE_BOT)
-			local previous = laneClaims[PlayerID]
-			local supportRole = (GetTeam() == TEAM_RADIANT and lane == LANE_BOT
-				or GetTeam() == TEAM_DIRE and lane == LANE_TOP) and 5 or 4
 			local ownRole
 			for i, id in ipairs(teamPlayers) do if id == PlayerID then ownRole = Role.RoleAssignment[teamName][i] end end
-			laneClaims[PlayerID] = {lane=lane, supportRole=supportRole,
-				solo=lane ~= LANE_MID and previous ~= nil and previous.lane == lane
-					and ownRole == role and role ~= supportRole}
+			laneCommandsUsed = true
 			if ownRole == role then
-				ApplyLaneClaims()
-				print('[SHAI] lane command retained; player='..PlayerID..'; solo='..tostring(laneClaims[PlayerID].solo))
+				ApplyLaneRoles()
+				print('[SHAI] lane command retained; player='..PlayerID)
 				return
 			end
 			print('[SHAI] lane command '..subKey..'; player='..PlayerID..'; role='..role)
@@ -1129,7 +1102,7 @@ function UpdateLaneAssignments()
 	end
 
 	CorrectPotentialLaneAssignment()
-	ApplyLaneClaims()
+	ApplyLaneRoles()
 	return tLaneAssignList[team]
 end
 

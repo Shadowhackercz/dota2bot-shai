@@ -194,7 +194,6 @@ for _, team in ipairs({TEAM_RADIANT, TEAM_DIRE}) do
         local safe = (team == 2 and sideCommand == '!bottom') or (team == 3 and sideCommand == '!top')
         local coreRole, supportRole = safe and 1 or 3, safe and 5 or 4
         local requested = sideCommand == '!top' and LANE_TOP or LANE_BOT
-        local other = requested == LANE_TOP and LANE_BOT or LANE_TOP
         SelectHeroChatCallback(ids[2], sideCommand, true)
         assert(roles[teamKey][2] == coreRole)
         lanes = UpdateLaneAssignments()
@@ -202,17 +201,17 @@ for _, team in ipairs({TEAM_RADIANT, TEAM_DIRE}) do
         assert(lanes[supportIndex] == requested, 'first request keeps support')
         SelectHeroChatCallback(ids[2], sideCommand, true)
         lanes = UpdateLaneAssignments()
-        assert(lanes[supportIndex] == other, 'repeat sends support to other side lane')
+        assert(lanes[supportIndex] == requested, 'repeat keeps support on requested lane')
         assert(roles[teamKey][supportRole] == supportRole, 'support retains build role')
         SelectHeroChatCallback(ids[2], sideCommand, true)
-        assert(UpdateLaneAssignments()[supportIndex] == other, 'third request must not toggle')
+        assert(UpdateLaneAssignments()[supportIndex] == requested, 'third request keeps support too')
         SelectHeroChatCallback(ids[2], '!mid', true)
-        assert(UpdateLaneAssignments()[supportIndex] == requested, 'changing lane clears solo request')
+        assert(UpdateLaneAssignments()[supportIndex] == requested, 'changing lane retains support default')
         SelectHeroChatCallback(ids[2], sideCommand, true)
         SelectHeroChatCallback(ids[2], sideCommand, true)
         SelectHeroChatCallback(ids[2], '!pos 2', true)
-        assert(UpdateLaneAssignments()[supportIndex] == requested, 'numeric position clears solo relocation')
+        assert(UpdateLaneAssignments()[supportIndex] == requested, 'numeric position retains support default')
     end
 end
 print = originalPrint
-print('PASS: SHAI draft, names, pool, 1v1; real lane chat aliases, two humans, solo repeat and Radiant/Dire assignments')
+print('PASS: SHAI draft, names, pool, 1v1; real lane chat aliases, two humans, retained support and Radiant/Dire assignments')
