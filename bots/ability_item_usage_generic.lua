@@ -17,6 +17,7 @@ local CombatFinish = require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
 local Defense = require(GetScriptDirectory()..'/FunLib/shai_defense')
 local Travel = require(GetScriptDirectory()..'/FunLib/shai_tactical_travel')
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
+local Glyph = require(GetScriptDirectory()..'/FunLib/shai_glyph')
 local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
@@ -8307,73 +8308,7 @@ function X.IsTargetedByEnemy( building )
 end
 
 local function UseGlyph()
-
-	if GetGlyphCooldown( ) > 0
-		or DotaTime() < 60
-		or bot ~= GetTeamMember( 1 )
-		or not GetTeamMember( 2 ):IsBot()
-		or not GetTeamMember( 3 ):IsBot()
-		or not GetTeamMember( 4 ):IsBot()
-		or not GetTeamMember( 5 ):IsBot()
-	then
-		return
-	end
-
-	local T1 = {
-		TOWER_TOP_1,
-		TOWER_MID_1,
-		TOWER_BOT_1,
-		TOWER_TOP_2,
-		TOWER_MID_2,
-		TOWER_BOT_2,
-		TOWER_TOP_3,
-		TOWER_MID_3,
-		TOWER_BOT_3,
-		TOWER_BASE_1,
-		TOWER_BASE_2
-	}
-
-	for _, t in pairs( T1 )
-	do
-		local tower = GetTower( team, t )
-		if tower ~= nil and tower:GetHealth() > 0
-			and tower:GetHealth() / tower:GetMaxHealth() < 0.36
-			and tower:CanBeSeen()
-			and X.IsTargetedByEnemy(tower)
-		then
-			bot:ActionImmediate_Glyph( )
-			return
-		end
-	end
-
-
-	local MeleeBarrack = {
-		BARRACKS_TOP_MELEE,
-		BARRACKS_MID_MELEE,
-		BARRACKS_BOT_MELEE
-	}
-
-	for _, b in pairs( MeleeBarrack )
-	do
-		local barrack = GetBarracks( team, b )
-		if barrack ~= nil and barrack:GetHealth() > 0
-			and barrack:GetHealth() / barrack:GetMaxHealth() < 0.5
-			and X.IsTargetedByEnemy( barrack )
-		then
-			bot:ActionImmediate_Glyph( )
-			return
-		end
-	end
-
-	local Ancient = GetAncient( team )
-	if Ancient ~= nil and Ancient:GetHealth() > 0
-		and Ancient:GetHealth() / Ancient:GetMaxHealth() < 0.5
-		and X.IsTargetedByEnemy( Ancient )
-	then
-		bot:ActionImmediate_Glyph( )
-		return
-	end
-
+	Runtime.Call(bot,'glyph',function() return Glyph.Try(bot,team) end)
 end
 
 function ItemUsageThink()

@@ -2,6 +2,7 @@ package.path='./?.lua;'..package.path
 GetScriptDirectory=function() return 'bots' end
 BOT_MODE_NONE,BOT_MODE_EVASIVE_MANEUVERS,BOT_MODE_RETREAT=0,1,2
 DAMAGE_TYPE_ALL,DAMAGE_TYPE_PHYSICAL=1,2
+DAMAGE_TYPE_MAGICAL,DAMAGE_TYPE_PURE,ATTRIBUTE_STRENGTH=3,4,0
 UNIT_LIST_ALLIED_HEROES,UNIT_LIST_ENEMY_HEROES=1,2
 TOWER_TOP_3,TOWER_MID_3,TOWER_BOT_3=2,5,8
 LANE_MID=2
@@ -27,6 +28,13 @@ local function hero(name,id,x)
     function h:GetUnitName() visible(self); return self.name end
     function h:GetEstimatedDamageToTarget(_,target,time) visible(self); return self.damage*time end
     function h:GetAttackRange() visible(self); return self.range end
+    function h:GetMana() return self.mana or 1000 end
+    function h:GetAttackDamage() return self.damage end
+    function h:GetSecondsPerAttack() return 1 end
+    function h:GetCurrentMovementSpeed() return 300 end
+    function h:GetSpellAmp() return 0 end
+    function h:GetAttributeValue() return 40 end
+    function h:GetActualIncomingDamage(raw) return raw end
     function h:GetAttackTarget() visible(self); return self.target end
     function h:GetStunDuration() return self.stun end
     function h:IsStunned() return self.stunned or false end
@@ -92,6 +100,8 @@ reset(); bot.damage,ally.damage=1200,1200; ally.mods.modifier_teleporting=true
 assert(Defense.GetPlan(bot,J).hold,'Teleporting ally cannot justify commitment')
 reset(); bot.damage,ally.damage=1200,1200; ally.hp=500
 assert(Defense.GetPlan(bot,J).hold,'Wounded ally not counted as promised DPS')
+reset(); bot.damage,ally.damage=1200,1200; ally.stunned=true
+assert(Defense.GetPlan(bot,J).hold,'Currently incapacitated ally is not a ready damage member')
 reset(); bot.damage,ally.damage=1200,1200; enemy.damage=5000
 assert(Defense.GetPlan(bot,J).hold,'Lethal incoming damage still blocks attack')
 reset(); enemy.target=ancient; ancient.hp=1000
@@ -132,6 +142,9 @@ local function ability(name,range,radius)
     function a:GetCastPoint() return 0.3 end
     function a:GetChannelTime() return 8 end
     function a:GetSpecialValueInt() return radius or 315 end
+    function a:GetSpecialValueFloat(key) return (self.values and self.values[key]) or (key:find('duration') and 2) or 0 end
+    function a:GetManaCost() return self.mana or 100 end
+    function a:GetAbilityDamage() return 0 end
     return a
 end
 local warlock,wk,sniper

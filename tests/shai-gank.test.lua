@@ -3,6 +3,7 @@ GetScriptDirectory=function() return 'bots' end
 BOT_MODE_NONE,BOT_MODE_FARM,BOT_MODE_RETREAT,BOT_MODE_EVASIVE_MANEUVERS=0,1,2,3
 BOT_MODE_ROSHAN,BOT_MODE_SIDE_SHOP,BOT_MODE_TEAM_ROAM,BOT_MODE_LANING=4,5,6,7
 BOT_MODE_DESIRE_NONE,DAMAGE_TYPE_ALL,DAMAGE_TYPE_PHYSICAL=0,0,1
+DAMAGE_TYPE_MAGICAL,DAMAGE_TYPE_PURE,ATTRIBUTE_STRENGTH=2,4,0
 UNIT_LIST_ALLIED_HEROES,UNIT_LIST_ENEMY_HEROES=1,2
 Vector=function(x,y,z) return {x=x,y=y,z=z or 0} end
 local now,allies,enemies,passable=900,{},{},true
@@ -20,6 +21,9 @@ local function ability(name,range,radius)
     function a:IsHidden() return false end
     function a:GetCastRange() return self.range end
     function a:GetSpecialValueInt() return self.radius end
+    function a:GetSpecialValueFloat(key) return (self.values and self.values[key]) or (key:find('duration') and 2) or 0 end
+    function a:GetManaCost() return self.mana or 100 end
+    function a:GetAbilityDamage() return self.damage or 0 end
     function a:GetCastPoint() return 0.3 end
     function a:GetCooldownTimeRemaining() return self.cooldown end
     return a
@@ -39,6 +43,13 @@ local function hero(name,id,x)
     function h:GetHealth() visible(self); return self.hp end
     function h:GetMaxHealth() visible(self); return self.maxHp end
     function h:GetHealthRegen() visible(self); return 5 end
+    function h:GetMana() return self.mana or 1000 end
+    function h:GetAttackDamage() return self.dps*(self.physical or 1) end
+    function h:GetSecondsPerAttack() return 1 end
+    function h:GetSpellAmp() return 0 end
+    function h:GetAttributeValue() return 40 end
+    function h:GetActualIncomingDamage(raw) return raw end
+    function h:IsAttackImmune() return false end
     function h:GetEstimatedDamageToTarget(ready,_,seconds,kind)
         visible(self); assert(ready); return self.dps*seconds*(kind==DAMAGE_TYPE_PHYSICAL and (self.physical or 1) or 1)
     end
@@ -74,6 +85,7 @@ J.GetHP=function(h) return h:GetHealth()/h:GetMaxHealth() end
 J.IsSuspiciousIllusion=function(h) return h:IsIllusion() end
 J.CanNotUseAction=function(h) return h.busy or false end
 J.IsDisabled=function(h) return h.stunned or false end
+J.GetRemainStunTime=function(h) return h.remainingStun or 0 end
 J.VectorAway=function(a,b,d)
     local dx,dy=a.x-b.x,a.y-b.y; local len=math.sqrt(dx*dx+dy*dy)
     assert(len>0); return Vector(a.x+dx/len*d,a.y+dy/len*d)
@@ -109,12 +121,25 @@ lion.loc,sniper.loc,axe.loc=Vector(-550,0),Vector(-700,0),Vector(-220,0)
 advance(); Gank.GetDesire(axe,J)
 assert(plan.phase=='engage' and axe.target==target)
 assert(Gank.TryControl(lion,J) and lion.action=='lion_voodoo','Prepared Hex opens')
-assert(Gank.TryControl(axe,J) and axe.action=='move','Landing reservation prevents another cast immediately')
+assert(not Gank.TryControl(axe,J) and axe.action=='move','Landing reservation prevents another cast but permits damage')
+Gank.Think(sniper,J); assert(sniper.action=='attack','Damage continues immediately while the opener lands')
 advance(); advance(); target.stunned=true
 assert(not Gank.TryControl(axe,J),'Do not overlap a known active disable')
 Gank.Think(sniper,J); assert(sniper.action=='attack' and sniper.attacked==target,'Damage member joins the same target')
 target.stunned=false; lion.abilities.lion_voodoo.ready=false
 assert(Gank.TryControl(axe,J) and axe.action=='axe_berserkers_call','Next ready controller can follow up')
+-- During a known disable, wait until the next cast can land near its end.
+now=now+1; target.stunned=true; target.remainingStun=1.5; axe.action=nil
+assert(not Gank.TryControl(axe,J) and axe.action==nil,'Long active stun is not wasted by immediate overlap')
+target.remainingStun=0.35
+assert(Gank.TryControl(axe,J),'Follow-up starts before a known disable expires')
+local Chain=require('bots/FunLib/shai_control_chain')
+assert(Chain.Pending(sniper,target)~=nil,'Controllers and damage members share the target reservation')
+local Safety=require('bots/FunLib/shai_cast_safety')
+assert(not Safety.AllowDecision(lion,J,lion.abilities.lion_voodoo,target,'control'),'Native control dispatcher respects shared landing reservation')
+assert(Safety.AllowDecision(lion,J,lion.abilities.lion_voodoo,target,'damage'),'Damage dispatcher remains free to follow up')
+now=now+1; target.remainingStun=0; target.stunned=false
+assert(Chain.Pending(sniper,target)==nil,'Reservation expires instead of locking the team forever')
 
 reset(); allies={lion,sniper}; assert(Gank.GetDesire(lion,J)==nil,'Two bots cannot start dominant-target plan')
 reset(); target.level=15; target.dps=700
@@ -145,6 +170,7 @@ reset(); enemies={target,hero('enemy1',12,200),hero('enemy2',13,300)}; assert(Ga
 reset(); target.items[0]=ability('item_aeon_disk'); assert(Gank.GetDesire(lion,J)==nil,'Ready Aeon rejects assumed secured kill')
 reset(); target.items[0]=ability('item_sphere'); assert(Gank.GetDesire(lion,J)==nil,'Spell block removes targeted opener')
 reset(); target.items[0]=ability('item_black_king_bar'); for _,h in ipairs(allies) do h.physical=0.1 end
+lion.abilities.lion_finger_of_death=ability('lion_finger_of_death'); lion.abilities.lion_finger_of_death.values={damage=4000}
 assert(Gank.GetDesire(lion,J)==nil,'Ready BKB cannot be ignored by magic damage')
 target.items[0].ready=false; advance(); assert(Gank.GetDesire(lion,J)==0.97,'Observed unavailable BKB is different')
 reset(); target.items[0]=ability('item_black_king_bar')
@@ -156,6 +182,7 @@ target.items[0].ready=false; advance(); assert(Gank.GetDesire(lion,J)==0.97,'Orc
 reset(); lion.abilities={}; lion.items[0]=ability('item_sheepstick'); target.items[0]=ability('item_manta')
 assert(Gank.GetDesire(lion,J)==0.97,'Hex plus another controller viable despite Manta')
 reset(); lion.abilities.lion_voodoo.ready=false; assert(Gank.GetDesire(lion,J)==nil,'Cooldown control not counted')
+reset(); lion.mana=50; assert(Gank.GetDesire(lion,J)==nil,'Unavailable mana removes a control source from the planned combo')
 reset(); lion.silenced=true; assert(Gank.GetDesire(lion,J)==nil,'Silenced caster not counted')
 reset(); passable=false; assert(Gank.GetDesire(lion,J)==nil,'Unreachable rally not published')
 reset(); baseThreat=true; assert(Gank.GetDesire(lion,J)==nil,'Base emergency takes priority')

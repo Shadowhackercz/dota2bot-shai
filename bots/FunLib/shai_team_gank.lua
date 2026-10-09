@@ -2,6 +2,13 @@
 local X = {}
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Budget = require(GetScriptDirectory()..'/FunLib/shai_combat_budget')
+local Chain = require(GetScriptDirectory()..'/FunLib/shai_control_chain')
+local durationKeys={lion_voodoo='duration',lion_impale='duration',skeleton_king_hellfire_blast='blast_stun_duration',
+    sven_storm_bolt='bolt_stun_duration',dragon_knight_dragon_tail='stun_duration',vengefulspirit_magic_missile='magic_missile_stun',
+    centaur_hoof_stomp='stun_duration',axe_berserkers_call='duration',tidehunter_ravage='duration',
+    crystal_maiden_frostbite='duration',witch_doctor_paralyzing_cask='hero_duration',warlock_rain_of_chaos='stun_duration',
+    item_sheepstick='sheep_duration',item_orchid='silence_duration',item_bloodthorn='silence_duration'}
 -- Conservative subset: no guessed spell targeting flags or blink combos.
 local spells = {
     {'lion_voodoo','unit'}, {'lion_impale','point'},
@@ -52,6 +59,7 @@ local function Controls(h, target, defenses, inRange)
             if aoeTalent~=nil and aoeTalent:IsTrained() then kind='point' end
         end
         options[#options+1] = {ability=ability, kind=kind, range=range, item=isItem, dispellable=spec[5],
+            duration=math.max(0,ability:GetSpecialValueFloat(durationKeys[spec[1]]))*0.65,
             ultimate=spec[1]=='warlock_rain_of_chaos' or spec[1]=='tidehunter_ravage'}
     end
     for _, spec in ipairs(spells) do Add(spec,h:GetAbilityByName(spec[1]),false) end
@@ -88,6 +96,33 @@ local function Assess(members, target, J, close, engaged, landing)
     if defenses.aeon or target:HasModifier('modifier_dazzle_shallow_grave')
         or target:HasModifier('modifier_abaddon_borrowed_time') then return false,'target-protected' end
     local damage, controls, hard, opener, count = 0,0,0,nil,0
+    local otherEnemies=0
+    for _,e in pairs(GetUnitList(UNIT_LIST_ENEMY_HEROES)) do
+        if e~=target and Visible(e,J) and GetUnitToUnitDistance(e,target)<1600 then otherEnemies=otherEnemies+1 end
+    end
+    local controlSeconds=0
+    local paid={}
+    for _,h in ipairs(members) do
+        local best=0
+        local opts=Controls(h,target,defenses,false)
+        local funded=Budget.Member(h,target,J,opts,{horizon=5,future=not close,bkb=defenses.bkb,
+            block=defenses.block,caught=target:IsStunned() or target:IsHexed()})
+        paid[h:GetPlayerID()]=funded
+        for _,opt in ipairs(opts) do
+            if funded.available[opt.ability:GetName()] and not opt.dispellable then best=math.max(best,opt.duration) end
+        end
+        controlSeconds=controlSeconds+best
+    end
+    local breakdown={attacks=0,spells=0,summons=0,mana=0}
+    local openerDelay=math.huge
+    for _,h in ipairs(members) do
+        for _,opt in ipairs(Controls(h,target,defenses,close)) do
+            if paid[h:GetPlayerID()].available[opt.ability:GetName()] then
+                openerDelay=math.min(openerDelay,Chain.Delay(h,target,opt.ability,opt.kind))
+            end
+        end
+    end
+    if J.IsDisabled(target) or landing then openerDelay=0.35 end
     for _, h in ipairs(members) do
         local ready,utility=CombatReady(h,target,J,engaged)
         if not ready or GetUnitToUnitDistance(h,target) > (close and 1100 or 2600) then
@@ -95,39 +130,45 @@ local function Assess(members, target, J, close, engaged, landing)
         end
         if not utility then
             count = count+1
-            damage = damage + h:GetEstimatedDamageToTarget(true,target,4,
-                defenses.bkb and DAMAGE_TYPE_PHYSICAL or DAMAGE_TYPE_ALL)*0.65
         end
         local opts = Controls(h,target,defenses,false)
-        if #opts > 0 then controls=controls+1 end -- distinct casters, not multiple spells on one mana pool
-        for _, opt in ipairs(opts) do if not opt.dispellable then hard=hard+1; break end end
-        if opener == nil and #Controls(h,target,defenses,true) > 0 then opener=h end
-        local retaliation = target:GetEstimatedDamageToTarget(true,h,2,DAMAGE_TYPE_ALL)
-        if retaliation >= h:GetHealth()*0.85 and #opts == 0 then return false,'member-too-fragile' end
+        local m=Budget.Member(h,target,J,opts,{horizon=5,future=not close,bkb=defenses.bkb,
+            block=defenses.block,caught=target:IsStunned() or target:IsHexed(),backups=otherEnemies,controlsOnly=utility,controlSeconds=math.min(5,controlSeconds)})
+        damage=damage+m.total
+        for _,key in ipairs({'attacks','spells','summons','mana'}) do breakdown[key]=breakdown[key]+m[key] end
+        local funded,hardFunded=false,false
+        for _,opt in ipairs(opts) do
+            if m.available[opt.ability:GetName()] then funded=true; if not opt.dispellable then hardFunded=true end end
+        end
+        if funded then controls=controls+1 end
+        if hardFunded then hard=hard+1 end
+        if opener==nil then
+            for _,opt in ipairs(Controls(h,target,defenses,true)) do if m.available[opt.ability:GetName()] then opener=h; break end end
+        end
+        local delay=openerDelay~=math.huge and openerDelay or 2
+        local retaliation=target:GetEstimatedDamageToTarget(true,h,delay,DAMAGE_TYPE_ALL)
+        if retaliation>=h:GetHealth()*0.85 then return false,'member-too-fragile' end
     end
     if count < (engaged and 2 or 3) then return false,'group-not-ready' end
-    local otherEnemies=0
-    for _, e in pairs(GetUnitList(UNIT_LIST_ENEMY_HEROES)) do
-        if e ~= target and Visible(e,J) and GetUnitToUnitDistance(e,target)<1600 then otherEnemies=otherEnemies+1 end
-    end
     if otherEnemies >= 2 then return false,'enemy-backup' end
     if #target:GetNearbyTowers(1000,false) > 0 then return false,'enemy-tower' end
-    if damage < (target:GetHealth()+target:GetHealthRegen()*4)*1.15*(1+otherEnemies*0.4) then
-        return false,'insufficient-damage'
+    if damage < (target:GetHealth()+target:GetHealthRegen()*5)*1.15*(1+otherEnemies*0.4) then
+        return false,'insufficient-damage',nil,breakdown
     end
     -- Once caught, consumed controls must not abort a viable ongoing kill.
     if not J.IsDisabled(target) and not landing
-        and (controls<2 or hard<(defenses.bkb and 2 or 1)) then return false,'insufficient-control' end
-    return true,nil,opener
+        and (controls<2 or hard<(defenses.bkb and 2 or 1)) then return false,'insufficient-control',nil,breakdown end
+    return true,nil,opener,breakdown
 end
 
 local function Trace(leader, plan, reason)
     if not SHAI.BehaviorTrace then return end
     local key = (plan and plan.phase or 'abort')..':'..(reason or '')
     if leader.shaiGankTraceKey~=key or DotaTime()-(leader.shaiGankTraceTime or -math.huge)>=5 then
-        print(string.format('[SHAI] gank t=%.2f; leader=%s; phase=%s; reason=%s; target=%s; members=%d',
+        local b=plan and plan.budget or {}
+        print(string.format('[SHAI] gank t=%.2f; leader=%s; phase=%s; reason=%s; target=%s; members=%d; attacks=%.0f; spells=%.0f; summons=%.0f; mana=%.0f',
             DotaTime(),leader:GetUnitName(),plan and plan.phase or 'abort',reason or 'ready',
-            plan and plan.name or '-',plan and #plan.members or 0))
+            plan and plan.name or '-',plan and #plan.members or 0,b.attacks or 0,b.spells or 0,b.summons or 0,b.mana or 0))
         leader.shaiGankTraceKey,leader.shaiGankTraceTime=key,DotaTime()
     end
 end
@@ -217,11 +258,12 @@ function X.Update(bot,J)
         end
         plan.members=remaining
         local landing=plan.controlUntil~=nil and now<plan.controlUntil
-        local safe,reason=Assess(plan.members,plan.target,J,false,plan.phase=='engage',landing)
+        local safe,reason,_,breakdown=Assess(plan.members,plan.target,J,plan.phase=='engage',plan.phase=='engage',landing)
         if not safe and Reinforce(plan,allies,J,reason) then
-            safe,reason=Assess(plan.members,plan.target,J,false,plan.phase=='engage',landing)
+            safe,reason,_,breakdown=Assess(plan.members,plan.target,J,plan.phase=='engage',plan.phase=='engage',landing)
         end
         if not safe then Cancel(leader,plan,reason); return end
+        plan.budget=breakdown
         plan.updated=now
         local close,_,closeOpener=Assess(plan.members,plan.target,J,true,plan.phase=='engage',landing)
         if plan.phase=='gather' then
@@ -254,12 +296,13 @@ function X.Update(bot,J)
                 end
             end
             table.sort(members,function(a,b) return a:GetPlayerID()<b:GetPlayerID() end)
-            local viable,reason=false,nil
+            local viable,reason,_,breakdown=false,nil,nil,nil
             if dominant then
-                viable,reason=Assess(members,target,J,false)
+                viable,reason,_,breakdown=Assess(members,target,J,false)
                 if not viable and SHAI.BehaviorTrace and now-(leader.shaiGankRejectedTime or -math.huge)>=5 then
-                    print(string.format('[SHAI] gank t=%.2f; leader=%s; phase=declined; reason=%s; target=%s; members=%d',
-                        now,leader:GetUnitName(),reason or 'group-not-ready',target:GetUnitName(),#members))
+                    local b=breakdown or {}
+                    print(string.format('[SHAI] gank t=%.2f; leader=%s; phase=declined; reason=%s; target=%s; members=%d; attacks=%.0f; spells=%.0f; summons=%.0f; mana=%.0f',
+                        now,leader:GetUnitName(),reason or 'group-not-ready',target:GetUnitName(),#members,b.attacks or 0,b.spells or 0,b.summons or 0,b.mana or 0))
                     leader.shaiGankRejectedTime=now
                 end
             end
@@ -272,7 +315,7 @@ function X.Update(bot,J)
                 local rally=J.VectorAway(targetLoc,centroid,-1100)
                 if IsLocationPassable(rally) then
                     plan={target=target,name=target:GetUnitName(),members=members,phase='gather',
-                        rally=rally,created=now,updated=now,expires=now+18}
+                        rally=rally,created=now,updated=now,expires=now+18,budget=breakdown}
                     leader.shaiTeamGank=plan
                     for _, h in ipairs(members) do h.shaiGankPlan=plan; h:SetTarget(nil) end
                     Trace(leader,plan)
@@ -308,14 +351,14 @@ end
 function X.TryControl(bot,J)
     local p=Current(bot,J)
     if p==nil or p.phase~='engage' or J.CanNotUseAction(bot) then return false end
-    -- Short landing window prevents another caster/hero dispatch jumping the opener.
-    if p.controlUntil~=nil and DotaTime()<p.controlUntil then return true end
-    if J.IsDisabled(p.target) then return false end
+    local pending=Chain.Pending(bot,p.target)
+    if pending~=nil then return pending.owner==bot end
     local defenses=Defenses(p.target)
     if defenses.aeon then return false end
     for _, opt in ipairs(Controls(bot,p.target,defenses,true)) do
-        if opt.item or CastSafety.Allow(bot,J,opt.ability,'control') then
-            p.controlUntil=DotaTime()+opt.ability:GetCastPoint()+math.max(0.35,GetUnitToUnitDistance(bot,p.target)/900)
+        if not Chain.Wait(bot,p.target,J,opt.ability,opt.kind) and (opt.item or CastSafety.Allow(bot,J,opt.ability,'control')) then
+            local r=Chain.Reserve(bot,p.target,opt.ability,opt.kind,p.members)
+            p.controlUntil=r.untilTime
             if opt.kind=='self' then bot:Action_UseAbility(opt.ability)
             elseif opt.kind=='point' then bot:Action_UseAbilityOnLocation(opt.ability,p.target:GetLocation())
             else bot:Action_UseAbilityOnEntity(opt.ability,p.target) end
@@ -352,14 +395,13 @@ function X.LocalControlOptions(bot,target,J,inRange)
 end
 function X.TargetDefenses(target) return Defenses(target) end
 function X.TryLocalControl(bot,target,J,members,allowUltimate)
-    if J.CanNotUseAction(bot) or not Visible(target,J) or J.IsDisabled(target) then return false end
-    for _,h in ipairs(members) do
-        if h.shaiDefenseControlUntil~=nil and DotaTime()<h.shaiDefenseControlUntil then return false end
-    end
+    if J.CanNotUseAction(bot) or not Visible(target,J) then return false end
+    local pending=Chain.Pending(bot,target)
+    if pending~=nil then return pending.owner==bot end
     if Defenses(target).aeon then return false end
     for _,opt in ipairs(Controls(bot,target,Defenses(target),true)) do
-        if (allowUltimate~=false or not opt.ultimate) and (opt.item or CastSafety.Allow(bot,J,opt.ability,'control')) then
-            local untilTime=DotaTime()+opt.ability:GetCastPoint()+math.max(0.35,GetUnitToUnitDistance(bot,target)/900)
+        if not Chain.Wait(bot,target,J,opt.ability,opt.kind) and (allowUltimate~=false or not opt.ultimate) and (opt.item or CastSafety.Allow(bot,J,opt.ability,'control')) then
+            local untilTime=Chain.Reserve(bot,target,opt.ability,opt.kind,members).untilTime
             for _,h in ipairs(members) do h.shaiDefenseControlUntil=untilTime end
             bot.shaiDefenseControlUntil=untilTime
             if opt.kind=='self' then bot:Action_UseAbility(opt.ability)

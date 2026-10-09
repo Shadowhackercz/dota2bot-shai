@@ -2,6 +2,7 @@
 local X = {}
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
+local Chain = require(GetScriptDirectory()..'/FunLib/shai_control_chain')
 local states = setmetatable({}, {__mode = 'k'})
 local curse = 'modifier_silencer_curse_of_the_silent'
 local lastWord = 'modifier_silencer_last_word'
@@ -86,6 +87,16 @@ end
 -- Shared dispatch policy for the selected hero pool. Explicit control/save/escape
 -- remains useful under Curse; optional damage is classified using the chosen unit.
 function X.AllowDecision(bot,J,ability,target,kind)
+    if kind=='control' or kind=='damage-control' then
+        local reservation=bot.shaiControlReservation
+        if reservation~=nil and DotaTime()>=reservation.created and DotaTime()-reservation.created<5 then
+            local chosen=target or (J.GetProperTarget and J.GetProperTarget(bot))
+            if chosen==reservation.target and chosen:CanBeSeen()
+                and not (chosen.IsChanneling and chosen:IsChanneling())
+                and not (J.IsRetreating and J.IsRetreating(bot))
+                and Chain.Wait(bot,chosen,J,ability,'unit') then return false end
+        end
+    end
     if not bot:HasModifier(curse) and not bot:HasModifier(lastWord) then return true end
     local purpose=kind
     if kind=='damage' or kind=='damage-control' or kind=='engage' then

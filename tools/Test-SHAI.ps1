@@ -26,6 +26,10 @@ try {
     if (-not $castMatch.Success) { throw 'Cannot locate actual item dispatcher' }
     $castAdapter = "return function(bot,J,Travel,Runtime)`nlocal X={}`n" + $castMatch.Value + "`nreturn X.SetUseItem`nend`n"
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-item-cast.lua'), $castAdapter, [Text.UTF8Encoding]::new($false))
+    $glyphMatch = [regex]::Match($abilitySource, '(?s)local function UseGlyph\(\).*?\r?\nend(?=\r?\n\r?\nfunction ItemUsageThink)')
+    if (-not $glyphMatch.Success) { throw 'Cannot locate actual glyph callback' }
+    $glyphAdapter = "return function(bot,team,Glyph,Runtime)`n" + $glyphMatch.Value + "`nreturn UseGlyph`nend`n"
+    [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-glyph-callback.lua'), $glyphAdapter, [Text.UTF8Encoding]::new($false))
     $objectiveHelperBodies = foreach ($name in @('IsDoingRoshan', 'IsDoingTormentor')) {
         $helperMatch = [regex]::Match($helperSource, "(?s)function J\.$name\([^)]*\).*?\r?\nend")
         if (-not $helperMatch.Success) { throw "Cannot locate actual J.$name helper" }
@@ -36,7 +40,7 @@ try {
     foreach ($testFile in @('tests/shai-selection.test.lua', 'tests/shai-roshan.test.lua',
         'tests/shai-combat.test.lua', 'tests/shai-tactics.test.lua', 'tests/shai-runes.test.lua',
         'tests/shai-stability.test.lua', 'tests/shai-objectives.test.lua', 'tests/shai-tombstone.test.lua', 'tests/shai-trace.test.lua',
-        'tests/shai-roshan-chat.test.lua', 'tests/shai-safety.test.lua', 'tests/shai-gank.test.lua', 'tests/shai-objective-chat.test.lua', 'tests/shai-finish.test.lua', 'tests/shai-defense.test.lua', 'tests/shai-travel.test.lua')) {
+        'tests/shai-roshan-chat.test.lua', 'tests/shai-safety.test.lua', 'tests/shai-gank.test.lua', 'tests/shai-budget.test.lua', 'tests/shai-glyph.test.lua', 'tests/shai-objective-chat.test.lua', 'tests/shai-finish.test.lua', 'tests/shai-defense.test.lua', 'tests/shai-travel.test.lua')) {
         # Fresh VM per test; explicit exit because Fengari otherwise swallows errors.
         & $luaCli -e "local ok, err = pcall(dofile, '$testFile'); if not ok then print(err); os.exit(1) end"
         if ($LASTEXITCODE -ne 0) { throw "Failed: $testFile" }

@@ -1,5 +1,16 @@
 # SHAI: aktuální revize a úkoly
 
+## Navazující sada: rozpočet boje, chain control a glyph (9. října)
+
+- [x] Gank i obrana používají konkrétní útoky a profily dostupných kouzel místo součtu engine ALL damage. Společný mana pool, čas kouzlení/přiblížení, revival rezerva WK, aktuální obrany cíle a omezený přínos golemu/Death Ward. Z item damage je zatím zahrnut Dagon; celé inventory ani všechny ability kombinace modelované nejsou.
+- [x] Čekání na dopad kontrolního kouzla blokuje další kontrolu a příkazy původního castera, ostatní damage pokračuje. Při známé délce stunu/hexu lze začít další kontrolu před jeho koncem podle času dopadu. Neznámá délka se nevymýšlí; rezervace je krátká a vázaná na konkrétní cíl.
+- [x] Odhad útoků, kouzel, summonů a spotřebované many se zapisuje do gank/defense trace. Log analyzer zobrazuje tyto detaily i glyph.
+- [x] Glyph funguje i při třech lidech ve vlastním týmu: jeden executor, náhrada při smrti, cooldown/krátká sdílená rezervace, pouze viditelné skutečné útoky na budovu, i creep-only siege. Posuzuje odhad času do pádu a blízkou zdravou obranu, nikoli samotné procento HP.
+- [ ] Ověřit tuto sadu v nové hře: společný engage, pořadí kontrol, skutečný damage/summon uptime a fortification. Odhad není plná simulace souboje; zvlášť ověřit refresh glyphu, dostupný waveclear a změny po posledním patchi.
+- [ ] Dál zbývá Scan API, přesun Roshana, delší paměť viditelné mapové hrozby, plánování již aktivní invis a širší item/spell synergie. Tyto části nebyly touto sadou vyřešené.
+
+Podrobnosti a meze modelu: [audit navazující sady](SHAI-BEHAVIOR-AUDIT.md#navazující-rozpočet-boje-chain-control-a-glyph). Prochází 18 Lua a 2 PowerShell sady, syntax všech 310 Lua souborů. Herní ověření je otevřené.
+
 ## Nový herní test: 9036262600 (9. října)
 
 Zachované logy a lokálně dekódovaný replay: [revize zápasu se třemi lidmi](SHAI-MATCH-9036262600.md). Původní experiment měl 219 výpisů hold-position, žádný group-ready a nevyužitou Warlockovu připravenou ulti kolem 34:40. Po revizi je hotová první opravná sada; **herní ověření nové verze je stále otevřené**.
@@ -12,7 +23,7 @@ Zachované logy a lokálně dekódovaný replay: [revize zápasu se třemi lidmi
 - [x] Odmítnout nil lokaci ground itemu a golem/channel guardu; přidat bezpečný handler se zdrojovým názvem do hero/item/defense/roam cest. Diagnostika nevyhodí další chybu při nestandardním typu error objektu.
 - [ ] Přesně lokalizovat původní engine chybu `GetUnitToLocationDistance ... got void`. Starý log nemá stack; nové kontroly a handler ji nepovažují za zpětně prokázanou a zcela opravenou.
 - [ ] Odehrát novou hru a porovnat obranu/TP/fade s logem. Ve 34:40 WD původního zápasu již nežil, scénář s jeho kombem je samostatný simulovaný test, ne tvrzení o jeho tehdejší dostupnosti.
-- [ ] Navázat přesnějším spell/item damage rozpočtem, délkovým plánováním chain disable a náborem pro gank mimo základnu; současný engine odhad + tlak u budov negarantuje kill a nesimuluje celý Maledict/golem/Satanic.
+- [x] Navázat prvním explicitním rozpočtem damage a many, délkovým plánováním chain disable a přehodnocením ganku mimo základnu. Implementační sada výše; celý Maledict/golem/Satanic a všechny itemy stále nejsou simulované a kill není garantovaný.
 - [ ] Cíleně ověřit dokončování soubojů. Nízké HP Snipera kolem 27:35 je doložené, dostupnost okamžitého finishing spellu spojeneckých botů poblíž nikoli.
 
 Původní seznam níže zůstává pro širší plán; jeho starší popis guardů Zeuse/Warlocka předchází experimentální změně, která rozšířila guardy na zbytek patnácti vybraných hrdinů. Herní test neověřil správnost každé větve všech hrdinů.
@@ -32,7 +43,7 @@ Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REP
 
 ## P1: boj, farma a přežití
 
-Stav první implementace: bod 1 má společný guard ve farm/laning/retreat a testy skutečných módů; bod 2 má dispatch guardy Zeuse a Warlocka. Lion/Shaman zatím tento nový guard nemají a jejich důležité disables se touto změnou neblokují. Z bodu 3 je hotová pouze kopie poslední viditelné polohy s krátkou pamětí 0,75 s, nikoli plánování podle dlouhodobé mapové hrozby. Bod 5 má odmítnutí známého smrtícího Last Word a omezení channelu pod debuffem; obecný model přežití během cast pointu a týmového přínosu ještě chybí. Tyto body neuzavírat bez nového zápasu.
+Stav implementace: bod 1 má společný guard ve farm/laning/retreat a testy skutečných módů; bod 2 má dispatch guardy patnácti vybraných hrdinů včetně Liona. Důležitá kontrola/záchrana/únik mají jinou prioritu než volitelný harass. Z bodu 3 je hotová pouze kopie poslední viditelné polohy s krátkou pamětí 0,75 s, nikoli plánování podle dlouhodobé mapové hrozby. Bod 5 má guard přežití cast pointu a prvního channelu Warlocka i týmový přínos golemu v lokální obraně; nejde o kompletní model všech situací. Tyto body neuzavírat bez nového zápasu.
 
 1. **Přerušit nebezpečnou farmu.** Doloženo u Zeuse kolem 27:39. Zohlednit viditelnou hrozbu, nedávný přijatý damage, dosah/rychlost soupeře, sílu obou stran a pomoc v dosahu. Rozhodnout boj nebo únik; farm action nesmí přepsat tento záměr. Ověření: dominantní nepřítel v melee vzdálenosti, skutečný týmový support, i klidná linka bez falešného ústupu.
 2. **Zohlednit Arcane Curse / Last Word před castem.** Zeus má 19 seslání pod Curse v prvních 10 min; Warlock v 31:57 zemřel na Last Word současně s ulti eventem. Model ceny musí rozlišit lehký harass, last hit, únik, důležitý disable/interrupt, kill a záchranu. Nezavádět univerzální zákaz kouzlení. Ověření: nepotřebné Q/W se odmítne, Lion/Shaman smysluplně zastaví soupeře, únik zůstává povolen, last hit pod bezpečnou Curse může být přijat.
@@ -56,7 +67,7 @@ První implementace bodu 6: `shai_team_gank.lua` od 10. minuty vybírá 3–5 p�
 10. **Dočasné veto objektivů hráčem — implementováno, čeká herní ověření.** `!stop roshan`, `!stop tormentor`, `!stop objectives` blokují na 60 herních sekund; `!normal` odstraní obě blokace. Jeden anglický reply, lidský autor stejného týmu, zrušení přijatého requestu, expirace/reset a mrtví členové jsou ověřené simulacemi. Zákaz je zapojen i do autonomních módů a callbacku pro ukončení starého objektivového příkazu; zachovává hero cíl sebeobrany a probíhající cast/TP/channel. Nové lobby musí potvrdit chat, přenos pokynů a skutečné zrušení akcí včetně respawnu.
 11. **Tormentor: zjistit konkrétní blokaci před laděním prahů.** V minulém exportu není damage na pojmenovaný miniboss/tormentor. Odečíst reason log v době potenciálního pokusu, skutečnou polohu/živý spawn, sílu připravené skupiny a přežití reflectu. Nesnižovat limity jen proto, aby šli ve 35. minutě za každou cenu. Dokončení: bezpečně získaný shard nebo doložený rozumný důvod odmítnutí.
 12. **Scan.** Ve skriptech nenalezeno explicitní `ActionImmediate_Scan`/`GetScanCooldown`; samotný replay export neověřil všechny scan stavy. Nejdříve runtime ověřit API a výsledek, poté jeden týmový správce: rozumná kontrola fog u objektivu či při chybějících soupeřích, sdílený cooldown. Výsledek dává omezenou informaci, ne identity/přesnou polohu všech enemy. Ověření kladného/záporného výsledku i nedostupného scanu bez Lua chyby.
-13. **Glyph.** Dire jej v replayi využil cca 6×, proto úkol není prosté zapnutí. Statický `UseGlyph` naopak automatické použití ve smíšeném týmu blokuje: executor musí být team member 1 a ostatní 4 musí být boti. Rozhodnout společného executora a zohlednit building DPS, čas do pádu, příchozí obranu, waveclear a refresh pravidla aktuálního patche. Ověření proti hero siege i creep-only siege a respekt dostupného cooldownu; nepoužít pouze proto, že budova má pevné procento HP.
+13. **Glyph — první společný správce implementován, runtime otevřený.** Odstraněna blokace ve smíšeném týmu. Jeden bot posoudí skutečné viditelné útoky, odhad building DPS/času do pádu a zdravou obranu do čtyř sekund cesty. Podporuje hero/creep-only siege, Ancient má přednost, cooldown se respektuje. Testy ověřují i náhradu executora a chybějící sloty. Přesný waveclear, incoming TP a patch-specific refresh plánování zatím chybí; engine dostupnost se řídí skutečným cooldownem. Herní chování stále ověřit.
 14. **Runy/Wisdom zachovat a doladit.** Zeus opravdu sbíral water/power; XP cykly jsou pozitivní indicie Wisdom, uživatel chválí i pokus o steal. Doladit potřebu HP/many/Bottle, známý zájem soupeře, cenu ztracené wave a bezpečné odepření runy. Neobětovat život slabého midu jen za contest. Potvrdit skutečný capture/XP a případnou možnost zničení water rune přes dostupné API, než ji slibovat.
 
 ## Jak úkol uzavřít

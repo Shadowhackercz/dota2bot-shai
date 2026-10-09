@@ -4,6 +4,8 @@ local SHAI=require(GetScriptDirectory()..'/Customize/shai')
 local Gank=require(GetScriptDirectory()..'/FunLib/shai_team_gank')
 local CastSafety=require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Finish=require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
+local Budget=require(GetScriptDirectory()..'/FunLib/shai_combat_budget')
+local Chain=require(GetScriptDirectory()..'/FunLib/shai_control_chain')
 local function Visible(h,J)
     return h~=nil and not h:IsNull() and h:CanBeSeen() and J.IsValidHero(h) and not J.IsSuspiciousIllusion(h)
 end
@@ -16,8 +18,8 @@ local function Trace(bot,p)
     if not SHAI.BehaviorTrace then return end
     if DotaTime()-(bot.shaiDefensePrinted or -math.huge)<3 and bot.shaiDefenseReason==p.reason then return end
     bot.shaiDefensePrinted,bot.shaiDefenseReason=DotaTime(),p.reason
-    print(string.format('[SHAI] defense t=%.2f; hero=%s; reason=%s; target=%s; members=%d; damage=%.0f; controls=%d; backups=%d; hp=%.0f; openerDelay=%.2f; ready=%s; excluded=%s',
-        DotaTime(),bot:GetUnitName(),p.reason,p.target:GetUnitName(),#p.members,p.damage,p.controls,p.backups,p.target:GetHealth(),p.openerDelay,p.available,p.excluded))
+    print(string.format('[SHAI] defense t=%.2f; hero=%s; reason=%s; target=%s; members=%d; damage=%.0f; controls=%d; backups=%d; hp=%.0f; openerDelay=%.2f; ready=%s; excluded=%s; attacks=%.0f; spells=%.0f; summons=%.0f; mana=%.0f',
+        DotaTime(),bot:GetUnitName(),p.reason,p.target:GetUnitName(),#p.members,p.damage,p.controls,p.backups,p.target:GetHealth(),p.openerDelay,p.available,p.excluded,p.budget.attacks,p.budget.spells,p.budget.summons,p.budget.mana))
 end
 local function Incoming(h,enemies,seconds)
     local n=0
@@ -49,6 +51,10 @@ function X.GetPlan(bot,J)
     end
     if target==nil then leader.shaiDefensePlan=nil; return nil end
     local p={target=target,members={},damage=0,controls=0,hard=0,backups=0,ancient=ancient,checked=DotaTime(),excluded='',available='',openerDelay=math.huge,leader=leader}
+    p.budget={attacks=0,spells=0,summons=0,mana=0}
+    local defenses=Gank.TargetDefenses(target)
+    local controlSeconds=0
+    local funded={}
     for _,h in ipairs(enemies) do if h~=target and Dist(h,target)<1600 then p.backups=p.backups+1 end end
     local seen={}
     local function Add(h)
@@ -59,24 +65,26 @@ function X.GetPlan(bot,J)
         elseif h:HasModifier('modifier_teleporting') then reason='teleporting'
         elseif h:GetHealth()<h:GetMaxHealth()*0.4 then reason='low-hp'
         elseif h:IsHexed() then reason='hexed'
+        elseif h:IsStunned() then reason='stunned'
         elseif Dist(h,target)>1400 then reason='distant' end
         if reason then p.excluded=p.excluded..h:GetUnitName()..':'..reason..','; return end
         p.members[#p.members+1]=h
-        -- Estimate follow-through, not an exact simulation of Maledict/golems.
-        local damageType=target:IsMagicImmune() and DAMAGE_TYPE_PHYSICAL or DAMAGE_TYPE_ALL
-        p.damage=p.damage+h:GetEstimatedDamageToTarget(true,target,5,damageType)*0.75
-        if not h:IsStunned() then
+        if not h:IsStunned() and h:IsBot() then
             local options=Gank.LocalControlOptions(h,target,J,true)
+            local m=Budget.Member(h,target,J,options,{horizon=5,bkb=defenses.bkb,block=defenses.block,caught=target:IsStunned() or target:IsHexed()})
+            funded[h:GetPlayerID()]=options
             local accepted,hard=false,false
+            local duration=0
             for _,opt in ipairs(options) do
-                if opt.item or CastSafety.Allow(h,J,opt.ability,'control') then
+                if m.available[opt.ability:GetName()] then
                     accepted=true
-                    if not opt.dispellable then hard=true end
+                    if not opt.dispellable then hard=true; duration=math.max(duration,opt.duration) end
                     p.available=p.available..h:GetUnitName()..'/'..opt.ability:GetName()..','
-                    local delay=opt.ability:GetCastPoint()+0.2+(opt.kind=='unit' and Dist(h,target)/900 or 0)
+                    local delay=Chain.Delay(h,target,opt.ability,opt.kind)
                     p.openerDelay=math.min(p.openerDelay,delay)
                 end
             end
+            controlSeconds=controlSeconds+duration
             if accepted then
                 p.controls=p.controls+1
                 if hard then p.hard=p.hard+1 end
@@ -85,6 +93,13 @@ function X.GetPlan(bot,J)
     end
     for _,h in pairs(allies) do Add(h) end
     Add(bot)
+    for _,h in ipairs(p.members) do
+        local m=Budget.Member(h,target,J,funded[h:GetPlayerID()],{horizon=5,bkb=defenses.bkb,
+            block=defenses.block,caught=target:IsStunned() or target:IsHexed(),backups=p.backups,
+            controlSeconds=math.min(5,controlSeconds),attacksOnly=not h:IsBot()})
+        p.damage=p.damage+m.total
+        for _,key in ipairs({'attacks','spells','summons','mana'}) do p.budget[key]=p.budget[key]+m[key] end
+    end
     local nearBuilding=Dist(target,ancient)<1800
     p.building=ancient
     local closestBuilding=Dist(target,ancient)
@@ -96,7 +111,6 @@ function X.GetPlan(bot,J)
         end
     end
     local controlled=J.IsDisabled(target)
-    local defenses=Gank.TargetDefenses(target)
     local landing=false
     for _,h in ipairs(p.members) do
         if (h.shaiDefenseControlUntil or -math.huge)>DotaTime() then landing=true end

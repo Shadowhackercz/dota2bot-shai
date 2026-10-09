@@ -14,7 +14,7 @@ foreach ($line in Get-Content -LiteralPath $LogPath) {
     if ($line -match 'Script Runtime Error|GetUnitToLocationDistance.*(got void|expected vector)|\[SHAI\] runtime ') {
         $reportedErrors += $line
     }
-    if ($line -match '\[SHAI\] (defense|gank|gank-member|gank-reinforce|finish|safety|travel|runtime|idle-recovery) (.*)') {
+    if ($line -match '\[SHAI\] (defense|gank|gank-member|gank-reinforce|finish|safety|travel|glyph|runtime|idle-recovery) (.*)') {
         $kind, $detail = $Matches[1], $Matches[2]
         $decisionFields = @{}
         foreach ($field in $detail -split '; ') {
@@ -56,6 +56,6 @@ $decisions | Group-Object -Property Kind,Reason | Sort-Object -Property Count -D
     Select-Object Name,Count | Format-Table -AutoSize
 Write-Output "Reported script exceptions: $scriptExceptions; invalid-location warnings: $invalidLocations; helper failures: $helperFailures (engine may suppress duplicates)."
 $reportedErrors | Select-Object -First 12 | Write-Output
-Write-Output 'Recent defense, travel and helper error details (up to 20 records):'
-$decisions | Where-Object { $_.Kind -in @('defense','travel','runtime') } |
+Write-Output 'Recent defense, gank budgets, glyph, travel and helper error details (up to 20 records):'
+$decisions | Where-Object { $_.Kind -in @('defense','gank','glyph','travel','runtime') } |
     Select-Object -Last 20 | ForEach-Object { "[$($_.Kind)] $($_.Detail)" }
