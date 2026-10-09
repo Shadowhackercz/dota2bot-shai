@@ -1,6 +1,7 @@
 local X = {}
 
 local bot = GetBot()
+if bot == nil then return end
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
 local Customize = require( GetScriptDirectory()..'/Customize/general' )
@@ -21,6 +22,7 @@ local nCoreCountInLoc = 0
 local nSuppCountInLoc = 0
 local lastTraceTime, lastTraceReason = -math.huge, nil
 local decisionReason = 'not-ready'
+local readiness = {}
 local function Decline(reason)
     decisionReason = reason
     return BOT_MODE_DESIRE_NONE
@@ -31,9 +33,14 @@ function GetDesire()
 	-- local cachedVar = J.Utils.GetCachedVars(cacheKey, 0.6 * (1 + Customize.ThinkLess))
 	-- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
 	local res = GetDesireHelper()
-	if DotaTime() >= 15 * 60 and decisionReason ~= lastTraceReason and DotaTime() >= lastTraceTime + 10 then
+	if DotaTime() >= (J.IsModeTurbo() and 450 or 900)
+        and (DotaTime() >= lastTraceTime + 30 or (decisionReason ~= lastTraceReason and DotaTime() >= lastTraceTime + 10)) then
 		local position = TormentorLocation ~= 0 and ('; x='..tostring(TormentorLocation.x)..'; y='..tostring(TormentorLocation.y)) or ''
-		print('[SHAI] tormentor hero='..bot:GetUnitName()..'; reason='..decisionReason..'; desire='..tostring(res)..position)
+		local details=''
+        for _,key in ipairs({'alive','healthy','localCores','localSupports','coreLevel','supportLevel','damageIndex','distance','waitSeconds','availability'}) do
+            details=details..'; '..key..'='..tostring(readiness[key] or '-')
+        end
+		print('[SHAI] tormentor t='..tostring(DotaTime())..'; team='..tostring(GetTeam())..'; hero='..bot:GetUnitName()..'; reason='..decisionReason..'; desire='..tostring(res)..details..position)
 		lastTraceTime, lastTraceReason = DotaTime(), decisionReason
 	end
 	-- J.Utils.SetCachedVars(cacheKey, res)
@@ -41,6 +48,7 @@ function GetDesire()
 end
 function GetDesireHelper()
 	decisionReason = 'not-ready'
+    readiness = {}
 	if not bot:IsAlive() then return Decline('dead') end
 	if ObjectiveCommands.IsBlocked(bot,'tormentor') then
 		canDoTormentor,bot.tormentor_team_healthy=false,false
@@ -59,6 +67,7 @@ function GetDesireHelper()
     end
 
     if DotaTime() > 300 and DotaTime() - bot.tormentor_kill_time <= nRestForSeconds then
+        decisionReason = 'post-kill-rest'
 		return BOT_MODE_DESIRE_VERYHIGH
     end
 
@@ -71,6 +80,23 @@ function GetDesireHelper()
     -- update vars for tormentor
     TormentorLocation = J.GetTormentorLocation(GetTeam())
     vWaitingLocation = J.GetTormentorWaitingLocation(GetTeam())
+    -- Only a directly observed dead unit establishes a kill timestamp. A unit
+    -- disappearing in fog or being absent at a guessed spawn does not.
+    if Tormentor ~= nil and not Tormentor:IsNull() and Tormentor:CanBeSeen() and not Tormentor:IsAlive() then
+        for i=1,#GetTeamPlayers(GetTeam()) do
+            local ally=GetTeamMember(i)
+            if ally ~= nil then ally.tormentor_kill_time=DotaTime(); ally.tormentor_state=false end
+        end
+        Tormentor=nil
+        return Decline('observed-death')
+    end
+    readiness.distance=math.floor(GetUnitToLocationDistance(bot,TormentorLocation))
+    local observedAlive=X.IsTormentorAlive()
+    local missing=bot.shaiTormentorMissing
+    local missingHere=missing ~= nil and DotaTime()>=missing.observedAt and DotaTime()<missing.untilTime
+        and (missing.x-TormentorLocation.x)^2+(missing.y-TormentorLocation.y)^2<400^2
+    readiness.availability=observedAlive and 'visible-alive' or (missingHere and 'visible-empty' or 'unknown')
+    if missingHere and not observedAlive then return Decline('objective-unavailable') end
 
     local tAllyInTormentorLocation = J.GetAlliesNearLoc(TormentorLocation, 900)
     local tAllyInTormentorWaitLocation = J.GetAlliesNearLoc(vWaitingLocation, 900)
@@ -79,6 +105,8 @@ function GetDesireHelper()
 
     local nTormentorSpawnInterval = J.IsModeTurbo() and 5 or 10
     local nTormentorSpawnTime = J.IsModeTurbo() and 7.5 or 15
+    readiness.waitSeconds=math.max(0,nTormentorSpawnTime*60-DotaTime(),
+        bot.tormentor_kill_time>0 and bot.tormentor_kill_time+nTormentorSpawnInterval*60-DotaTime() or 0)
 
     local nHumanCountInLoc = 0
     local nAttackingTormentorCount = 0
@@ -191,19 +219,22 @@ function GetDesireHelper()
 
     nAveCoreLevel = coreCount > 0 and nAveCoreLevel / coreCount or 0
     nAveSuppLevel = supportCount > 0 and nAveSuppLevel / supportCount or 0
+    readiness.alive,readiness.localCores,readiness.localSupports=nAliveAlly,nCoreCountInLoc,nSuppCountInLoc
+    readiness.coreLevel,readiness.supportLevel=nAveCoreLevel,nAveSuppLevel
+    X.IsTeamHealthy()
+    local bGoodRightClickDamage = X.IsGoodRighClickDamage()
 
     if nAveSuppLevel < 11 then
         return Decline('support-level')
     end
 
-    local bGoodRightClickDamage = X.IsGoodRighClickDamage()
     if not bGoodRightClickDamage then return Decline('damage') end
     if nAveCoreLevel < 13 then return Decline('core-level') end
 
     -- TODO: reduce wasting time waiting for someone as the location is very far now
     -- Someone go check Tormentor
     if DotaTime() >= nTormentorSpawnTime * 60 and (DotaTime() - bot.tormentor_kill_time) >= nTormentorSpawnInterval * 60 then
-        if not X.IsTormentorAlive() and bot.tormentor_state ~= true then
+        if not observedAlive and bot.tormentor_state ~= true then
             if (nAveCoreLevel >= 13 and nAveSuppLevel >= 11)
             and GetUnitToUnitDistance(bot, hEnemyAncient) > 4000
             and bGoodRightClickDamage
@@ -224,6 +255,7 @@ function GetDesireHelper()
                 if ally ~= nil and bot == ally and bot.tormentor_state == false then
                     local tInRangeAlly = J.GetAlliesNearLoc(bot:GetLocation(), 1200)
                     if not J.IsRealInvisible(bot) and (#tInRangeEnemy > #tInRangeAlly) then
+                        decisionReason = 'scout-outnumbered'
                         return BOT_MODE_DESIRE_LOW
                     else
                         decisionReason = 'scout'
@@ -258,7 +290,7 @@ function GetDesireHelper()
         and not bot:HasModifier('modifier_item_crimson_guard_extra')
         and J.IsTormentor(Tormentor)
         and J.GetHP(Tormentor) > 0.3 then
-            return BOT_MODE_DESIRE_NONE
+            return Decline('wounded-attacker')
         end
 
         local nDesire = 0.9
@@ -292,6 +324,14 @@ local bTormentorAlive = false
 function Think()
     if J.CanNotUseAction(bot) then return end
     if ObjectiveCommands.ReleaseObjective(bot,J,'tormentor') then return end
+    local missing=bot.shaiTormentorMissing
+    if missing ~= nil and DotaTime()>=missing.observedAt and DotaTime()<missing.untilTime
+        and TormentorLocation ~= 0
+        and (missing.x-TormentorLocation.x)^2+(missing.y-TormentorLocation.y)^2<400^2 then
+        bot.tormentor_state=false
+        bot:Action_MoveToLocation(J.GetTeamFountain())
+        return
+    end
     if J.Utils.IsBotThinkingMeaningfulAction(bot, Customize.ThinkLess, "side_shop") then return end
     if DotaTime() - bot.tormentor_kill_time <= nRestForSeconds then
         bot:Action_MoveToLocation(TormentorLocation + RandomVector(50))
@@ -319,10 +359,10 @@ function Think()
                         bTormentorAlive = true
                     end
                 end
-                if not bTormentorAlive then
-                    bot.tormentor_kill_time = DotaTime()
-                    bot.tormentor_state = false
-                    bTormentorAlive = false
+                if not bTormentorAlive and IsLocationVisible(TormentorLocation) then
+                    X.MarkUnavailable()
+                    bot:Action_MoveToLocation(J.GetTeamFountain())
+                    return
                 end
             end
 
@@ -332,7 +372,7 @@ function Think()
 
         if DotaTime() >= fNextMovementTime then
             bot:Action_MoveToLocation(vWaitingLocation + RandomVector(300))
-            fNextMovementTime = DotaTime() + RandomFloat(0.05, 0.2)
+            fNextMovementTime = DotaTime() + RandomFloat(2, 3)
             return
         end
     else
@@ -375,17 +415,33 @@ function X.IsTormentorAlive()
                     local nNeutralCreeps = member:GetNearbyNeutralCreeps(900)
                     for j = #nNeutralCreeps, 1, -1 do
                         if J.IsValid(nNeutralCreeps[j]) and string.find(nNeutralCreeps[j]:GetUnitName(), 'miniboss') then
+                            Tormentor=nNeutralCreeps[j]
+                            for k=1,#GetTeamPlayers(GetTeam()) do
+                                local ally=GetTeamMember(k)
+                                if ally ~= nil then ally.shaiTormentorMissing=nil; ally.tormentor_state=true end
+                            end
                             return true
                         end
                     end
 
-                    member.tormentor_kill_time = DotaTime()
+                    -- Empty vision is not proof of a kill or a respawn time.
+                    X.MarkUnavailable()
+                    return false
                 end
             end
         end
 	end
 
 	return false
+end
+
+function X.MarkUnavailable()
+    local missing={observedAt=DotaTime(),untilTime=DotaTime()+15,x=TormentorLocation.x,y=TormentorLocation.y}
+    for i=1,#GetTeamPlayers(GetTeam()) do
+        local ally=GetTeamMember(i)
+        if ally ~= nil then ally.tormentor_state=false; ally.shaiTormentorMissing=missing end
+    end
+    canDoTormentor=false
 end
 
 function X.IsEnoughAllies(vLocation, nRadius)
@@ -417,9 +473,9 @@ function X.GetClosestBot()
     local hTarget = nil
     local hTargetDistance = math.huge
     for _, unit in pairs(hUnitList) do
-        if J.IsValidHero(unit) and GetUnitToLocationDistance(unit, TormentorLocation) < 2000 then
+        if J.IsValidHero(unit) and unit:IsBot() and GetUnitToLocationDistance(unit, TormentorLocation) < 2000 then
             local unitDistance = GetUnitToLocationDistance(unit, TormentorLocation)
-            if hTargetDistance > unitDistance * (1 - J.GetHP(unit)) then
+            if hTargetDistance > unitDistance then
                 hTargetDistance = unitDistance
                 hTarget = unit
             end
@@ -441,6 +497,7 @@ function X.IsTeamHealthy()
 		end
 	end
 
+    readiness.healthy=nHealthyAlly
 	return nHealthyAlly >= J.GetNumOfAliveHeroes(false)
 end
 
@@ -470,8 +527,9 @@ function X.IsGoodRighClickDamage()
 
     local totalAttackDamage = 0
     for _, damage in pairs(tTeamDamage) do totalAttackDamage = totalAttackDamage + damage end
+    readiness.damageIndex=totalAttackDamage -- Existing heuristic, not measured DPS.
 
-    if not J.IsDoingTormentor(bot) and J.GetFirstBotInTeam() == bot and bot.tormentor_state == true and DotaTime() - fThresholdChatTime < 30 and totalAttackDamage >= 400.0 then
+    if not J.IsDoingTormentor(bot) and J.GetFirstBotInTeam() == bot and bot.tormentor_state == true and DotaTime() - fThresholdChatTime >= 30 and totalAttackDamage >= 400.0 then
         bot:ActionImmediate_Chat("Tormentor threshold met..", false)
         fThresholdChatTime = DotaTime()
     end

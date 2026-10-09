@@ -1,6 +1,22 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
-Datum: 7. 10. 2026. Základ porovnání: commit `ffb0297`.
+## Roshan a dostupnost Tormentora — 9. října, navazující sada
+
+**Roshan:** původní low-HP větev předcházela kontrole přesunu a uložený handle se neobnovoval. Mód nyní před finishingem/readiness zkontroluje skutečně viditelného živého Roshana, `IsInvulnerable()` / `IsAttackImmune()`, vzdálenost od obou známých pitů a existující kalendářní varování 30 s před změnou. Odmítá viditelný cíl mimo radius 900 obou pitů i po změně dne/noci; netvrdí, že každé přecházení uvnitř tohoto okruhu je migrace. Skrytému starému cíli nečte HP/polohu. Tatáž ochrana platí pro `!roshan` a přehodnocení již přijaté výzvy. Kontrola lokálního fightu používá aktuální místo místo obrácených day/night konstant.
+
+Normální pohyb/útok dál řídí nativní Roshan Think: soubor override dosud implementuje pouze desire. Nový helper v generic item/ability callbacku ruší nebezpečný starý objektivový příkaz, navrhne průchozí bod 650 jednotek od viditelného Roshana (jinak fountain), přerušuje nejvýše jednou za 0,4 s a brání novým casts v této nebezpečné objektivové situaci. Nezruší již probíhající cast/channel/TP ani vlastní kontakt s hero cílem. Nejde o obecné vyhýbání Roshanově celé trase v ostatních módech; skutečné pořadí native/callback akcí je herní ověření. `[SHAI] roshan-safety` uvádí `switch-soon`, `unattackable` nebo `outside-pit` nejvýše jednou za 10 s.
+
+**Tormentor:** dříve jak prázdný scouting, tak kontrola čekající skupiny zapisovaly aktuální čas jako zabití. To mohlo spustit desetiminutový respawn zákaz bez důkazu smrti. Nyní se prázdné viditelné místo ověřené spojencem do 350 jednotek sdílí s celým týmem včetně mrtvých členů a odstraňuje zastaralé availability flagy. Platí pro stejné místo (do 400 jednotek), při ztrátě vision vyprší za 15 s, při nové přímé vision spawnu se zruší okamžitě. Opakovaná prázdná vision jej obnovuje. Nezapisuje kill timestamp; pouze viditelný předtím sledovaný unit v mrtvém stavu zaznamená čas pozorované smrti. Pokud engine mrtvý unit hned odstraní či skryje, přesný respawn čas není znám a používá se opětovné ověření dostupnosti.
+
+Čekající boti mění náhodný bod po 2–3 s místo 0,05–0,2 s. Výběr nejbližšího kontrolora nyní skutečně filtruje boty a porovnává vzdálenost, nikoli vzdálenost násobenou chybějícím HP proti jiné metrice. Opraven i obrácený interval opakované threshold chat hlášky. Samotný práh 400 (součet attack damage × attack speed, **nikoli skutečné DPS**), level 13/11 a globální health policy včetně původní human výjimky se nemění; lokální damage/reflect/mana/ochrany nejsou tímto vyřešené.
+
+Diagnostika Tormentora má čas, tým, reason, availability, vzdálenost, počet živých a policy-healthy členů, místní core/support, levely, damage index a čekání podle dosavadního spawn plánu. Nevyhodnocené podmínky po dřívějším odmítnutí mají `-`. Změna důvodu je omezená intervalem 10 s, nezměněný důvod se opakuje po 30 s (i v Turbo od jeho spawn času). Analyzer obě nové zprávy sumarizuje a zobrazuje detaily.
+
+Ověření: skutečný Roshan mód, chat helper, extrahované aktuální hero/item callbacky a skutečný Tormentor mód. Testy pokrývají low-HP během přesunu, immune cíl, off-pit po přepnutí, oba pity, hidden HP zákaz, zachování castu/sebeobrany, neprostupný ústup, absenci bez falešného kill time, sdílení flagů, znovu viditelný spawn, krátký retry, pozorovanou smrt, stabilnější čekání a periodickou diagnostiku. Herní test zůstává otevřený. Scan zatím není zapojený: místní API reference jej neuvádí, načtení veřejné Valve wiki skončilo HTTP 403; chybějící dokumentace sama neprokazuje neexistenci runtime funkce.
+
+Tato sada prošla všemi 19 Lua a 2 PowerShell sadami; kontrola syntaxe všech 313 Lua souborů je bez chyby.
+
+Datum původního auditu: 7. 10. 2026. Základ porovnání: commit `ffb0297`.
 
 ## Co bylo skutečně ověřeno
 

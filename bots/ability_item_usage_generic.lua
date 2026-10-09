@@ -19,6 +19,7 @@ local Travel = require(GetScriptDirectory()..'/FunLib/shai_tactical_travel')
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local Glyph = require(GetScriptDirectory()..'/FunLib/shai_glyph')
 local ThreatMemory = require(GetScriptDirectory()..'/FunLib/shai_threat_memory')
+local RoshanSafety = require(GetScriptDirectory()..'/FunLib/shai_roshan_safety')
 local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
@@ -8316,6 +8317,7 @@ function ItemUsageThink()
 	if RefreshBotHandle() then return end
 	if Travel.RecheckTeleport(bot,J) or Travel.ThinkFade(bot,J) then return end
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
+	if Runtime.Call(bot,'roshan.items',function() return RoshanSafety.GuardActions(bot,J) end,false) then return end
 	if bot.lastItemFrameProcessTime == nil then bot.lastItemFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastItemFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) then return end
 	bot.lastItemFrameProcessTime = DotaTime()
@@ -8341,6 +8343,7 @@ function AbilityUsageThink()
 	Runtime.Call(bot,'threat.observe',function() ThreatMemory.Observe(bot,J) end)
 	if Travel.ThinkFade(bot,J) then return end
 	ObjectiveCommands.ReleaseObjective(bot,J)
+	if Runtime.Call(bot,'roshan.abilities',function() return RoshanSafety.GuardActions(bot,J) end,false) then return end
 	if CombatFinish.IsCommitting(bot,J) then return end
 	if Runtime.Call(bot,'defense.abilities',function() return Defense.GuardAbilities(bot,J) end,true) then return end
 	if Runtime.Call(bot,'gank.abilities',function() return TeamGank.TryControl(bot,J) or TeamGank.HoldOffense(bot,J) end,true) then return end

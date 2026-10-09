@@ -9,8 +9,11 @@ DotaTime, GameTime = function() return state.time end, function() return state.t
 GetTeam, GetOpposingTeam = function() return 2 end, function() return 3 end
 local no = function() return false end
 local members = {}
-local location, ancient = {}, {GetLocation=function() return {} end}
+local location, ancient = setmetatable({x=0,y=0},{__add=function(a) return a end}), {GetLocation=function() return {} end}
 local tormentor = {GetUnitName=function() return 'npc_dota_miniboss' end}
+tormentor.IsNull=no
+tormentor.CanBeSeen=function() return state.visible end
+tormentor.IsAlive=function() return not state.bossDead end
 for i=1,5 do
     local member = {pos=i}
     member.IsAlive, member.CanBeSeen = function() return state.dead ~= i end, function() return true end
@@ -19,7 +22,7 @@ for i=1,5 do
     member.GetLocation = function() return location end
     member.GetAttackDamage, member.GetAttackSpeed = function() return state.damage end, function() return 2 end
     member.GetActiveModeDesire = function() return 0 end
-    member.GetNearbyNeutralCreeps = function() return {tormentor} end
+    member.GetNearbyNeutralCreeps = function() return state.empty and {} or {tormentor} end
     member.GetNearbyLaneCreeps = function() return {} end
     member.GetAttackRange = function() return 600 end
     member.HasModifier = no
@@ -35,8 +38,12 @@ GetTeamMember = function(i) return members[i] end
 GetAncient = function() return ancient end
 GetTower = function() return {} end
 GetUnitToUnitDistance = function(_, unit) return unit == tormentor and 100 or 9000 end
-GetUnitToLocationDistance = function(unit) return state.near and 100 or (unit == bot and 2000 or 4000) end
-IsLocationVisible = no
+GetUnitToLocationDistance = function(unit)
+    if state.closestProbe then return unit==members[2] and 10 or (unit==members[1] and 100 or (unit==bot and 200 or 3000)) end
+    if state.groupThree then return (unit.pos==2 or unit.pos==5) and 4000 or 100 end
+    return state.near and 100 or (unit == bot and 2000 or 4000)
+end
+IsLocationVisible = function() return state.visible end
 local J = {Utils={GameStates={defendPings={pingedTime=0}}}}
 J.Utils.IsTeamPushingSecondTierOrHighGround = function() return state.pushing end
 J.Utils.CountEnemyHeroesNear = function() return state.baseThreat and 1 or 0 end
@@ -95,6 +102,42 @@ state.damage, state.ambush = 250, true
 assert(GetDesire() == 0, 'Known nearby ambush overrides objective')
 state.ambush, state.baseThreat = false, true
 assert(GetDesire() == 0, 'Base defense overrides objective')
+state.baseThreat=false; state.visible=true; state.empty=true; state.time=2130
+members[1].tormentor_state=true
+assert(GetDesire()==0,'Visible empty objective must clear stale team availability')
+for _,member in ipairs(members) do
+    assert(member.tormentor_kill_time==nil or member.tormentor_kill_time==0,'Absence must not fabricate a kill time')
+    assert(not member.tormentor_state and member.shaiTormentorMissing,'Share absence with the whole team')
+end
+state.empty=false
+assert(GetDesire()>0.7,'A visible spawn immediately overrides the short absence backoff')
+state.empty=true; GetDesire(); state.visible=false; state.time=2146; state.near=false
+assert(GetDesire()>=0.8,'Without fresh vision the scout retries after fifteen seconds, not ten minutes')
+state.near,state.visible,state.empty=true,true,false
+GetDesire() -- Observe the actual live unit again.
+state.closestProbe=true
+assert(objective.GetClosestBot()==members[1],'Pick the nearest actual bot, not a human or a farther bot via mismatched health weighting')
+state.closestProbe=false
+state.groupThree=true
+RandomVector=function() return location end
+RandomFloat=function() return 2.5 end
+state.action=nil; Think(); assert(state.action=='move','Wait for enough nearby teammates instead of attacking alone')
+state.action=nil; state.time=state.time+0.1; Think()
+assert(state.action==nil,'Waiting does not select a new random point every fraction of a second')
+state.groupThree=false
+state.bossDead=true; state.time=2150
+assert(GetDesire()==0 and bot.tormentor_kill_time==2150,'A directly observed death records the real kill time')
+state.bossDead=false
+local originalPrint,lines=print,{}
+print=function(line) table.insert(lines,line) end
+state.baseThreat=true; state.time=2200; GetDesire()
+state.time=2210; GetDesire(); assert(#lines==1,'Unchanged objective reason is throttled')
+state.time=2230; GetDesire(); assert(#lines==2,'Persistent objective rejection gets a periodic heartbeat')
+assert(lines[2]:find('t=2230') and lines[2]:find('reason=base%-threat'),'The heartbeat retains time and actual decision reason')
+print=originalPrint
+GetBot=function() return nil end
+assert(pcall(dofile,'bots/mode_side_shop_generic.lua'),'Objective mode tolerates a missing bot')
+GetBot=function() return bot end
 assert(loadfile('bots/FunLib/jmz_func.lua'))
 
 -- Actual Zeus Q: secure a killable creep during early pressure even when the

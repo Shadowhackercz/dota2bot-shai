@@ -7,6 +7,7 @@ local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local Customize = require( GetScriptDirectory()..'/Customize/general' )
 local RoshanCommands = require(GetScriptDirectory()..'/FunLib/shai_roshan_commands')
 local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
+local RoshanSafety = require(GetScriptDirectory()..'/FunLib/shai_roshan_safety')
 
 local killTime = 0.0
 local shouldKillRoshan = false
@@ -38,15 +39,11 @@ EvaluateRoshan = function()
     end
     -- Recover rather than starting or continuing a voluntary objective while wounded.
     if J.GetHP(bot) < 0.4 then return BOT_MODE_DESIRE_NONE end
-    if Roshan == nil then
-        local nCreeps = bot:GetNearbyNeutralCreeps(700)
-        for _, creepOrRoshan in pairs(nCreeps)
-        do
-            if creepOrRoshan:GetUnitName() == "npc_dota_roshan"
-            then
-                Roshan = creepOrRoshan
-            end
-        end
+    local safe,reason,visibleRoshan = RoshanSafety.Check(bot,J)
+    Roshan = visibleRoshan -- Drop stale or hidden handles on every evaluation.
+    if not safe then
+        RoshanSafety.Trace(bot,reason)
+        return BOT_MODE_DESIRE_NONE
     end
 
 	-- 如果在打高地 就别撤退去干别的
@@ -58,23 +55,12 @@ EvaluateRoshan = function()
 		return BOT_MODE_DESIRE_NONE
 	end
 
-    local timeOfDay = J.CheckTimeOfDay()
-
     local nTeamFightLocation = J.GetTeamFightLocation(bot)
-    if nTeamFightLocation ~= nil
-    then
-        if timeOfDay == 'day'
-        and GetUnitToLocationDistance(bot, J.Utils.RadiantRoshanLoc) < 1600
+    if nTeamFightLocation ~= nil then
+        if GetUnitToLocationDistance(bot, J.GetCurrentRoshanLocation()) < 1600
         and GetUnitToLocationDistance(bot, nTeamFightLocation) < 2000
         then
             return BOT_ACTION_DESIRE_NONE
-        else
-            if timeOfDay == 'night'
-            and GetUnitToLocationDistance(bot, J.Utils.DireRoshanLoc) < 1600
-            and GetUnitToLocationDistance(bot, nTeamFightLocation) < 2000
-            then
-                return BOT_ACTION_DESIRE_NONE
-            end
         end
     end
 
@@ -133,17 +119,6 @@ EvaluateRoshan = function()
 
     -- Recompute every evaluation: deaths and lost damage must cancel readiness.
     local hasEnoughDPS = #aliveHeroesList > 0 and J.HasEnoughDPSForRoshan(aliveHeroesList)
-
-    if J.IsRoshanCloseToChangingSides()
-    then
-        local botTarget = J.GetProperTarget(bot)
-        if J.IsRoshan(botTarget) then
-            return RemapValClamped(J.GetHP(botTarget), 1, 0, BOT_ACTION_DESIRE_NONE, BOT_ACTION_DESIRE_VERYHIGH )
-        end
-        if not J.IsValid(botTarget) or not J.IsRoshan(botTarget) then
-            return BOT_ACTION_DESIRE_NONE
-        end
-    end
 
     local nEnemyHeroes = J.GetEnemiesNearLoc(bot:GetLocation(), 1300)
     if nEnemyHeroes ~= nil and #nEnemyHeroes > 0

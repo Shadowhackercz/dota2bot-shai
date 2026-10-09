@@ -8,9 +8,11 @@ Pořadí potvrzené hráčem: začít zbývajícími body ze zápasu se Silencer
 
 - [x] **Delší paměť hrozby — první implementace hotová, herní ověření otevřené.** Tým sdílí snapshot viditelných soupeřů včetně vzdálené ward vision. Po ztrátě vision klesá jistota, omezeně se rozšiřuje oblast možného pohybu a opatrnost vyprší do 5,5 s; snapshot se odstraní do 10 s. Farma/retreat/volitelné farm casts používají poslední známé údaje, ne aktuální skrytou polohu/stats. Po 10. minutě se zohlední i výrazně silnější viditelný soupeř do 1100 jednotek, který právě neběží přímo na bota. Pozorování se obnovuje i během týmového plánu, paměť sama nezakládá gank ani nepřebírá společnou obranu.
 - [ ] **Ověřit paměť ve hře:** vzdálená ward vision → zmizení → opatrnost blízkého farmáře; návrat bezpečné farmy po novém vzdáleném pozorování/expiraci; bez nových otoček a bez změny prvních 10 minut.
-- [ ] **Roshan při přesunu.** Rozpoznat nevhodný/pohybující se cíl a omezit útoky i nebezpečné přiblížení; aktuální podmínky ověřit přes skutečné API.
+- [x] **Roshan při přesunu — první ochrana implementovaná.** Nízké HP neobchází blížící se změnu dne/noci. Viditelný invulnerable/attack-immune Roshan nebo Roshan více než 900 jednotek od obou známých pitů odmítne mód i chatovou výzvu; generic callback přeruší starý objektivový příkaz a omezí nové spelly/itemy. Skrytý starý handle se nepoužívá pro finishing. Není to úplný navigační plán přesunové trasy.
+- [ ] **Ověřit Roshana ve hře:** přechod dne/noci, viditelný přesun po přepnutí, dokončení v obou pitech, zachování sebeobrany/castu. Cestu botů v ostatních módech tato ochrana nepřesměrovává.
 - [ ] **Scan.** Ověřit Lua API a možnost číst výsledek, poté navrhnout společného správce a reakci; nedostupná funkce nesmí vyvolávat Lua chyby.
-- [ ] **Tormentor.** Z logů zjistit konkrétní blokaci, doplnit dostupnost objektivu a důvody odmítnutí; potom řešit sílu týmu, sestavu a přežití reflectu.
+- [x] **Tormentor — dostupnost a diagnostika implementované.** Viditelné prázdné místo se již nepovažuje za zabití. Tým dostane krátkou informaci o nedostupnosti, znovu spatřený spawn ji hned zruší. Čas zabití se zaznamená jen při přímo pozorované smrti. Čekání méně mění náhodný bod a nejbližší kontrolor se vybírá skutečně z botů podle vzdálenosti. Log obsahuje čas, tým, dostupnost a vyhodnocené level/health/damage/location/schedule podmínky; i nezměněný důvod se opakuje po 30 s.
+- [ ] **Tormentor — herní ověření a síla skupiny/reflect.** Z dalšího logu určit skutečnou blokaci a přežití připravené skupiny. Globální health gate, práh damage indexu 400 a level 13/11 zatím zůstávají; nejde o hotový výpočet reflectu.
 - [ ] **Širší dorážení a kombo model.** Rozšířit dosavadní první model o další finishing spelly/itemy a relevantní dispely/lifesteal; nerozšířit útok za cenu zjevné smrti před jeho vypuštěním.
 
 ### Poslední zápas s přáteli (9036262600)
@@ -63,7 +65,8 @@ Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REP
 - [x] Doplnit omezenou diagnostiku `unsafe-farm` a `cast-penalty` v první opravě; zprávy `[SHAI] safety` jsou omezené na jednu za 5 sekund z každého helperu/bota.
 - [x] První gankový plán loguje fáze a důvody jako `group-not-ready`, `insufficient-damage`, `insufficient-control`, `enemy-backup`, `target-unavailable`; samostatně odchod člena.
 - [x] Doplnit první `[SHAI] finish` pro vybrané dorážení, počet zásahů, trade, odhad času/damage a přerušení. Odmítnuté proveditelné damage kandidáty omezovat na zprávu za 5 s; log není kompletní rozhodovací strom.
-- [ ] Doplnit `objective-unavailable` a ověřit novou diagnostiku ve hře.
+- [x] Doplnit `objective-unavailable`, Roshan safety a Tormentor readiness do logu i analyzeru.
+- [ ] Ověřit novou objektivovou diagnostiku ve hře.
 
 ## P1: boj, farma a přežití
 

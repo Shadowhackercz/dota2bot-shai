@@ -42,6 +42,7 @@ local J = {IsRoshanAlive=function() return available end,
     GetLastSeenEnemiesNearLoc=function() return {} end,
     IsCore=function(h) return h.core end,
     HasEnoughDPSForRoshan=function(list) assert(#list == 3); return damage end}
+J.GetProperTarget=function() return nil end
 local commands = require('bots/FunLib/shai_roshan_commands')
 local function Send(text, id)
     for _, bot in ipairs({a,b}) do commands.Handle(bot,J,{string=text,player_id=id or 0,team_only=true}) end
@@ -102,4 +103,12 @@ a.hp=0.9; now=now+31
 assert(GetDesireHelper() < 0.95, 'expired chat must restore normal priority')
 assert(loadfile('bots/FunLib/jmz_func.lua'))
 assert(loadfile('bots/ability_item_usage_generic.lua'))
-print('PASS: one Roshan reply, request expiry/reassessment, enemy filtering, leader failover and summed damage')
+local protectedRoshan={IsNull=function() return false end,CanBeSeen=function() return true end,
+    IsAlive=function() return true end,GetUnitName=function() return 'npc_dota_roshan' end,
+    IsInvulnerable=function() return true end}
+a.GetNearbyNeutralCreeps=function() return {protectedRoshan} end
+now=now+9; Send('!roshan')
+assert(replies[#replies]:find('cannot be attacked'),'Chat must not summon a team to a visible unattackable objective')
+a.shaiRoshanRequestUntil=now+30; a.shaiRoshanParticipants={human,a,b}
+assert(not commands.RequestSafe(a,J),'An accepted request must be rechecked against attackability')
+print('PASS: one Roshan reply, request expiry/reassessment, enemy filtering, leader failover, summed damage and objective attackability')

@@ -1,5 +1,6 @@
 local X = {}
 local ObjectiveCommands=require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
+local RoshanSafety=require(GetScriptDirectory()..'/FunLib/shai_roshan_safety')
 local function Real(unit)
     return unit ~= nil and not unit:IsNull() and unit:IsHero() and not unit:IsIllusion() and unit:IsAlive()
 end
@@ -8,6 +9,7 @@ function X.RequestSafe(bot, J)
     if ObjectiveCommands.IsBlocked(bot,'roshan') then return false end
     if bot.shaiRoshanRequestUntil == nil or DotaTime() >= bot.shaiRoshanRequestUntil
         or bot.shaiRoshanParticipants == nil or #bot.shaiRoshanParticipants < 3 then return false end
+    if not RoshanSafety.Check(bot,J) then return false end
     local pit = J.GetCurrentRoshanLocation()
     if not J.IsRoshanAlive() or J.IsRoshanCloseToChangingSides()
         or #(J.GetEnemiesNearLoc(pit, 1600) or {}) > 0
@@ -49,6 +51,7 @@ function X.Handle(bot, J, chat)
         return Reply('Not now - defend our base.')
     end
     if J.IsRoshanCloseToChangingSides() then return Reply('Not now - Roshan is about to move.') end
+    if not RoshanSafety.Check(bot,J) then return Reply('Not now - Roshan is moving or cannot be attacked.') end
     if J.GetNumOfAliveHeroes(false) < J.GetNumOfAliveHeroes(true) then
         return Reply('Not now - we are outnumbered.')
     end
