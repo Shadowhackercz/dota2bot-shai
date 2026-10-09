@@ -6101,7 +6101,7 @@ X.ConsiderItemDesire["item_jidi_pollen_bag"] = function( hItem )
 
 	local nRadius = hItem:GetSpecialValueInt('debuff_radius')
 
-	local nInRangeEnemy = J.GetEnemiesNearLoc(botLocation, nRadius)
+	local nInRangeEnemy = J.GetEnemiesNearLoc(bot:GetLocation(), nRadius)
 
 	if J.IsInTeamFight(bot, 1200) then
         if #nInRangeEnemy >= 2 then

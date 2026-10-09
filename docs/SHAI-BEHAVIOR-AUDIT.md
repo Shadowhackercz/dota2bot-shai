@@ -1,5 +1,11 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Herní revize Pudge 9036669208 — 9. října
+
+[Úplný rozbor logu/replaye a podnětů](SHAI-MATCH-9036669208.md) zachovává rozdíl mezi doloženým rozhodnutím, dostupností schopnosti a uživatelským pozorováním. Kritický nález: 458 omezeně vypisovaných chyb neexistující `GetCastRangeBonus` přerušovalo novou společnou bojovou vrstvu. Volání odstraněna také z obrany, testy již tuto metodu nefabrikují. Použit skutečný dosah ability bez neověřeného bonusu. Pollen Bag měl konkrétní nil lokaci předávanou `GetEnemiesNearLoc`; opraveno na aktuální lokaci bota, přidaná regrese skutečné consideration.
+
+Průchod 20 Lua a dvěma PowerShell sadami a syntax 314 souborů ověřují tuto malou opravu, ne funkční koordinaci v Dotě. Neexistující camp helper, ostatní vector warningy, glyph/Tormentor callbacky, přepisování úniku kurýrem/wardou a nové taktické podněty zůstávají otevřené v [TODO](SHAI-TODO.md). WD měl kolem 43:00 manu a ready Maledict/Ward; CM neměla manu na Frostbite. Neklasifikovat závěr plošně jako dostupné nepoužité kombo všech botů.
+
 ## Roshan a dostupnost Tormentora — 9. října, navazující sada
 
 **Roshan:** původní low-HP větev předcházela kontrole přesunu a uložený handle se neobnovoval. Mód nyní před finishingem/readiness zkontroluje skutečně viditelného živého Roshana, `IsInvulnerable()` / `IsAttackImmune()`, vzdálenost od obou známých pitů a existující kalendářní varování 30 s před změnou. Odmítá viditelný cíl mimo radius 900 obou pitů i po změně dne/noci; netvrdí, že každé přecházení uvnitř tohoto okruhu je migrace. Skrytému starému cíli nečte HP/polohu. Tatáž ochrana platí pro `!roshan` a přehodnocení již přijaté výzvy. Kontrola lokálního fightu používá aktuální místo místo obrácených day/night konstant.

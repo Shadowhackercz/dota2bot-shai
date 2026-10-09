@@ -65,7 +65,6 @@ local function hero(name,id,x)
     function h:GetActiveMode() return self.mode end
     function h:GetActiveModeDesire() return 0.5 end
     function h:GetCurrentMovementSpeed() return 300 end
-    function h:GetCastRangeBonus() return 0 end
     function h:GetLocation() visible(self); return self.loc end
     function h:GetNearbyTowers() visible(self); return self.towers or {} end
     function h:GetAttackRange() visible(self); return self.range end

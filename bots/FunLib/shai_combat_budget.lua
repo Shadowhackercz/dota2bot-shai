@@ -53,7 +53,7 @@ function X.Member(h,target,J,options,context)
             or (not isItem and h:IsSilenced()) then p.rejected[name]='unavailable'; return end
         local cost=a:GetManaCost()
         if cost>remainingMana then p.rejected[name]='mana'; return end
-        local range=spec and (spec[2]=='self' and Special(a,spec[4]) or a:GetCastRange()+h:GetCastRangeBonus()) or control.range
+        local range=spec and (spec[2]=='self' and Special(a,spec[4]) or a:GetCastRange()) or control.range
         local walk=not context.future and math.max(0,distance-range)/math.max(200,h:GetCurrentMovementSpeed()) or 0
         if spec and spec[2]=='global' then walk=0 end
         local delay=a:GetCastPoint()+0.2+walk

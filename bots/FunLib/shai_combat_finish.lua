@@ -126,7 +126,7 @@ local function Options(bot,target,J)
             local ability=bot:GetAbilityByName(spec[1])
             if ability~=nil and not ability:IsHidden() and ability:IsFullyCastable() then
                 local delay=ability:GetCastPoint()+0.25 -- turn/server allowance
-                local range=ability:GetCastRange()+bot:GetCastRangeBonus()-25
+                local range=ability:GetCastRange()-25
                 local damage=target:GetActualIncomingDamage(ability:GetSpecialValueInt(spec[2])*(1+bot:GetSpellAmp())*0.9,DAMAGE_TYPE_MAGICAL)
                 if delay<=0.8 and distance<=range
                     and damage>target:GetHealth()+math.max(0,target:GetHealthRegen())*delay+5 then

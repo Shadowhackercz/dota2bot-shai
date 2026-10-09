@@ -34,7 +34,6 @@ local function hero(x)
     function h:GetMana() return self.mana end
     function h:GetAbilityByName(name) return self.abilities[name] end
     function h:GetItemInSlot(slot) return self.items[slot] end
-    function h:GetCastRangeBonus() return 0 end
     function h:GetAttackRange() return self.range end
     function h:GetCurrentMovementSpeed() return 300 end
     function h:GetAttributeValue() return 100 end

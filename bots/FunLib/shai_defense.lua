@@ -181,7 +181,7 @@ function X.Think(bot,J,anchor)
 end
 local function CastPoint(bot,J,a,target,purpose)
     if a==nil or not a:IsFullyCastable() or a:IsHidden() or J.CanNotUseAbility(bot)
-        or Dist(bot,target)>a:GetCastRange()+bot:GetCastRangeBonus()-25
+        or Dist(bot,target)>a:GetCastRange()-25
         or not CastSafety.Allow(bot,J,a,purpose) then return false end
     bot:Action_UseAbilityOnLocation(a,target:GetLocation()); return true
 end
@@ -208,7 +208,7 @@ function X.GuardAbilities(bot,J)
                 -- The native decision unnecessarily excludes a large allied
                 -- group. Place the ward in our cast range, within its attack
                 -- reach of the caught diver, without walking into the fight.
-                local range=ward:GetCastRange()+bot:GetCastRangeBonus()
+                local range=ward:GetCastRange()
                 local location=p.target:GetLocation()
                 if Dist(bot,p.target)>range then location=J.VectorAway(bot:GetLocation(),location,-math.max(0,range-25)) end
                 if GetUnitToLocationDistance(p.target,location)<580 then

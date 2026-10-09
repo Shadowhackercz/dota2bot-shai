@@ -26,6 +26,10 @@ try {
     if (-not $castMatch.Success) { throw 'Cannot locate actual item dispatcher' }
     $castAdapter = "return function(bot,J,Travel,Runtime)`nlocal X={}`n" + $castMatch.Value + "`nreturn X.SetUseItem`nend`n"
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-item-cast.lua'), $castAdapter, [Text.UTF8Encoding]::new($false))
+    $pollenMatch = [regex]::Match($abilitySource, '(?s)X\.ConsiderItemDesire\["item_jidi_pollen_bag"\] = function\( hItem \).*?\r?\nend(?=\r?\n\r?\nX\.ConsiderItemDesire)')
+    if (-not $pollenMatch.Success) { throw 'Cannot locate actual Pollen Bag consideration' }
+    $pollenAdapter = "return function(bot,J)`nlocal X={ConsiderItemDesire={}}`n" + $pollenMatch.Value + "`nreturn X.ConsiderItemDesire['item_jidi_pollen_bag']`nend`n"
+    [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-pollen-helper.lua'), $pollenAdapter, [Text.UTF8Encoding]::new($false))
     $glyphMatch = [regex]::Match($abilitySource, '(?s)local function UseGlyph\(\).*?\r?\nend(?=\r?\n\r?\nfunction ItemUsageThink)')
     if (-not $glyphMatch.Success) { throw 'Cannot locate actual glyph callback' }
     $glyphAdapter = "return function(bot,team,Glyph,Runtime)`n" + $glyphMatch.Value + "`nreturn UseGlyph`nend`n"
@@ -37,7 +41,7 @@ try {
     }
     $helperAdapter = "return function(J,ObjectiveCommands)`n" + ($objectiveHelperBodies -join "`n") + "`nend`n"
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-objective-helpers.lua'), $helperAdapter, [Text.UTF8Encoding]::new($false))
-    foreach ($testFile in @('tests/shai-selection.test.lua', 'tests/shai-roshan.test.lua',
+    foreach ($testFile in @('tests/shai-runtime-api.test.lua', 'tests/shai-selection.test.lua', 'tests/shai-roshan.test.lua',
         'tests/shai-combat.test.lua', 'tests/shai-tactics.test.lua', 'tests/shai-runes.test.lua',
         'tests/shai-stability.test.lua', 'tests/shai-objectives.test.lua', 'tests/shai-tombstone.test.lua', 'tests/shai-trace.test.lua',
         'tests/shai-roshan-chat.test.lua', 'tests/shai-safety.test.lua', 'tests/shai-memory.test.lua', 'tests/shai-gank.test.lua', 'tests/shai-budget.test.lua', 'tests/shai-glyph.test.lua', 'tests/shai-objective-chat.test.lua', 'tests/shai-finish.test.lua', 'tests/shai-defense.test.lua', 'tests/shai-travel.test.lua')) {

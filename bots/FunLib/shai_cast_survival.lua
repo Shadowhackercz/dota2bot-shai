@@ -26,7 +26,7 @@ function X.Allow(bot,J,ability,location,kind)
             incoming=incoming+bot:GetActualIncomingDamage(p.caster:GetAttackDamage(),DAMAGE_TYPE_PHYSICAL)
         end
     end
-    if location~=nil and GetUnitToLocationDistance(bot,location)>ability:GetCastRange()+bot:GetCastRangeBonus()+25 then
+    if location~=nil and GetUnitToLocationDistance(bot,location)>ability:GetCastRange()+25 then
         Trace(bot,ability,'cast-needs-walk',incoming); return false
     end
     local protected=J.GetModifierTime(bot,'modifier_dazzle_shallow_grave')>delay

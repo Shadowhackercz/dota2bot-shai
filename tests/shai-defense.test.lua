@@ -50,7 +50,6 @@ local function hero(name,id,x)
     function h:GetNearbyLaneCreeps() return {} end
     function h:GetActiveMode() return BOT_MODE_NONE end
     function h:GetActiveModeDesire() return 0.9 end
-    function h:GetCastRangeBonus() return 0 end
     function h:SetTarget(t) self.target=t end
     function h:Action_MoveToLocation(loc) self.action='move'; self.destination=loc end
     function h:Action_AttackUnit(t) self.action='attack'; self.attacked=t end

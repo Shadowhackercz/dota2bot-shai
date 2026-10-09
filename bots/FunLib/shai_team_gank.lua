@@ -51,7 +51,7 @@ local function Controls(h, target, defenses, inRange)
         if defenses.dispel and spec[5] then return end -- Orchid alone cannot secure a Manta target.
         if defenses.block and spec[2] == 'unit' then return end
         local range = spec[2] == 'self' and ability:GetSpecialValueInt(spec[3])
-            or ability:GetCastRange() + h:GetCastRangeBonus()
+            or ability:GetCastRange()
         if range <= 0 or (inRange and GetUnitToUnitDistance(h,target) > range - 25) then return end
         local kind=spec[2]
         if spec[1]=='lion_voodoo' then

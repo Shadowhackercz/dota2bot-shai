@@ -46,7 +46,6 @@ local function hero(name,x)
     function h:GetNearbyTowers() return self.towers or {} end
     function h:GetNearbyCreeps() return self.creeps or {} end
     function h:GetSpellAmp() return 0 end
-    function h:GetCastRangeBonus() return 0 end
     function h:SetTarget(t) self.target=t end
     function h:Action_AttackUnit(t,once) self.actions=self.actions+1; self.attacked=t; self.once=once end
     function h:Action_UseAbilityOnEntity(a,t) self.actions=self.actions+1; self.spell=a:GetName(); self.castTarget=t end
