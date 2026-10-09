@@ -51,7 +51,7 @@ function X.GetPlan(bot,J)
         end
     end
     if target==nil then leader.shaiDefensePlan=nil; return nil end
-    local p={target=target,members={},damage=0,controls=0,hard=0,backups=0,ancient=ancient,checked=DotaTime(),excluded='',available='',openerDelay=math.huge,leader=leader}
+    local p={target=target,members={},damage=0,controls=0,hard=0,backups=0,ancient=ancient,enemies=enemies,checked=DotaTime(),excluded='',available='',openerDelay=math.huge,leader=leader}
     p.budget={attacks=0,spells=0,summons=0,mana=0}
     local defenses=Gank.TargetDefenses(target)
     local controlSeconds=0
@@ -146,6 +146,7 @@ function X.GetPlan(bot,J)
     return Dist(bot,target)<2200 and p or nil
 end
 function X.GetDesire(bot,J)
+    if X.HoldingCast(bot) then return 1.02 end
     if Wave.HoldingCast(bot) then return 0.94 end
     local p=X.GetPlan(bot,J)
     if p==nil then
@@ -167,6 +168,7 @@ local function Member(p,bot)
     return false
 end
 function X.Think(bot,J,anchor)
+    if X.HoldingCast(bot) then return true end
     if Wave.HoldingCast(bot) then return true end
     if J.CanNotUseAction(bot) then return false end
     if Finish.IsCommitting(bot,J) then return true end
@@ -175,7 +177,9 @@ function X.Think(bot,J,anchor)
     bot.shaiTacticalUntil=DotaTime()+0.5
     if (p.ready and Member(p,bot)) or p.emergency then
         bot:SetTarget(p.target)
-        if not Gank.TryLocalControl(bot,p.target,J,p.members) then bot:Action_AttackUnit(p.target,false) end
+        -- The movement callback must not reveal a caster with a hit before
+        -- its coordinated control/debuff/channel follow-up has a chance to start.
+        if not X.GuardAbilities(bot,J) then bot:Action_AttackUnit(p.target,false) end
         return true
     end
     bot:SetTarget(nil)
@@ -186,13 +190,45 @@ function X.Think(bot,J,anchor)
     if destination~=nil and IsLocationPassable(destination) and GetUnitToLocationDistance(bot,destination)>100 then bot:Action_MoveToLocation(destination) end
     return true
 end
-local function CastPoint(bot,J,a,target,purpose)
+function X.HoldingCast(bot)
+    local cast=bot.shaiDefenseSpell
+    if cast==nil then return false end
+    if not bot:IsAlive() or DotaTime()<cast.created or DotaTime()>=cast.untilTime then
+        bot.shaiDefenseSpell=nil; return false
+    end
+    return true
+end
+local function CastSurvivable(bot,J,p,seconds,fraction)
+    local incoming=0
+    for _,enemy in ipairs(p.enemies) do
+        if Visible(enemy,J) then incoming=incoming+enemy:GetEstimatedDamageToTarget(true,bot,seconds,DAMAGE_TYPE_ALL) end
+    end
+    return incoming<bot:GetHealth()*fraction
+end
+local function Issued(bot,a,p,purpose)
+    local now=DotaTime()
+    local untilTime=now+math.max(0.2,a:GetCastPoint()+0.2)
+    bot.shaiDefenseSpell={created=now,untilTime=untilTime,target=p.target,spell=a:GetName()}
+    if SHAI.BehaviorTrace then
+        print('[SHAI] defense-cast t='..now..'; hero='..bot:GetUnitName()..'; reason=issued; spell='..a:GetName()
+            ..'; target='..p.target:GetUnitName()..'; members='..#p.members..'; purpose='..purpose..'; until='..untilTime)
+    end
+end
+local function CastPoint(bot,J,a,p,purpose)
+    local target=p.target
     if a==nil or not a:IsFullyCastable() or a:IsHidden() or J.CanNotUseAbility(bot)
         or Dist(bot,target)>a:GetCastRange()-25
+        or not CastSurvivable(bot,J,p,a:GetCastPoint()+0.2,0.7)
         or not CastSafety.Allow(bot,J,a,purpose) then return false end
-    bot:Action_UseAbilityOnLocation(a,target:GetLocation()); return true
+    if purpose=='control' then
+        if Chain.Wait(bot,target,J,a,'point') then return false end
+        local reservation=Chain.Reserve(bot,target,a,'point',p.members)
+        for _,h in ipairs(p.members) do h.shaiDefenseControlUntil=reservation.untilTime end
+    end
+    bot:Action_UseAbilityOnLocation(a,target:GetLocation()); Issued(bot,a,p,purpose); return true
 end
 function X.GuardAbilities(bot,J)
+    if X.HoldingCast(bot) then return true end
     if Wave.HoldingCast(bot) then return true end
     if Finish.IsCommitting(bot,J) then return true end
     if J.CanNotUseAction(bot) then return false end
@@ -203,15 +239,14 @@ function X.GuardAbilities(bot,J)
         if Gank.TryLocalControl(bot,p.target,J,p.members) then return true end
         -- Native healthy Warlock requires two enemies for offensive R. A
         -- coordinated base fight against one dominant diver has team value too.
-        if #p.members>=3 and not p.target:IsMagicImmune() then
+        if #p.members>=2 and not p.target:IsMagicImmune() then
             local golem=bot:GetAbilityByName('warlock_rain_of_chaos')
-            if Incoming(bot,{p.target},golem~=nil and golem:GetCastPoint()+0.2 or 1)<bot:GetHealth()*0.7
-                and CastPoint(bot,J,golem,p.target,'control') then return true end
-            if CastPoint(bot,J,bot:GetAbilityByName('witch_doctor_maledict'),p.target,'engage') then return true end
+            if CastPoint(bot,J,golem,p,'control') then return true end
+            if CastPoint(bot,J,bot:GetAbilityByName('witch_doctor_maledict'),p,'engage') then return true end
             local ward=bot:GetAbilityByName('witch_doctor_death_ward')
             if ward~=nil and ward:IsFullyCastable() and not J.CanNotUseAbility(bot) and J.IsDisabled(p.target)
                 and not p.target:IsAttackImmune() and p.backups==0
-                and Incoming(bot,{p.target},ward:GetCastPoint()+1.5)<bot:GetHealth()*0.45
+                and CastSurvivable(bot,J,p,ward:GetCastPoint()+1.5,0.45)
                 and CastSafety.Allow(bot,J,ward,'channel') then
                 -- The native decision unnecessarily excludes a large allied
                 -- group. Place the ward in our cast range, within its attack
@@ -220,7 +255,7 @@ function X.GuardAbilities(bot,J)
                 local location=p.target:GetLocation()
                 if Dist(bot,p.target)>range then location=J.VectorAway(bot:GetLocation(),location,-math.max(0,range-25)) end
                 if GetUnitToLocationDistance(p.target,location)<580 then
-                    bot:Action_UseAbilityOnLocation(ward,location); return true
+                    bot:Action_UseAbilityOnLocation(ward,location); Issued(bot,ward,p,'channel'); return true
                 end
             end
         end

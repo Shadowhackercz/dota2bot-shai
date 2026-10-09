@@ -68,6 +68,7 @@ J.GetNearbyHeroes=function(_,_,enemyTeam) return enemyTeam and enemies or allies
 J.CanNotUseAction=function(h) return h.busy or false end
 J.CanNotUseAbility=no
 J.IsDisabled=function(h) return h.stunned or false end
+J.GetRemainStunTime=function(h) return h.remaining or 0 end
 J.GetHP=function(h) return h.hp/h.maxHp end
 J.GetTeamFountain=function() return Vector(-2000,0) end
 J.VectorAway=function(a,b,d) return Vector(a.x+(a.x>b.x and d or -d),0) end
@@ -163,6 +164,10 @@ siege(); local p=Defense.GetPlan(bot,J)
 assert(p.ready and p.reason=='group-pressure' and #p.members==4,'Four ready bots pressure a single base diver despite uncertain lethal engine damage')
 assert(Defense.GetPlan(warlock,J)==p,'Different bot observers see the same published roster and budget')
 enemy.stunned=true
+enemy.remaining=2
+Defense.GuardAbilities(warlock,J)
+assert(warlock.action~='warlock_rain_of_chaos','Long existing stun does not immediately consume another control ulti')
+enemy.remaining=0.5
 assert(Defense.GuardAbilities(warlock,J) and warlock.action=='warlock_rain_of_chaos','Ready healthy Warlock uses R against the single caught base diver')
 warlock.abilities.warlock_rain_of_chaos.ready=false; bot.hp=250; now=now+0.3
 p=Defense.GetPlan(wk,J)
@@ -182,8 +187,43 @@ doctor.abilities.witch_doctor_maledict=ability('witch_doctor_maledict')
 doctor.abilities.witch_doctor_death_ward=ability('witch_doctor_death_ward')
 allies[4]=doctor; enemy.stunned=true; enemy.damage=100
 assert(Defense.GuardAbilities(doctor,J) and doctor.action=='witch_doctor_maledict','Coordinated response applies Maledict first')
+local maledictAction=doctor.action
+Defense.Think(doctor,J)
+assert(doctor.action==maledictAction,'Movement callback must preserve freshly issued Maledict before engine cast flags')
+assert(Defense.GuardAbilities(doctor,J) and doctor.action==maledictAction,'Ability callback does not repeat a pending point cast')
+assert(Defense.GetDesire(doctor,J)==1.02,'Release lease retains defense mode during the spell wind-up')
 doctor.abilities.witch_doctor_maledict.ready=false
+now=now+0.6
 assert(Defense.GuardAbilities(doctor,J) and doctor.action=='witch_doctor_death_ward','Caught diver permits safe Death Ward even with four allied heroes')
+Defense.Think(doctor,J); assert(doctor.action=='witch_doctor_death_ward','Ward release is also protected from movement overwrite')
+
+siege(); doctor=hero('npc_dota_hero_witch_doctor',4,-130); doctor.damage=1200
+doctor.abilities.witch_doctor_maledict=ability('witch_doctor_maledict')
+doctor.abilities.witch_doctor_death_ward=ability('witch_doctor_death_ward')
+wk.damage=1200; allies={wk,doctor}; enemy.stunned=true; enemy.damage=100
+assert(Defense.GetPlan(doctor,J).ready,'Two strong prepared members have a viable assessed defense')
+assert(Defense.Think(doctor,J) and doctor.action=='witch_doctor_maledict','Movement callback opens viable two-member defense with Maledict before an attack')
+doctor.abilities.witch_doctor_maledict.ready=false; now=now+0.6
+assert(Defense.GuardAbilities(doctor,J) and doctor.action=='witch_doctor_death_ward','Viable two-member defense can follow with its credited Ward')
+now=now+0.6; assert(not Defense.HoldingCast(doctor),'Short release lease does not pretend to reserve an entire channel')
+doctor.shaiDefenseSpell={created=now,untilTime=now+0.5}; now=10
+assert(not Defense.HoldingCast(doctor),'Clock rollback removes obsolete defense cast lease')
+
+siege(); doctor=hero('npc_dota_hero_witch_doctor',4,-130); doctor.damage=1200
+doctor.abilities.witch_doctor_maledict=ability('witch_doctor_maledict')
+wk.damage=1200; allies={wk,doctor}; enemy.stunned=true; enemy.damage=100
+assert(Defense.GetPlan(doctor,J).ready)
+enemy.damage=5000 -- new incoming danger before the cached plan is rebuilt
+Defense.GuardAbilities(doctor,J)
+assert(doctor.action~='witch_doctor_maledict','Immediate cast safety rechecks new danger despite cached readiness')
+siege(); doctor=hero('npc_dota_hero_witch_doctor',4,-130); doctor.damage=1200
+doctor.abilities.witch_doctor_maledict=ability('witch_doctor_maledict')
+wk.damage=1200; allies={wk,doctor}; enemy.stunned=true; enemy.damage=100
+Defense.GetPlan(doctor,J)
+local vanished=hero('npc_dota_hero_kez',9,500); enemies[#enemies+1]=vanished
+vanished.visible=false
+assert(Defense.GuardAbilities(doctor,J) and doctor.action=='witch_doctor_maledict','Follow-up safety never reads hidden backup stats')
+doctor.hp=0; assert(not Defense.HoldingCast(doctor),'Death clears short spell release lease')
 print('PASS: shared four-bot siege response, single-target golem, wounded-member continuation, no-opener/backup/protection rejection and Maledict/Death Ward')
 
 -- Actual siege creeps must be dealt with even when no hero engage is viable.

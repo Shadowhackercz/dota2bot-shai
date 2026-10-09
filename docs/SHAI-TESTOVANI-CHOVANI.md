@@ -1,5 +1,7 @@
 # Analýza chování SHAI
 
+Obranné follow-upy: sledovat, zda připravený WD nejprve dává Maledict a po jeho castu Death Ward i ve skutečně dostatečné dvojici. `defense-cast` uvádí vydání, ne dopad/úplný channel. Pohyb nemá zrušit právě vydaný spell prvním autoattackem; nový spell naopak musí odmítnout nepřežitelný wind-up. Warlockův golem má navázat podle zbývající kontroly, nikoli automaticky překrýt dlouhý stun. Srovnat s replayem, cooldowny, manou, skutečným damage a přerušeními.
+
 Navazující sada po Pudge testu má 28 Lua + dvě PowerShell sady, syntax 332 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
 
 Runové cesty: sledovat `travel reason=route-detour/route-blocked` u silného viditelného soupeře mezi botem a runou/Wisdomem. V replayi ověřit skutečnou engine trasu; přímé vzorky nemusí odpovídat cestě okolo stromů či cliffu. Po ztrátě vision má krátká paměť vypršet, nikoli botovi zakázat runu navždy. Po přerušení Wisdomu se počítá nový celý pobyt. Centaur: při útěku před jedním silným soupeřem sledovat `escape-stomp` při bezpečném blízkém castu, jinak `escape-stampede`; ověřit skutečné zpomalení pronásledování/únik, různé HP a mana, root/Rupture, přednost skupinového boje a zachování vydaného castu.
