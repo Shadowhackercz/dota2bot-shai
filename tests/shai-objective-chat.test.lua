@@ -14,6 +14,7 @@ local function Hero(id)
     function h:IsNull() return false end
     function h:IsHero() return true end
     function h:IsIllusion() return self.illusion or false end
+    function h:HasModifier() return false end
     function h:IsAlive() return self.alive end
     function h:GetPlayerID() return self.id end
     function h:GetTeam() return 2 end

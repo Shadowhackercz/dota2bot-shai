@@ -32,7 +32,7 @@ function bot:IsInvisible() return false end
 function bot:GetActiveMode() return BOT_MODE_NONE end
 function bot:WasRecentlyDamagedByAnyHero() return false end
 function bot:GetLocation() return {} end
-function bot:HasModifier() return false end
+function bot:HasModifier(m) return m=='modifier_skeleton_king_reincarnation_scepter_active' and state.ghost or false end
 function bot:ActionQueue_UseAbilityOnEntity() end
 local enemy = {}
 function enemy:IsChanneling() return true end
@@ -79,6 +79,9 @@ check('untrained reincarnation must not reserve mana', function()
 end)
 state.rLevel = 1
 check('trained ready reincarnation must reserve mana', function() assert(wk.ShouldSaveMana(ability)) end)
+state.ghost=true
+check('temporary ghost must not reserve mana for a nonexistent next reincarnation', function() assert(not wk.ShouldSaveMana(ability)) end)
+state.ghost=false
 state.rCost = 0
 check('free reincarnation must not reserve mana', function() assert(not wk.ShouldSaveMana(ability)) end)
 state.rCost, state.rCooldown = 200, 20

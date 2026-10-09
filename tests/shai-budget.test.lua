@@ -31,6 +31,7 @@ local function hero(x)
     function h:IsSilenced() return self.silenced or false end
     function h:IsMuted() return self.muted or false end
     function h:HasModifier() return false end
+    function h:GetUnitName() return 'npc_dota_hero_skeleton_king' end
     function h:GetMana() return self.mana end
     function h:GetAbilityByName(name) return self.abilities[name] end
     function h:GetItemInSlot(slot) return self.items[slot] end
@@ -77,6 +78,12 @@ assert(utility.attacks==0 and utility.spells==0 and utility.available.lion_finge
 reset(); bot.mana=100; bot.abilities.skeleton_king_reincarnation=ability('skeleton_king_reincarnation',100)
 local stun=ability('skeleton_king_hellfire_blast',75,{damage=140}); bot.abilities.skeleton_king_hellfire_blast=stun
 assert(forecast({{ability=stun,range=700}}).available.skeleton_king_hellfire_blast==nil,'Forecast respects WK revival mana reservation')
+function bot:HasModifier(m) return m=='modifier_skeleton_king_reincarnation_scepter_active' end
+J.GetModifierTime=function() return 2 end
+local ghost=forecast({{ability=stun,range=700}})
+assert(ghost.available.skeleton_king_hellfire_blast and ghost.mana==75,'Temporary WK can spend mana on stun even with a ready R')
+J.GetModifierTime=function() return 0 end
+assert(forecast().total==0,'Unknown/expired ghost lifetime does not promise future group damage')
 reset(); bot.abilities.lion_finger_of_death=ability('lion_finger_of_death',100,{damage=850})
 assert(forecast(nil,{horizon=5,bkb=true}).spells==0,'Ready BKB cannot be ignored by a magic damage forecast')
 assert(forecast(nil,{horizon=5,bkb=true,caught=true}).spells>0,'Caught BKB owner is a different opportunity')

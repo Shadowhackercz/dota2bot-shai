@@ -16,6 +16,8 @@ local TeamGank = require(GetScriptDirectory()..'/FunLib/shai_team_gank')
 local CombatFinish = require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
 local Defense = require(GetScriptDirectory()..'/FunLib/shai_defense')
 local Travel = require(GetScriptDirectory()..'/FunLib/shai_tactical_travel')
+local Wraith = require(GetScriptDirectory()..'/FunLib/shai_wraith_form')
+local Invisible = require(GetScriptDirectory()..'/FunLib/shai_invisible_escape')
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local Glyph = require(GetScriptDirectory()..'/FunLib/shai_glyph')
 local ThreatMemory = require(GetScriptDirectory()..'/FunLib/shai_threat_memory')
@@ -8316,12 +8318,14 @@ end
 function ItemUsageThink()
 	if RefreshBotHandle() then return end
 	if Travel.RecheckTeleport(bot,J) or Travel.ThinkFade(bot,J) then return end
+	if Wraith.Active(bot) then return end
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
 	if Runtime.Call(bot,'roshan.items',function() return RoshanSafety.GuardActions(bot,J) end,false) then return end
 	if bot.lastItemFrameProcessTime == nil then bot.lastItemFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastItemFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) then return end
 	bot.lastItemFrameProcessTime = DotaTime()
 	if CombatFinish.IsCommitting(bot,J) then return end
+	if Runtime.Call(bot,'invis.items',function() return Invisible.Think(bot,J) end,false) then return end
 	if not J.IsNoItemIllution(bot) then Runtime.Call(bot,'items',ItemUsageComplement,nil) end
 end
 
@@ -8338,12 +8342,14 @@ function AbilityUsageThink()
 		end)
 	end
 	BehaviorTrace.Observe(bot, DotaTime(), SHAI.BehaviorTrace)
-	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
+	if (bot:IsInvulnerable() and not Wraith.Active(bot)) or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
 	if bot.lastAbilityFrameProcessTime == nil then bot.lastAbilityFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastAbilityFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) and bot.isBear == nil then return end
 	bot.lastAbilityFrameProcessTime = DotaTime()
 	Runtime.Call(bot,'threat.observe',function() ThreatMemory.Observe(bot,J) end)
 	if Travel.ThinkFade(bot,J) then return end
+	if Runtime.Call(bot,'wraith.abilities',function() return Wraith.Think(bot,J) end,false) then return end
+	if Runtime.Call(bot,'invis.abilities',function() return Invisible.Think(bot,J) end,false) then return end
 	ObjectiveCommands.ReleaseObjective(bot,J)
 	if Runtime.Call(bot,'roshan.abilities',function() return RoshanSafety.GuardActions(bot,J) end,false) then return end
 	if CombatFinish.IsCommitting(bot,J) then return end

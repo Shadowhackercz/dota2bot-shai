@@ -1,6 +1,6 @@
 local bot = GetBot()
 local botName = bot:GetUnitName()
-if bot == nil or bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
+if bot == nil or (bot:IsInvulnerable() and not bot:HasModifier('modifier_skeleton_king_reincarnation_scepter_active')) or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
 
 local Utils = require(GetScriptDirectory()..'/FunLib/utils')
 local EnemyRoles = require(GetScriptDirectory()..'/FunLib/enemy_role_estimation')
@@ -13,6 +13,8 @@ local TeamGank = require(GetScriptDirectory()..'/FunLib/shai_team_gank')
 local CombatFinish = require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
 local Defense = require(GetScriptDirectory()..'/FunLib/shai_defense')
 local Travel = require(GetScriptDirectory()..'/FunLib/shai_tactical_travel')
+local Wraith = require(GetScriptDirectory()..'/FunLib/shai_wraith_form')
+local Invisible = require(GetScriptDirectory()..'/FunLib/shai_invisible_escape')
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local Tormentor = require(GetScriptDirectory()..'/FunLib/shai_tormentor')
 local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
@@ -80,6 +82,14 @@ end
 
 function GetDesire()
     if Travel.HoldFade(bot,J) then return 1.08 end
+    local specialDesire
+    if Runtime.Call(bot,'wraith.desire',function() return Wraith.GetPlan(bot,J) end,nil)~=nil then specialDesire=1.07
+    elseif Runtime.Call(bot,'invis.desire',function() return Invisible.GetPlan(bot,J) end,nil)~=nil then specialDesire=1.06 end
+    if specialDesire then
+        coordinatedGank,immediateFinish,defendingBase,coordinatedTormentor,escapingThreat=false,false,false,false,false
+        ShouldAttackSpecialUnit=false; hTargetCreep,targetUnit=nil,nil
+        return specialDesire
+    end
     -- local cacheKey = 'GetTeamRoamDesire'..tostring(bot:GetPlayerID())
     -- local cachedVar = J.Utils.GetCachedVars(cacheKey, 0.2 * (1 + Customize.ThinkLess))
     -- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
@@ -371,6 +381,7 @@ end
 -- ==============================
 local function TeamRoamThinkInternal()
     if Travel.ThinkFade(bot,J) then return end
+    if Wraith.Think(bot,J) or Invisible.Think(bot,J) then return end
     if J.CanNotUseAction(bot) then return end
 	-- diabled think less to avoid failing to last hit
     -- if J.Utils.IsBotThinkingMeaningfulAction(bot, Customize.ThinkLess, "team_roam") then return end

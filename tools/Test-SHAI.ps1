@@ -11,11 +11,11 @@ try {
     $abilitySource = Get-Content -LiteralPath 'bots/ability_item_usage_generic.lua' -Raw
     $callbackMatch = [regex]::Match($abilitySource, '(?s)(function AbilityUsageThink\(\).*?\r?\nend)\r?\n\r?\nfunction BuybackUsageThink')
     if (-not $callbackMatch.Success) { throw 'Cannot locate actual AbilityUsageThink callback' }
-    $adapter = "return function(bot,J,TeamGank,BehaviorTrace,SHAI,Customize,BotBuild,RefreshBotHandle,bInstallChatCallbackDone,botName,ObjectiveCommands,RoshanCommands,X,CombatFinish,Defense,Travel,ThreatMemory,RoshanSafety,UseGlyph)`nUseGlyph = UseGlyph or function() end`nCombatFinish = CombatFinish or {TryAction=function() return false end, IsCommitting=function() return false end}`nDefense = Defense or {GuardAbilities=function() return false end}`nTravel = Travel or {ThinkFade=function() return false end}`nThreatMemory = ThreatMemory or {Observe=function() end}`nRoshanSafety = RoshanSafety or {GuardActions=function() return false end}`nlocal Runtime=require('bots/FunLib/shai_runtime')`n" + $callbackMatch.Groups[1].Value + "`nreturn AbilityUsageThink`nend`n"
+    $adapter = "return function(bot,J,TeamGank,BehaviorTrace,SHAI,Customize,BotBuild,RefreshBotHandle,bInstallChatCallbackDone,botName,ObjectiveCommands,RoshanCommands,X,CombatFinish,Defense,Travel,ThreatMemory,RoshanSafety,UseGlyph)`nUseGlyph = UseGlyph or function() end`nCombatFinish = CombatFinish or {TryAction=function() return false end, IsCommitting=function() return false end}`nDefense = Defense or {GuardAbilities=function() return false end}`nTravel = Travel or {ThinkFade=function() return false end}`nThreatMemory = ThreatMemory or {Observe=function() end}`nRoshanSafety = RoshanSafety or {GuardActions=function() return false end}`nlocal Wraith=require('bots/FunLib/shai_wraith_form')`nlocal Invisible=require('bots/FunLib/shai_invisible_escape')`nlocal Runtime=require('bots/FunLib/shai_runtime')`n" + $callbackMatch.Groups[1].Value + "`nreturn AbilityUsageThink`nend`n"
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-ability-callback.lua'), $adapter, [Text.UTF8Encoding]::new($false))
     $itemMatch = [regex]::Match($abilitySource, '(?s)(function ItemUsageThink\(\).*?\r?\nend)\r?\n\r?\nfunction AbilityUsageThink')
     if (-not $itemMatch.Success) { throw 'Cannot locate actual ItemUsageThink callback' }
-    $itemAdapter = "return function(bot,J,Customize,RefreshBotHandle,CombatFinish,ItemUsageComplement,botName,Travel,RoshanSafety)`nTravel = Travel or {ThinkFade=function() return false end,RecheckTeleport=function() return false end}`nRoshanSafety = RoshanSafety or {GuardActions=function() return false end}`nlocal Runtime=require('bots/FunLib/shai_runtime')`n" + $itemMatch.Groups[1].Value + "`nreturn ItemUsageThink`nend`n"
+    $itemAdapter = "return function(bot,J,Customize,RefreshBotHandle,CombatFinish,ItemUsageComplement,botName,Travel,RoshanSafety)`nTravel = Travel or {ThinkFade=function() return false end,RecheckTeleport=function() return false end}`nRoshanSafety = RoshanSafety or {GuardActions=function() return false end}`nlocal Wraith=require('bots/FunLib/shai_wraith_form')`nlocal Invisible=require('bots/FunLib/shai_invisible_escape')`nlocal Runtime=require('bots/FunLib/shai_runtime')`n" + $itemMatch.Groups[1].Value + "`nreturn ItemUsageThink`nend`n"
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-item-callback.lua'), $itemAdapter, [Text.UTF8Encoding]::new($false))
     $helperSource = Get-Content -LiteralPath 'bots/FunLib/jmz_func.lua' -Raw
     $locationBodies = foreach ($name in @('GetAlliesNearLoc', 'GetEnemiesNearLoc')) {
@@ -32,6 +32,13 @@ try {
     }
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-intent-helpers.lua'),
         "return function(J)`n" + ($intentBodies -join "`n") + "`nend`n", [Text.UTF8Encoding]::new($false))
+    $guardBodies = foreach ($name in @('CanNotUseAction', 'CanNotUseAbility')) {
+        $guardMatch = [regex]::Match($helperSource, "(?s)function J\.$name\([^)]*\).*?\r?\nend")
+        if (-not $guardMatch.Success) { throw "Cannot locate actual J.$name guard" }
+        $guardMatch.Value
+    }
+    [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-action-guards.lua'),
+        "return function(J)`n" + ($guardBodies -join "`n") + "`nend`n", [Text.UTF8Encoding]::new($false))
     $farmSource = Get-Content -LiteralPath 'bots/mode_farm_generic.lua' -Raw
     $repickMatch = [regex]::Match($farmSource, '(?s)\tbot\._farm_repick_at = bot\._farm_repick_at or 0.*?(?=\tif preferedCamp ~= nil then)')
     if (-not $repickMatch.Success) { throw 'Cannot locate actual farm camp selection' }
@@ -65,7 +72,7 @@ try {
     $helperAdapter = "return function(J,ObjectiveCommands)`n" + ($objectiveHelperBodies -join "`n") + "`nend`n"
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-objective-helpers.lua'), $helperAdapter, [Text.UTF8Encoding]::new($false))
     foreach ($testFile in @('tests/shai-runtime-api.test.lua', 'tests/shai-camp.test.lua', 'tests/shai-objective-integration.test.lua', 'tests/shai-selection.test.lua', 'tests/shai-roshan.test.lua',
-        'tests/shai-combat.test.lua', 'tests/shai-tactics.test.lua', 'tests/shai-runes.test.lua', 'tests/shai-escape.test.lua',
+        'tests/shai-combat.test.lua', 'tests/shai-tactics.test.lua', 'tests/shai-runes.test.lua', 'tests/shai-escape.test.lua', 'tests/shai-special-states.test.lua',
         'tests/shai-stability.test.lua', 'tests/shai-objectives.test.lua', 'tests/shai-tombstone.test.lua', 'tests/shai-trace.test.lua',
         'tests/shai-roshan-chat.test.lua', 'tests/shai-safety.test.lua', 'tests/shai-memory.test.lua', 'tests/shai-gank.test.lua', 'tests/shai-budget.test.lua', 'tests/shai-glyph.test.lua', 'tests/shai-objective-chat.test.lua', 'tests/shai-finish.test.lua', 'tests/shai-defense.test.lua', 'tests/shai-travel.test.lua')) {
         # Fresh VM per test; explicit exit because Fengari otherwise swallows errors.

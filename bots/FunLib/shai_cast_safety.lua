@@ -42,6 +42,8 @@ function X.Allow(bot, J, ability, purpose)
     local curseCost = hasCurse and s.curseCost and bot:GetActualIncomingDamage(s.curseCost, DAMAGE_TYPE_MAGICAL) or 0
     local wordCost = hasWord and s.wordCost and bot:GetActualIncomingDamage(s.wordCost, DAMAGE_TYPE_MAGICAL) or 0
     local protected = bot:IsInvulnerable()
+        or bot:HasModifier('modifier_skeleton_king_reincarnation_scepter_active')
+            and J.GetModifierTime(bot,'modifier_skeleton_king_reincarnation_scepter_active') > ability:GetCastPoint()+0.2
         or J.GetModifierTime(bot, 'modifier_abaddon_borrowed_time') > ability:GetCastPoint() + 0.2
         or J.GetModifierTime(bot, 'modifier_dazzle_shallow_grave') > ability:GetCastPoint() + 0.2
     local reason = nil

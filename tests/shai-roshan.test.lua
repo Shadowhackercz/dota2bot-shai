@@ -15,6 +15,7 @@ function bot:IsInvulnerable() return false end
 function bot:IsHero() return true end
 function bot:IsAlive() return state.alive end
 function bot:IsIllusion() return false end
+function bot:HasModifier() return false end
 function bot:GetTeam() return 2 end
 function bot:GetLocation() return {x=100,y=0} end
 function bot:GetActiveMode() return state.mode or BOT_MODE_ROSHAN end

@@ -1,6 +1,10 @@
 # Analýza chování SHAI
 
-Navazující sada po Pudge testu má 23 Lua + dvě PowerShell sady, syntax 320 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+Navazující sada po Pudge testu má 24 Lua + dvě PowerShell sady, syntax 323 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+
+Nově cíleně pozorovat hotovou Glimmer/invis: po fade nezrušit únik kvůli útoku do creepa; při dust/gemu/věži dovolit save/control; safe TP domů zachovat, při blízké viditelné hrozbě/projectile jej nezahajovat. Aktuální skupinový engage může invis záměrně přerušit. Trace `[SHAI] invis` má důvody `preserve-escape`, `safe-home-tp`, `known-detection`, `visible-gem`, `enemy-tower`. Směr sám nedokazuje ztrátu enemy vision ani bezpečný úkryt mezi stromy.
+
+WK: ověřit skutečný dočasný zelený Wraith modifier/délku, útoky a Q při nízkém HP i ready R, bez dalšího survival TP a bez čekání na mana rezervu na reinkarnaci. Trace `[SHAI] wraith` uvádí `stun` / `attack-hero` / `attack-creep`, cíl a zbývající sekundy. Výběr nedosažitelného cíle nesmí spotřebovat poslední čas; silence a dlouhý existující stun nemají vyvolat nelegální či zbytečný Q. Po skončení formy se mají obnovit běžná pravidla. Potvrdit před dlouhým testem, že žádný nový `source=wraith.*` / `source=invis.*` runtime error nezastavuje controller.
 
 Lokální únik: neprůchozí úsek uprostřed jinak průchozího cíle, druhý viditelný nepřítel ve směru ústupu a věž. Bot má vybrat jiný nebo kratší legální krok, nezavést zpět právě odmítnutý přímý příkaz. Skrytý nepozorovaný soupeř se do hodnocení nedostává. Krátká stabilita směru nesmí ignorovat novou překážku. Je to vzorkování geometrie; skutečná engine trasa mezi body může být jiná a širší native módy tím nejsou přepsané.
 

@@ -2,6 +2,7 @@
 -- This is a conservative forecast, not a full engine fight simulation.
 local X={}
 local CastSafety=require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Wraith=require(GetScriptDirectory()..'/FunLib/shai_wraith_form')
 local profiles={
     {'lion_impale','point','damage'}, {'lion_finger_of_death','unit','damage'},
     {'skeleton_king_hellfire_blast','unit','damage'}, {'sven_storm_bolt','unit'},
@@ -35,9 +36,10 @@ function X.Member(h,target,J,options,context)
     local p={attacks=0,spells=0,summons=0,total=0,mana=0,castTime=0,available={},rejected={},control=0}
     if not TargetVisible(target,J) or not h:IsAlive() or h:IsStunned() or h:IsHexed() then return p end
     local horizon=context.horizon or 4
+    if Wraith.Active(h) then horizon=math.min(horizon,Wraith.Remaining(h,J)) end
     local remainingMana=h:GetMana()
     local revive=h:GetAbilityByName('skeleton_king_reincarnation')
-    if revive~=nil and revive:GetLevel()>0 and revive:GetCooldownTimeRemaining()<=3 then
+    if not Wraith.Active(h) and revive~=nil and revive:GetLevel()>0 and revive:GetCooldownTimeRemaining()<=3 then
         remainingMana=math.max(0,remainingMana-revive:GetManaCost())
     end
     local distance=GetUnitToUnitDistance(h,target)

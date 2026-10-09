@@ -468,6 +468,7 @@ function X.IsNearLaneFront( bot )
 end
 
 function X.ShouldSaveMana( nAbility )
+	if bot:HasModifier('modifier_skeleton_king_reincarnation_scepter_active') then return false end
 
 --	if talent5:IsTrained() then return false end
 
