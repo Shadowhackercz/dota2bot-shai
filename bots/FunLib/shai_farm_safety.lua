@@ -3,6 +3,7 @@ local X = {}
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local Memory = require(GetScriptDirectory()..'/FunLib/shai_threat_memory')
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
+local Escape = require(GetScriptDirectory()..'/FunLib/shai_escape_route')
 local states = setmetatable({}, {__mode = 'k'})
 
 local function VisibleHero(unit, J)
@@ -81,21 +82,13 @@ function X.GetThreat(bot, J)
 end
 
 function X.InterruptFarm(bot, J)
+    if Escape.HoldingJump(bot) or Escape.HoldingAlignment(bot) then return true end
     local threat = X.GetThreat(bot, J)
-    if threat == nil then return false end
+    if threat == nil then bot.shaiEscapeMove=nil; return false end
     -- Do not cancel an ongoing escape, spell or teleport merely to issue a move.
     if J.CanNotUseAction(bot) or bot:IsCastingAbility() or bot:IsUsingAbility() then return true end
     bot:SetTarget(nil)
-    local origin = bot:GetLocation()
-    local destination
-    if (origin.x - threat.location.x)^2 + (origin.y - threat.location.y)^2 < 1 then
-        destination = J.GetTeamFountain()
-    else
-        destination = J.VectorAway(origin, threat.location, 650)
-        if not IsLocationPassable(destination) then destination = J.GetTeamFountain() end
-    end
-    bot:Action_MoveToLocation(destination)
-    return true
+    return Escape.Move(bot,J,threat)
 end
 
 -- Evaluate the destination, not merely the bot's current peaceful location.

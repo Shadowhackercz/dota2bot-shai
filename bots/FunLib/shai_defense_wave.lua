@@ -48,7 +48,7 @@ function X.GetTarget(bot,J)
     return creeps[1],creeps
 end
 local profiles={
-    {'zuus_arc_lightning','unit',500},
+    {'zuus_arc_lightning','unit','radius'},
     {'crystal_maiden_crystal_nova','point','radius'},
     {'lich_frost_nova','unit','radius'},
     {'witch_doctor_paralyzing_cask','unit',400,'control'},

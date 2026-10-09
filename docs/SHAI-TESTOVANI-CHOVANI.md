@@ -1,6 +1,10 @@
 # Analýza chování SHAI
 
-Navazující sada po Pudge testu má 22 Lua + dvě PowerShell sady, syntax 318 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+Navazující sada po Pudge testu má 23 Lua + dvě PowerShell sady, syntax 320 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+
+Lokální únik: neprůchozí úsek uprostřed jinak průchozího cíle, druhý viditelný nepřítel ve směru ústupu a věž. Bot má vybrat jiný nebo kratší legální krok, nezavést zpět právě odmítnutý přímý příkaz. Skrytý nepozorovaný soupeř se do hodnocení nedostává. Krátká stabilita směru nesmí ignorovat novou překážku. Je to vzorkování geometrie; skutečná engine trasa mezi body může být jiná a širší native módy tím nejsou přepsané.
+
+Zeus: od každé úrovně E ověřit `hop_distance`, správné natočení/pohyb a skutečné přistání. `[SHAI] escape` obsahuje `align-jump`, `jump-issued`, `jump-align-timeout`, `no-safe-jump-landing`, `local-retreat` nebo `no-safe-local-step` a vybraný mezibod. `terrain=true` dokládá neprůchozí mezivzorek, ne skutečně provedený cliff jump. Natočení se omezuje na 0,65 s, timeout pustí běžné rozhodování; krátká rezervace po vydání chrání skok před farm/roam pohybem. Samostatně zkusit root, channel/queued escape a Arcane Curse/Last Word. Pohyb přes cliff a chování během forced movement musí ověřit hra, ne mock running/facing flag.
 
 Nová TP sada: zdravý kolemjdoucí bot nemá dovolit solo přílet k fed soupeři. Porovnat s opravdu bojující skupinou; po ztrátě vision se krátce respektuje poslední známá hrozba, poté opatrnost vyprší. Zkusit cursor u outpostu i věže a během channelu ztrátu místní pomoci. `[SHAI] travel` má vedle `reason` také `detail=remembered-tp-threat / insufficient-fighting-help / outnumbered-arrival`. Odhad je konzervativní podmínka příletu, nikoli garance killu nebo přesná lokace dopadu.
 

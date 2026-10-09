@@ -4,6 +4,8 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Escape = require(GetScriptDirectory()..'/FunLib/shai_escape_route')
+local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -199,14 +201,24 @@ function X.SkillsComplement()
 	if abilityAS:IsTrained() then abilityASBonus = 0.09 end
 	if talent8:IsTrained() then talentDamage = talentDamage + talent8:GetSpecialValueInt( "value" ) end
 
+	if Escape.HoldingJump(bot) then return end
 	-- A useful retreat Jump must not wait behind optional damage casts.
 	if J.IsRetreating(bot) then
-		castEDesire = X.ConsiderE()
-		if castEDesire > 0 and CastSafety.Allow(bot, J, abilityE, 'escape') then
-			J.SetQueuePtToINT(bot, true)
-			bot:ActionQueue_UseAbility(abilityE)
+		local threat=FarmSafety.GetThreat(bot,J)
+		if threat==nil then
+			for _,enemy in ipairs(hEnemyHeroList) do
+				if enemy~=nil and not enemy:IsNull() and enemy:CanBeSeen() and J.IsValidHero(enemy)
+					and not J.IsSuspiciousIllusion(enemy) and GetUnitToUnitDistance(bot,enemy)<abilityE:GetSpecialValueInt('range')
+					and (enemy:GetAttackTarget()==bot or bot:WasRecentlyDamagedByHero(enemy,2)) then
+					threat={location=enemy:GetLocation()}; break
+				end
+			end
+		end
+		if Escape.TryZeusJump(bot,J,abilityE,threat,CastSafety) then
 			return
 		end
+	else
+		bot.shaiJumpAlign=nil
 	end
 
 	castRDesire = X.ConsiderR()
@@ -715,7 +727,6 @@ function X.ConsiderE()
 		return BOT_ACTION_DESIRE_NONE
 	end
 
-	local nJumpDistance = 450
 	local nSkillLV = abilityE:GetLevel()
 	local nCastRange = 600 + nSkillLV * 100
 	local nCastPoint = abilityE:GetCastPoint()
@@ -726,16 +737,7 @@ function X.ConsiderE()
 
 	if J.IsRetreating( bot )
 	then
-		if J.IsRunning( bot )
-		then
-			local targetHero = tableNearbyEnemyHeroes[1]
-			if J.IsValidHero( targetHero )
-				and J.CanCastOnNonMagicImmune( targetHero )
-				and not bot:IsFacingLocation( targetHero:GetLocation(), 120 )
-			then
-				return BOT_ACTION_DESIRE_HIGH
-			end
-		end
+		return BOT_ACTION_DESIRE_NONE -- handled by the validated escape dispatcher
 	end
 	
 	

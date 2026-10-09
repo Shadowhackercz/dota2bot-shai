@@ -64,6 +64,9 @@ function bot:SetTarget(target) state.target=target end
 function bot:Action_MoveToLocation(loc) state.action='move'; state.location=loc end
 function bot:Action_AttackUnit() state.action='attack' end
 function bot:ActionQueue_UseAbility(a) state.action=a:GetName() end
+function bot:Action_UseAbility(a) state.action=a:GetName() end
+function bot:Action_MoveDirectly(loc) state.action='align'; state.location=loc end
+function bot:Action_ClearActions() state.action='clear' end
 function bot:ActionQueue_UseAbilityOnEntity(a,t) state.action=a:GetName(); state.castTarget=t end
 function bot:ActionQueue_UseAbilityOnLocation(a) state.action=a:GetName() end
 GetBot = function() return bot end
@@ -93,6 +96,7 @@ J.Utils.NumHumanBotPlayersInTeam = function() return 1,4 end
 J.Utils.BuggyHeroesDueToValveTooLazy = {}
 J.Utils.IsBotThinkingMeaningfulAction = function() return false end
 J.SetQueuePtToINT = function() end
+J.IsRunning=function() return true end
 J.IsItemAvailable = function() return nil end
 J.SetUserHeroInit = function(...) return ... end
 J.Skill.GetTalentList = function() return {'t1','t2','t3','t4','t5','t6','t7','t8'} end
@@ -113,7 +117,7 @@ assert(Farm.GetThreat(bot,J)==nil, 'Quiet farm should continue')
 state.enemies={silencer}; silencer.dps=450; silencer.target=bot; fresh()
 assert(Farm.GetThreat(bot,J)~=nil, 'Dominant visible adjacent enemy must stop farming')
 assert(Farm.InterruptFarm(bot,J) and state.action=='move' and state.location.x<bot.loc.x)
-state.passable=false; assert(Farm.InterruptFarm(bot,J) and state.location.x==-6000, 'Blocked escape point must fall back to a reachable strategic destination')
+state.passable=false; assert(Farm.InterruptFarm(bot,J) and state.action=='clear', 'No legal sampled route must cancel farming instead of reinstating an unsafe rejected destination')
 state.passable=true
 ally.target=nil; state.allies={ally}; fresh()
 assert(Farm.GetThreat(bot,J)~=nil, 'Passing ally is not committed help')
@@ -152,11 +156,14 @@ local function ability(name, specials)
     function a:GetAbilityDamage() return 200 end
     function a:GetCastPoint() return 0.3 end
     function a:IsTrained() return false end
+    function a:IsFullyCastable() return true end
+    function a:IsHidden() return false end
+    function a:GetManaCost() return 50 end
     return a
 end
 silencer.abilities.silencer_curse_of_the_silent=ability('curse',{damage=40,penalty_duration=2})
 silencer.abilities.silencer_last_word=ability('word',{damage=400,int_multiplier=0})
-local q=ability('q',{arc_damage=100}); local w=ability('w'); local e=ability('e'); local r=ability('r')
+local q=ability('q',{arc_damage=100}); local w=ability('w'); local e=ability('e',{hop_distance=450,range=800}); local r=ability('r')
 bot.abilities={q=q,w=w,e=e,d=ability('d'),as=ability('as'),r=r}
 for i=1,8 do bot.abilities['t'..i]=ability('talent') end
 local actualDofile=dofile
@@ -192,9 +199,11 @@ silencer.hp=1900; silencer.channel=true
 zeus.ConsiderQ=function() return 0 end; zeus.ConsiderW=function() return 0.8,silencer end
 fresh(); zeus.SkillsComplement(); assert(state.action=='w', 'Actual Zeus retains a useful interrupt')
 silencer.channel=false; state.mode=BOT_MODE_RETREAT
+silencer.target=bot
 zeus.ConsiderE=function() return 0.8 end
 zeus.ConsiderR=function() error('Escape should precede damage considerations') end
 fresh(); zeus.SkillsComplement(); assert(state.action=='e')
+assert(Farm.InterruptFarm(bot,J) and state.action=='e','Farm/roam movement must preserve the just-issued jump')
 state.mode=BOT_MODE_FARM; zeus.ConsiderR=function() return 0 end; zeus.ConsiderE=function() return 0 end
 local creep=hero('creep',100); creep.creep=true; creep.hp=17
 zeus.ConsiderW=function() return 0 end; zeus.ConsiderQ=function() return 0.8,creep end
