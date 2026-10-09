@@ -1,5 +1,6 @@
 local Utils = require( GetScriptDirectory()..'/FunLib/utils')
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func')
+local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
 
 local Version      = require(GetScriptDirectory()..'/FunLib/version')
 local Localization = require(GetScriptDirectory()..'/FunLib/localization')
@@ -34,6 +35,7 @@ function GetDesire()
 	AnnounceMessages()
 
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return BOT_MODE_DESIRE_NONE end
+	if FarmSafety.GetThreat(bot, J) ~= nil then return BOT_MODE_DESIRE_NONE end
 	local botLV = bot:GetLevel()
 	local currentTime = DotaTime()
 
@@ -174,6 +176,8 @@ end
 
 if local_mode_laning_generic or (J.GetPosition(bot) == 1 and J.IsPosxHuman(5)) then
 	function Think()
+		if J.CanNotUseAction(bot) then return end
+		if FarmSafety.InterruptFarm(bot, J) then return end
 		local hitCreep, moveToCreep = GetBestLastHitCreep(nEnemyCreeps)
 		if J.IsValid(hitCreep) then
 			if J.GetPosition(bot) <= 2 or not J.IsThereNonSelfCoreNearby(700)

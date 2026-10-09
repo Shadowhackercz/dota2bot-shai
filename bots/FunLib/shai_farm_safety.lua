@@ -1,0 +1,94 @@
+-- Local, visible threats only. No enemy inventory or hidden position queries.
+local X = {}
+local SHAI = require(GetScriptDirectory()..'/Customize/shai')
+local states = setmetatable({}, {__mode = 'k'})
+
+local function VisibleHero(unit, J)
+    return J.IsValidHero(unit) and unit:CanBeSeen() and not J.IsSuspiciousIllusion(unit)
+end
+
+function X.GetThreat(bot, J)
+    local now = DotaTime()
+    if not bot:IsAlive() or now < 0 or bot:IsInvulnerable()
+        or bot:HasModifier('modifier_abaddon_borrowed_time')
+        or bot:HasModifier('modifier_dazzle_shallow_grave') then
+        states[bot] = nil
+        return nil
+    end
+    local s = states[bot]
+    if s == nil or now < s.checked then
+        s = {checked = -math.huge, untilTime = -math.huge, printed = -math.huge}
+        states[bot] = s
+    end
+    if now - s.checked < 0.2 then return now < s.untilTime and s.threat or nil end
+    s.checked = now
+    local enemies = J.GetNearbyHeroes(bot, 1400, true, BOT_MODE_NONE)
+    local allies = nil
+    local hp = bot:GetHealth()
+    local threat = nil
+    for _, enemy in pairs(enemies) do
+        if VisibleHero(enemy, J) and not enemy:IsStunned() and not enemy:IsHexed() then
+            local distance = GetUnitToUnitDistance(bot, enemy)
+            local reach = math.min(1200, enemy:GetAttackRange() + enemy:GetCurrentMovementSpeed() * 0.6 + 150)
+            local attacked = enemy:GetAttackTarget() == bot or bot:WasRecentlyDamagedByHero(enemy, 1.5)
+            local approaching = enemy:IsFacingLocation(bot:GetLocation(), 75)
+            if distance <= 325 or (distance <= reach and (attacked or approaching)) then
+                local incoming = enemy:GetEstimatedDamageToTarget(true, bot, 2, DAMAGE_TYPE_ALL)
+                local outgoing = bot:GetEstimatedDamageToTarget(true, enemy, 2, DAMAGE_TYPE_ALL)
+                local outmatched = enemy:GetHealth() > outgoing * 1.15
+                    and (incoming >= math.max(200, hp * 0.55)
+                        or (incoming > outgoing * 1.5 and enemy:GetLevel() >= bot:GetLevel() + 3))
+                if outmatched then
+                    allies = allies or J.GetNearbyHeroes(bot, 1000, false, BOT_MODE_NONE)
+                    local groupDamage = outgoing
+                    for _, ally in pairs(allies) do
+                        if ally ~= bot and VisibleHero(ally, J) and ally:GetHealth() > ally:GetMaxHealth() * 0.3
+                            and (ally:GetAttackTarget() == enemy or enemy:GetAttackTarget() == ally)
+                            and GetUnitToUnitDistance(ally, enemy) <= math.min(1200, ally:GetAttackRange() + 250) then
+                            groupDamage = groupDamage + ally:GetEstimatedDamageToTarget(true, enemy, 2, DAMAGE_TYPE_ALL)
+                        end
+                    end
+                    if groupDamage < enemy:GetHealth() * 1.15 or incoming >= hp * 0.75 then
+                        if threat == nil or incoming / hp > threat.severity then
+                            -- Snapshot the last visible position; never track a hidden handle through fog.
+                            local loc = enemy:GetLocation()
+                            threat = {enemy = enemy, location = Vector(loc.x, loc.y, loc.z), severity = incoming / hp,
+                                reason = 'unsafe-farm', name = enemy:GetUnitName()}
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if threat ~= nil then
+        s.threat, s.untilTime = threat, now + 0.75
+        if SHAI.BehaviorTrace and now - s.printed >= 5 then
+            print(string.format('[SHAI] safety t=%.2f; hero=%s; reason=unsafe-farm; enemy=%s; severity=%.2f',
+                now, bot:GetUnitName(), threat.name, threat.severity))
+            s.printed = now
+        end
+    elseif now >= s.untilTime then
+        s.threat = nil
+    end
+    return s.threat
+end
+
+function X.InterruptFarm(bot, J)
+    local threat = X.GetThreat(bot, J)
+    if threat == nil then return false end
+    -- Do not cancel an ongoing escape, spell or teleport merely to issue a move.
+    if J.CanNotUseAction(bot) or bot:IsCastingAbility() or bot:IsUsingAbility() then return true end
+    bot:SetTarget(nil)
+    local origin = bot:GetLocation()
+    local destination
+    if (origin.x - threat.location.x)^2 + (origin.y - threat.location.y)^2 < 1 then
+        destination = J.GetTeamFountain()
+    else
+        destination = J.VectorAway(origin, threat.location, 650)
+        if not IsLocationPassable(destination) then destination = J.GetTeamFountain() end
+    end
+    bot:Action_MoveToLocation(destination)
+    return true
+end
+
+return X

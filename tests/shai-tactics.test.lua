@@ -22,6 +22,7 @@ local bot = {}
 function bot:GetActiveMode() return state.mode or BOT_MODE_NONE end
 function bot:GetActiveModeDesire() return 0.9 end
 function bot:IsAlive() return true end
+function bot:IsInvulnerable() return false end
 function bot:GetUnitName() return 'npc_dota_hero_skeleton_king' end
 function bot:HasModifier(name) return name == 'modifier_fountain_aura_buff' and state.fountain end
 function bot:GetNearbyTowers() return {} end

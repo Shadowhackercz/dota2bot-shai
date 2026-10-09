@@ -43,6 +43,7 @@ a.alive, a.distance, b.alive = true, 900, true
 local bot = {GetUnitName=function() return 'npc_dota_hero_lion' end,
     IsInvulnerable=function() return false end, IsHero=function() return true end,
     IsAlive=function() return true end, IsIllusion=function() return false end,
+    HasModifier=function() return false end,
     GetLocation=function() return {} end, GetActiveMode=function() return 0 end,
     SetTarget=function(_, unit) selected=unit end,
     Action_AttackUnit=function(_, unit) attacked=unit end}

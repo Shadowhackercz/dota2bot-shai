@@ -3,6 +3,7 @@ local bDebugMode = ( 1 == 10 )
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -163,7 +164,7 @@ local talent8 = bot:GetAbilityByName( sTalentList[8] )
 
 local castQDesire, castQTarget
 local castWDesire, castWTarget
-local castW2Desire, castWLocation
+local castW2Desire, castWLocation, castW2Purpose
 local castDDesire, castDLocation
 local castRDesire
 local castEDesire, castETarget
@@ -198,8 +199,18 @@ function X.SkillsComplement()
 	if abilityAS:IsTrained() then abilityASBonus = 0.09 end
 	if talent8:IsTrained() then talentDamage = talentDamage + talent8:GetSpecialValueInt( "value" ) end
 
+	-- A useful retreat Jump must not wait behind optional damage casts.
+	if J.IsRetreating(bot) then
+		castEDesire = X.ConsiderE()
+		if castEDesire > 0 and CastSafety.Allow(bot, J, abilityE, 'escape') then
+			J.SetQueuePtToINT(bot, true)
+			bot:ActionQueue_UseAbility(abilityE)
+			return
+		end
+	end
+
 	castRDesire = X.ConsiderR()
-	if ( castRDesire > 0 )
+	if castRDesire > 0 and CastSafety.Allow(bot, J, abilityR, 'teamfight')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -210,7 +221,8 @@ function X.SkillsComplement()
 	end
 
 	castWDesire, castWTarget = X.ConsiderW()
-	if ( castWDesire > 0 )
+	if castWDesire > 0 and CastSafety.Allow(bot, J, abilityW,
+		CastSafety.DamagePurpose(bot, J, castWTarget, abilityW:GetAbilityDamage(), abilityW:GetCastPoint(), true))
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -226,8 +238,8 @@ function X.SkillsComplement()
 		return
 	end
 
-	castW2Desire, castWLocation = X.ConsiderW2()
-	if ( castW2Desire > 0 )
+	castW2Desire, castWLocation, castW2Purpose = X.ConsiderW2()
+	if castW2Desire > 0 and CastSafety.Allow(bot, J, abilityW, castW2Purpose or 'harass')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -237,7 +249,8 @@ function X.SkillsComplement()
 	end
 
 	castQDesire, castQTarget = X.ConsiderQ()
-	if ( castQDesire > 0 )
+	if castQDesire > 0 and CastSafety.Allow(bot, J, abilityQ,
+		CastSafety.DamagePurpose(bot, J, castQTarget, abilityQ:GetSpecialValueInt('arc_damage'), abilityQ:GetCastPoint()))
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -247,7 +260,7 @@ function X.SkillsComplement()
 	end
 
 	castDDesire, castDLocation = X.ConsiderD()
-	if ( castDDesire > 0 )
+	if castDDesire > 0 and CastSafety.Allow(bot, J, abilityD, J.IsRetreating(bot) and 'control' or 'teamfight')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -257,7 +270,7 @@ function X.SkillsComplement()
 	end
 	
 	castEDesire = X.ConsiderE()
-	if ( castEDesire > 0 )
+	if castEDesire > 0 and CastSafety.Allow(bot, J, abilityE, J.IsRetreating(bot) and 'escape' or 'harass')
 	then
 	
 		J.SetQueuePtToINT( bot, true )
@@ -447,11 +460,12 @@ function X.ConsiderW2()
 	if nCanKillHeroLocationAoE.count >= 1
 	then
 		if J.IsValid( nWeakestEnemyHeroInSkillRange )
+			and J.WillMagicKillTarget(bot, nWeakestEnemyHeroInSkillRange, nDamage, nCastPoint)
 		then
 			local nTargetLocation = J.GetCastLocation( bot, nWeakestEnemyHeroInSkillRange, nCastRange, nRadius )
 			if nTargetLocation ~= nil
 			then
-				return BOT_ACTION_DESIRE_HIGH, nTargetLocation
+				return BOT_ACTION_DESIRE_HIGH, nTargetLocation, 'kill'
 			end
 		end
 	end
@@ -465,7 +479,7 @@ function X.ConsiderW2()
 			local nTargetLocation = J.GetCastLocation( bot, npcEnemy, nCastRange, nRadius )
 			if nTargetLocation ~= nil
 			then
-				return BOT_ACTION_DESIRE_HIGH, nTargetLocation
+				return BOT_ACTION_DESIRE_HIGH, nTargetLocation, 'interrupt'
 			end
 		end
 	end
@@ -476,7 +490,7 @@ function X.ConsiderW2()
 		local nCanHurtHeroLocationAoENearby = bot:FindAoELocation( true, true, bot:GetLocation(), nCastRange -200, nRadius -20, 0.8, 0 )
 		if nCanHurtHeroLocationAoENearby.count >= 1
 		then
-			return BOT_ACTION_DESIRE_HIGH, nCanHurtHeroLocationAoENearby.targetloc
+			return BOT_ACTION_DESIRE_HIGH, nCanHurtHeroLocationAoENearby.targetloc, 'control'
 		end
 	end
 
@@ -495,7 +509,7 @@ function X.ConsiderW2()
 				local nTargetLocation = J.GetCastLocation( bot, npcEnemy, nCastRange, nRadius )
 				if nTargetLocation ~= nil
 				then
-					return BOT_ACTION_DESIRE_HIGH, nTargetLocation
+					return BOT_ACTION_DESIRE_HIGH, nTargetLocation, J.IsInTeamFight(bot, 1200) and 'teamfight' or 'harass'
 				end
 			end
 
@@ -504,7 +518,7 @@ function X.ConsiderW2()
 				local nTargetLocation = J.GetCastLocation( bot, npcEnemy, nCastRange, nRadius )
 				if nTargetLocation ~= nil
 				then
-					return BOT_ACTION_DESIRE_HIGH, nTargetLocation
+					return BOT_ACTION_DESIRE_HIGH, nTargetLocation, J.IsInTeamFight(bot, 1200) and 'teamfight' or 'harass'
 				end
 			end
 
@@ -518,7 +532,7 @@ function X.ConsiderW2()
 			local nTargetLocation = J.GetCastLocation( bot, npcEnemy, nCastRange, nRadius )
 			if nTargetLocation ~= nil
 			then
-				return BOT_ACTION_DESIRE_HIGH, nTargetLocation
+				return BOT_ACTION_DESIRE_HIGH, nTargetLocation, J.IsInTeamFight(bot, 1200) and 'teamfight' or 'harass'
 			end
 		end
 	end

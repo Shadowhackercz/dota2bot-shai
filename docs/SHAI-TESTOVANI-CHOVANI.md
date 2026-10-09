@@ -23,6 +23,12 @@ Jde o vzorkování aktivního módu, nikoli všechny kandidátní priority, dův
 
 ## Vyhledání úseků
 
+První opravy podle replaye přidávají `[SHAI] safety`: `reason=unsafe-farm` uvádí viditelného soupeře a poměr odhadovaného příchozího damage k aktuálním HP; `reason=cast-penalty` uvádí schopnost, účel, důvod odmítnutí a odhad dodatečné ceny Curse / damage Last Word. `known=false` znamená, že aktuální cena není známá, nikoli nulovou skutečnou cenu. Hodnoty vycházejí z posledního viditelného Silencera a platí nejvýše 15 s. Každý helper vypíše nanejvýš první blokaci za 5 s na bota; log není seznam všech odmítnutých ani povolených castů. Zprávy se vypisují jen při zapnutém `BehaviorTrace`. Odhady a skutečný výsledek porovnat s replayem.
+
+V příštím testu sledovat zvlášť: klidnou farmu bez falešného ústupu, přiblížení výrazně silnějšího soupeře, skutečně bojujícího spojence, Zeusovo Q/W pod Curse (harass versus bezpečný last hit/kill/interrupt), jeho Jump při ústupu a Warlockův cast pod smrtícím Last Word. Cílem není univerzální zákaz kouzlení pod debuffem. Před dlouhým zápasem dokončit kontrolu skutečného logu výše.
+
+`[SHAI] gank` popisuje společný plán: `phase=gather`, `approach`, `engage`, `declined` nebo `abort`, důvod, cíl a počet členů. Odchod nezpůsobilého člena má samostatný `[SHAI] gank-member`. Sledovat od 10. minuty: dominantní viditelný soupeř mimo věž, alespoň tři připravení boti poblíž, dostatek damage a kontrol. Porovnat BKB připravené/aktivní/nedostupné, Mantu proti Orchidu, dostupný Hex a zranění jednoho člena už během boje. Skupina má pokračovat při stále proveditelném killu; odchod člena se nesmí interpretovat jako automatický příkaz všem utéct. Cíl bez dostatečné příležitosti nemá vyvolat sebevražedný gank. `declined` se vypíše nejvýše jednou za 5 s; absence zprávy není důkaz, že se bot vůbec nezabýval bojem. Role jednotlivých ability/item callbacků a sdílení plánu přes entity pole musí ověřit klient.
+
 ```powershell
 .\tools\Analyze-SHAI.ps1 -LogPath 'C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta\game\dota\console.log'
 ```

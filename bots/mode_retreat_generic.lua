@@ -3,6 +3,7 @@ local X = {}
 local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
 local Customize = require(GetScriptDirectory()..'/Customize/general')
 local Stability = require(GetScriptDirectory()..'/FunLib/shai_decision_stability')
+local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
 local stabilizeRetreat = Stability.NewRetreatGuard()
 local ordinaryRetreat = false
 
@@ -146,6 +147,15 @@ function GetDesireHelper()
     or J.GetModifierTime(bot, 'modifier_oracle_false_promise_timer') > 3
     then
         return BOT_MODE_DESIRE_NONE
+    end
+
+    local attackTarget = bot:GetAttackTarget()
+    local farming = botActiveMode == BOT_MODE_FARM or botActiveMode == BOT_MODE_LANING
+        or botActiveMode == BOT_MODE_RETREAT or botActiveMode == BOT_MODE_NONE
+        or (J.IsValid(attackTarget) and not attackTarget:IsHero())
+    if farming and FarmSafety.GetThreat(bot, J) ~= nil then
+        ordinaryRetreat = true
+        return 0.96
     end
 
     -- cache bot state

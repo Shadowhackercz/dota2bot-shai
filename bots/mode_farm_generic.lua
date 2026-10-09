@@ -10,6 +10,7 @@ local Customize = require( GetScriptDirectory()..'/Customize/general' )
 local bot = GetBot();
 local X = {}
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func')
+local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
 local RB = Vector(-7174.000000, -6671.00000, 0.000000)
 local DB = Vector(7023.000000, 6450.000000, 0.000000)
 
@@ -64,6 +65,7 @@ function GetDesire()
 end
 
 function GetDesireHelper()
+	if FarmSafety.GetThreat(bot, J) ~= nil then return BOT_MODE_DESIRE_NONE end
 	-- Utils.PrintPings(0.15)
 
 	if DotaTime() - CleanupCachedVarsTime > Utils.CachedVarsCleanTime then
@@ -476,6 +478,7 @@ end
 
 function Think()
 	if J.CanNotUseAction(bot) then return end
+	if FarmSafety.InterruptFarm(bot, J) then return end
 	if J.Utils.IsBotThinkingMeaningfulAction(bot, Customize.ThinkLess, "farm") then return end
 	sec = math.floor(DotaTime()) % 60
 	if runMode

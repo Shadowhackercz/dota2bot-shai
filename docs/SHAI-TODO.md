@@ -1,6 +1,6 @@
 # SHAI: aktuální revize a úkoly
 
-Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REPLAY-9035705167.md). Změny níže jsou **plán**, nikoli již implementované herní opravy. Pool zůstává 15 hrdinů. Zachovat fungující sběr říčních/Wisdom run a užitečné support rotace.
+Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REPLAY-9035705167.md). Implementováno a ověřeno simulovanými testy: přerušení nebezpečné farmy, posouzení ceny kouzlení pod Curse/Last Word u Zeuse a Warlocka a první společný plán ganku na lokálně dominantního viditelného soupeře. **Herní ověření zůstává otevřené**, další části bodů níže jsou plán. Podrobnosti a omezení jsou v [auditu](SHAI-BEHAVIOR-AUDIT.md#první-opravy-podle-replaye-farma-a-cena-kouzlení). Pool zůstává 15 hrdinů. Zachovat fungující sběr říčních/Wisdom run a užitečné support rotace.
 
 ## P0: spolehlivý další test
 
@@ -8,9 +8,13 @@ Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REP
 - [x] Připravit `tools/Check-SHAILog.ps1`: unikátní start marker, kontrola opakované telemetrie, end marker, report časového pokrytí a přesná lokální záloha.
 - [ ] **Ověřit v běžící Dotě:** `-con_logfile`, echo a opakované `[SHAI] behavior` všech 9 botů v krátkém lobby. Nastavení parametru ani úspěšný test helperu nejsou důkaz herního zápisu.
 - [ ] V dalším dlouhém zápase ověřit diagnostiku brzy po načtení; před restartem uložit log po end markeru/ukončení klienta a zachovat `.dem`. Zkontrolovat začátek, konec i mezery každého bota proti délce zápasu.
-- [ ] Doplnit cílené důvody vybraných rozhodnutí při příští implementaci: `unsafe-farm`, `cast-penalty`, `finish-or-retreat`, `group-not-ready`, `objective-unavailable`. Současný trace loguje mód/cíle, ne kompletní rozhodovací strom. Diagnostiku throttlovat.
+- [x] Doplnit omezenou diagnostiku `unsafe-farm` a `cast-penalty` v první opravě; zprávy `[SHAI] safety` jsou omezené na jednu za 5 sekund z každého helperu/bota.
+- [x] První gankový plán loguje fáze a důvody jako `group-not-ready`, `insufficient-damage`, `insufficient-control`, `enemy-backup`, `target-unavailable`; samostatně odchod člena.
+- [ ] Při dalších opravách doplnit obecný `finish-or-retreat` a `objective-unavailable`. Trace stále neobsahuje kompletní rozhodovací strom.
 
 ## P1: boj, farma a přežití
+
+Stav první implementace: bod 1 má společný guard ve farm/laning/retreat a testy skutečných módů; bod 2 má dispatch guardy Zeuse a Warlocka. Lion/Shaman zatím tento nový guard nemají a jejich důležité disables se touto změnou neblokují. Z bodu 3 je hotová pouze kopie poslední viditelné polohy s krátkou pamětí 0,75 s, nikoli plánování podle dlouhodobé mapové hrozby. Bod 5 má odmítnutí známého smrtícího Last Word a omezení channelu pod debuffem; obecný model přežití během cast pointu a týmového přínosu ještě chybí. Tyto body neuzavírat bez nového zápasu.
 
 1. **Přerušit nebezpečnou farmu.** Doloženo u Zeuse kolem 27:39. Zohlednit viditelnou hrozbu, nedávný přijatý damage, dosah/rychlost soupeře, sílu obou stran a pomoc v dosahu. Rozhodnout boj nebo únik; farm action nesmí přepsat tento záměr. Ověření: dominantní nepřítel v melee vzdálenosti, skutečný týmový support, i klidná linka bez falešného ústupu.
 2. **Zohlednit Arcane Curse / Last Word před castem.** Zeus má 19 seslání pod Curse v prvních 10 min; Warlock v 31:57 zemřel na Last Word současně s ulti eventem. Model ceny musí rozlišit lehký harass, last hit, únik, důležitý disable/interrupt, kill a záchranu. Nezavádět univerzální zákaz kouzlení. Ověření: nepotřebné Q/W se odmítne, Lion/Shaman smysluplně zastaví soupeře, únik zůstává povolen, last hit pod bezpečnou Curse může být přijat.
@@ -19,6 +23,8 @@ Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REP
 5. **Warlockova nouzová ulti a channel.** Hlášena otočka při útěku; konkrétní mechanika otočky zatím nepotvrzena. Posoudit cast point, dopadající damage/debuff, pravděpodobnost úniku a skutečný týmový přínos. Může být správné obětovat život za užitečný stun/golem, ale ne za bezvýsledný cast. Ověřit samostatně 1v1, spojence v boji a nedostupný cíl; neodvozovat nula užitku z pouhé současné smrti.
 
 ## P2: společný záměr týmu
+
+První implementace bodu 6: `shai_team_gank.lua` od 10. minuty vybírá 3–5 připravených botů do 2400 jednotek, používá gather → approach → engage a odmítá neproveditelné plány. Zranění jednoho člena během engage samo neruší celou skupinu: přehodnotí se zbývající damage/kontrola, dva schopní členové mohou dokončit kill. Bezpečný ranged controller může ještě přispět ze sníženého HP. BKB/Manta/Linken/Lotus/Aeon se čtou pouze na viditelném cíli. Je to konzervativní první model, ne kompletní taktika všech hrdinů/itemů nebo garantovaný kill. Runtime sdílení entity polí a pořadí akcí musí potvrdit nový zápas; bod 6 zatím neuzavírat.
 
 6. **Koordinovaný gank silného soupeře.** Požadavek uživatele, dostupnost výherního ganku v minulém zápase nepotvrzena. Vybrat účastníky podle skutečného ready disable/damage/HP/many a času příchodu; fáze gather → engage → chain disable → finish/abort. Čtyři/pět botů ani vyplýtvání všech ulti nejsou automatická záruka killu. Nedržet boty nekonečně na místě a nepřekrývat zbytečně dlouhé stuny. Ověření: včasná společná akce, rušení po ztrátě klíčového člena/cooldownu nebo příchodu dalších enemy.
 7. **Společná obrana základny a bezpečný harass.** Hlášeno jednotlivé přiblížení/smrt. Preferovat bezpečný waveclear a cast range; těsnější commit až s lokálně připravenými spojenci a realistickou šancí. U imminent Ancient loss nezpůsobit pasivní nekonečné čekání. Ověření: slabý support nevychází jednotlivě do silného carry; tým umí využít skutečnou engage příležitost.

@@ -11,6 +11,7 @@ local bDebugMode = ( 1 == 10 )
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -252,7 +253,7 @@ function X.SkillsComplement()
 
 
 	castRFRDesire, castRFRLocation = X.ConsiderRFR()
-	if ( castRFRDesire > 0 )
+	if castRFRDesire > 0 and CastSafety.Allow(bot, J, abilityR, 'teamfight')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -266,7 +267,7 @@ function X.SkillsComplement()
 
 
 	castRDesire, castRLocation = X.ConsiderR()
-	if ( castRDesire > 0 )
+	if castRDesire > 0 and CastSafety.Allow(bot, J, abilityR, 'teamfight')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -278,7 +279,8 @@ function X.SkillsComplement()
 
 
 	castQDesire, castQTarget = X.ConsiderQ()
-	if ( castQDesire > 0 )
+	if castQDesire > 0 and CastSafety.Allow(bot, J, abilityQ,
+		J.IsValidHero(castQTarget) and (J.IsInTeamFight(bot, 1200) and 'teamfight' or 'harass') or 'farm')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -289,7 +291,8 @@ function X.SkillsComplement()
 
 
 	castWDesire, castWTarget = X.ConsiderW()
-	if ( castWDesire > 0 )
+	if castWDesire > 0 and CastSafety.Allow(bot, J, abilityW,
+		castWTarget:GetTeam() == bot:GetTeam() and 'save' or (J.IsInTeamFight(bot, 1200) and 'teamfight' or 'harass'))
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -300,7 +303,7 @@ function X.SkillsComplement()
 	end
 
 	castEDesire, castELocation = X.ConsiderE()
-	if ( castEDesire > 0 )
+	if castEDesire > 0 and CastSafety.Allow(bot, J, abilityE, 'channel')
 	then
 
 		J.SetQueuePtToINT( bot, true )

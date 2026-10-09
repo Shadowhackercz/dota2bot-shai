@@ -12,6 +12,7 @@ local Utils = require( GetScriptDirectory()..'/FunLib/utils' )
 local BehaviorTrace = require(GetScriptDirectory()..'/FunLib/shai_behavior_trace')
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local RoshanCommands = require(GetScriptDirectory()..'/FunLib/shai_roshan_commands')
+local TeamGank = require(GetScriptDirectory()..'/FunLib/shai_team_gank')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
 local Customize = require(GetScriptDirectory()..'/Customize/general')
@@ -8389,6 +8390,7 @@ function AbilityUsageThink()
 	if bot.lastAbilityFrameProcessTime == nil then bot.lastAbilityFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastAbilityFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) and bot.isBear == nil then return end
 	bot.lastAbilityFrameProcessTime = DotaTime()
+	if TeamGank.TryControl(bot,J) or TeamGank.HoldOffense(bot,J) then return end
 	if BotBuild ~= nil and not J.IsNoAbilityIllution(bot) then BotBuild.SkillsComplement() end
 end
 

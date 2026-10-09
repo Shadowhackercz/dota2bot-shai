@@ -4,6 +4,8 @@ Datum: 7. 10. 2026.
 
 Aktuální stav k 9. 10. 2026: poslední celý test se Silencerem je datově rozebraný v [SHAI-REPLAY-9035705167.md](SHAI-REPLAY-9035705167.md). Prioritizovaný další plán a kritéria ověření jsou v [SHAI-TODO.md](SHAI-TODO.md). Následující sekce zachovávají historii rozhodnutí a implementovaných kroků; aktuální neuzavřené úkoly určují tyto nové dokumenty.
 
+První opravy podle replaye jsou nyní implementované: bezpečnost farmy při blízkém silnějším viditelném soupeři, cena kouzlení proti Silencerovi u Zeuse/Warlocka, přednost užitečného Zeusova únikového Jumpu a společný gankový plán. Prochází 12 Lua a 2 PowerShell sady; účinek ve hře, sdílení plánu mezi boty a skutečné ukládání logu musí potvrdit nové krátké lobby. [Rozsah a omezení opravy](SHAI-BEHAVIOR-AUDIT.md#první-opravy-podle-replaye-farma-a-cena-kouzlení).
+
 ## Přijatý směr
 
 - Základ: Open Hyper AI (`forest0xia/dota2bot-OpenHyperAI`).
