@@ -1,6 +1,8 @@
 # Analýza chování SHAI
 
-Navazující sada po Pudge testu má 26 Lua + dvě PowerShell sady, syntax 328 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+Navazující sada po Pudge testu má 28 Lua + dvě PowerShell sady, syntax 332 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+
+Runové cesty: sledovat `travel reason=route-detour/route-blocked` u silného viditelného soupeře mezi botem a runou/Wisdomem. V replayi ověřit skutečnou engine trasu; přímé vzorky nemusí odpovídat cestě okolo stromů či cliffu. Po ztrátě vision má krátká paměť vypršet, nikoli botovi zakázat runu navždy. Po přerušení Wisdomu se počítá nový celý pobyt. Centaur: při útěku před jedním silným soupeřem sledovat `escape-stomp` při bezpečném blízkém castu, jinak `escape-stampede`; ověřit skutečné zpomalení pronásledování/únik, různé HP a mana, root/Rupture, přednost skupinového boje a zachování vydaného castu.
 
 Bottle/ping: zkusit blízkého spoluhráče s Bottle, který skutečně jde k runě, potom idle/backpack/plnou water Bottle a blízkého soupeře. Čekání nesmí překročit tři sekundy; již vydaný pickup se neruší. Jeden běžný ping na Wisdom/lotus nemá svolat tým. Dva normální pingy stejného hráče na stejné místo do 1,5 s mají vytvořit krátkou assemble výzvu, kterou starý ping neprodlužuje. Ověřit více lidí a přerušení při boji/ústupu. Logy: `[SHAI] rune-share` a `[SHAI] ping-intent`; ty potvrzují rozhodnutí, nikoli skutečný capture runy.
 

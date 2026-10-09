@@ -82,6 +82,11 @@ function X.GetThreat(bot, J)
 end
 
 function X.InterruptFarm(bot, J)
+    local cast=bot.shaiCentaurEscapeCast
+    if cast then
+        if bot:IsAlive() and DotaTime()>=cast.created and DotaTime()<cast.expires then return true end
+        bot.shaiCentaurEscapeCast=nil
+    end
     if Escape.HoldingJump(bot) or Escape.HoldingAlignment(bot) then return true end
     local threat = X.GetThreat(bot, J)
     if threat == nil then bot.shaiEscapeMove=nil; return false end
@@ -91,26 +96,41 @@ function X.InterruptFarm(bot, J)
     return Escape.Move(bot,J,threat)
 end
 
+-- Visible destination risk, shared by camps and short travel segments.
+function X.LocationThreats(bot,J)
+    local threats={}
+    for _,enemy in pairs(GetUnitList(UNIT_LIST_ENEMY_HEROES)) do
+        if VisibleHero(enemy,J) then
+            local reach=math.min(1300,enemy:GetAttackRange()+enemy:GetCurrentMovementSpeed()*1.5+250)
+            local incoming=enemy:GetEstimatedDamageToTarget(true,bot,2,DAMAGE_TYPE_ALL)
+            local outgoing=bot:GetEstimatedDamageToTarget(true,enemy,2,DAMAGE_TYPE_ALL)
+            if enemy:GetHealth()>outgoing*1.15 and
+                (incoming>=math.max(200,bot:GetHealth()*0.55)
+                or enemy:GetLevel()>=bot:GetLevel()+5 and incoming>outgoing*1.5) then
+                local p=enemy:GetLocation()
+                if Runtime.Location(bot,'travel.visible-threat',p) then
+                    threats[#threats+1]={location=Vector(p.x,p.y,p.z),radius=reach,name=enemy:GetUnitName()}
+                end
+            end
+        end
+    end
+    return threats
+end
+
+function X.GetLocationConcern(bot,J,location,threats)
+    for _,threat in ipairs(threats or X.LocationThreats(bot,J)) do
+        local dx,dy=location.x-threat.location.x,location.y-threat.location.y
+        if dx*dx+dy*dy<=threat.radius*threat.radius then return threat end
+    end
+    return Memory.GetConcern(bot,J,location)
+end
+
 -- Evaluate the destination, not merely the bot's current peaceful location.
 function X.IsCampDangerous(bot,J,camp)
     local location=camp~=nil and camp.cattr~=nil and camp.cattr.location or nil
     if not Runtime.Location(bot,'farm.camp-destination',location) then return true end
     if not IsLocationPassable(location) then return true end
-    for _,enemy in pairs(GetUnitList(UNIT_LIST_ENEMY_HEROES)) do
-        if VisibleHero(enemy,J) then
-            local reach=math.min(1300,enemy:GetAttackRange()+enemy:GetCurrentMovementSpeed()*1.5+250)
-            if GetUnitToLocationDistance(enemy,location)<=reach then
-                local incoming=enemy:GetEstimatedDamageToTarget(true,bot,2,DAMAGE_TYPE_ALL)
-                local outgoing=bot:GetEstimatedDamageToTarget(true,enemy,2,DAMAGE_TYPE_ALL)
-                if enemy:GetHealth()>outgoing*1.15 and
-                    (incoming>=math.max(200,bot:GetHealth()*0.55)
-                    or enemy:GetLevel()>=bot:GetLevel()+5 and incoming>outgoing*1.5) then
-                    return true
-                end
-            end
-        end
-    end
-    return Memory.GetConcern(bot,J,location)~=nil
+    return X.GetLocationConcern(bot,J,location)~=nil
 end
 
 function X.ChooseCamp(bot,J,current,candidate)

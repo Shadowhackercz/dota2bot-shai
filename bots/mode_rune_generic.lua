@@ -2,6 +2,8 @@ local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local X = {}
 local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
 local RuneShare = require(GetScriptDirectory()..'/FunLib/shai_rune_share')
+local Route = require(GetScriptDirectory()..'/FunLib/shai_route_safety')
+local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
 local Customize = require(GetScriptDirectory()..'/Customize/general')
 Customize.ThinkLess = Customize.Enable and Customize.ThinkLess or 1
 
@@ -329,6 +331,12 @@ local function ModeThinkInternal()
 		return
 	end
 
+	-- An interrupted capture must restart its dwell time on return.
+	if DotaTime()>=0 and FarmSafety.InterruptFarm(bot,J) then
+		local wisdom=bot.rune and bot.rune.wisdom and bot.rune.wisdom[nShrineOfWisdomTime]
+		if wisdom then for _,spot in pairs(wisdom.spot) do spot.captureStart=nil end end
+		return
+	end
 	-- Wisdom Rune
 	if collectingWisdom and nShrineOfWisdomTeam and DotaTime() >= 7 * 60
 	and bot.rune and bot.rune.wisdom and bot.rune.wisdom[nShrineOfWisdomTime]
@@ -348,7 +356,7 @@ local function ModeThinkInternal()
 				spot.captureStart = nil
 				if #RealHeroes(J.GetEnemiesNearLoc(vLocation, 1200)) > 0 then return end
 				bot.rune.location = vLocation
-				bot:Action_MoveToLocation(vLocation)
+				Route.Move(bot,J,vLocation,'wisdom')
 				return
 			end
 		end
@@ -458,7 +466,7 @@ local function ModeThinkInternal()
 				end
 
 				bot.rune.location = vRuneLocation
-				bot:Action_MoveToLocation(vRuneLocation)
+				Route.Move(bot,J,vRuneLocation,'rune')
 				return
 			else
 				bot:Action_PickUpRune(rune.location)
@@ -483,7 +491,7 @@ local function ModeThinkInternal()
 			end
 
 			bot.rune.location = vRuneLocation
-			bot:Action_MoveToLocation(vRuneLocation)
+			Route.Move(bot,J,vRuneLocation,'rune')
 			return
 		end
 	end

@@ -108,6 +108,10 @@ GetTower = function() return nil end
 J.GetDistanceFromEnemyFountain = function() return 9000 end
 package.loaded['bots/FunLib/jmz_func'] = J
 package.loaded['bots/Customize/general'] = {Enable=true,ThinkLess=1}
+package.loaded['bots/FunLib/shai_farm_safety']={InterruptFarm=function() return state.escape or false end}
+package.loaded['bots/FunLib/shai_route_safety']={Move=function(h,_,p,purpose)
+    state.routePurpose=purpose; h:Action_MoveToLocation(p)
+end}
 local function setup(changes)
     state = {rune=RUNE_POWERUP_2, idle=false, human=false, claim=false, hp=1, alive=true,
         time=121, distance=40, humanDistance=1500, status=RUNE_STATUS_AVAILABLE,
@@ -120,6 +124,10 @@ end
 setup()
 assert(GetDesire() > 0, 'Second water rune spot must not be blocked')
 Think(); assert(state.action == 'pickup' and state.picked == state.rune)
+setup({distance=1500}); assert(GetDesire()>0); Think()
+assert(state.routePurpose=='rune','Actual rune movement dispatches through the short route guard')
+setup({escape=true}); assert(GetDesire()>0); Think()
+assert(state.action==nil,'Current escape intercepts rune pickup before optional actions')
 for _, time in ipairs({121, 241, 361, 481}) do
     for _, rune in ipairs({RUNE_POWERUP_1, RUNE_POWERUP_2}) do
         setup({time=time, rune=rune})
@@ -236,6 +244,7 @@ assert(GetDesire() == 0, 'Defend ancient before runes')
 setup({wisdom=true, time=481, human=true, humanWisdomDistance=600})
 assert(GetDesire() > 0.7, 'Wisdom collector must be a bot even when a closer human is elsewhere')
 assert(bot.rune.wisdom[7] ~= nil, 'Wisdom cycle must work when evaluation first occurs after minute seven')
+Think(); assert(state.routePurpose=='wisdom','Actual Wisdom approach uses short route guard')
 state.wisdomDistance = 100
 Think(); assert(state.action == 'wait' and not bot.rune.wisdom[7].spot[TEAM_RADIANT].status)
 state.time = 483
@@ -247,6 +256,12 @@ state.time = 486
 Think(); assert(not bot.rune.wisdom[7].spot[TEAM_RADIANT].status, 'Capture must restart after contest')
 state.time = 487.6
 Think(); assert(bot.rune.wisdom[7].spot[TEAM_RADIANT].status, 'Remain in the circle through the full uncontested capture')
+setup({wisdom=true,time=481,wisdomDistance=100})
+assert(GetDesire()>0.7); Think()
+state.escape=true; state.time=483; Think()
+assert(bot.rune.wisdom[7].spot[TEAM_RADIANT].captureStart==nil,'Escape resets interrupted capture instead of counting away time')
+state.escape=false; state.time=488; Think()
+assert(not bot.rune.wisdom[7].spot[TEAM_RADIANT].status,'Returning after escape restarts the full capture interval')
 setup({wisdom=true, time=841})
 assert(GetDesire() > 0.7 and bot.rune.wisdom[14], 'Wisdom cycle must renew after fourteen minutes')
 state.wisdomDistance = 100

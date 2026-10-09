@@ -3,6 +3,7 @@ local bot           = GetBot()
 
 local J             = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Escape = require(GetScriptDirectory()..'/FunLib/shai_centaur_escape')
 local Minion        = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList   = J.Skill.GetTalentList( bot )
 local sAbilityList  = J.Skill.GetAbilityList( bot )
@@ -96,6 +97,7 @@ local StampedeDesire
 
 function X.SkillsComplement()
 	if J.CanNotUseAbility(bot) then return end
+	if Escape.Try(bot,J,HoofStomp,Stampede,CastSafety) then return end
 
     HitchARideDesire, HitchARideTarget = X.ConsiderHitchARide()
     if HitchARideDesire > 0 and CastSafety.AllowDecision(bot,J,HitchARide,HitchARideTarget,'save')
