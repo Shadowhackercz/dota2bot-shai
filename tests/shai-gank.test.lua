@@ -231,6 +231,7 @@ package.loaded['bots/FunLib/enemy_role_estimation']={UpdateEnemyHeroPositions=fu
 for _,name in ipairs({'localization','aba_item','aba_role'}) do package.loaded['bots/FunLib/'..name]={} end
 package.loaded['bots/Customize/general']={Enable=true,ThinkLess=0}
 local originalDofile=dofile
+package.loaded['bots/FunLib/shai_defense']={GetDesire=function() return nil end}
 dofile=function(path)
     if path=='bots/FunLib/aba_special_units' then return {GetTombstoneDesire=function() return 0 end} end
     return originalDofile(path)

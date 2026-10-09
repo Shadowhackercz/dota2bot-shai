@@ -1,13 +1,30 @@
 # SHAI: aktuální revize a úkoly
 
+## Nový herní test: 9036262600 (9. října)
+
+Zachované logy a lokálně dekódovaný replay: [revize zápasu se třemi lidmi](SHAI-MATCH-9036262600.md). Původní experiment měl 219 výpisů hold-position, žádný group-ready a nevyužitou Warlockovu připravenou ulti kolem 34:40. Po revizi je hotová první opravná sada; **herní ověření nové verze je stále otevřené**.
+
+- [x] Opravit doložený předčasný návrat idle watchdogu bez obnovení času kontroly; nečistit teleport, channel, queued akce, Amulet fade a platný krátký taktický záměr. Ověřeno testem skutečné funkce.
+- [x] Sdílená sestava obrany, společný rally bod a důvody vyloučení členů; rozlišit kill budget a tlak čtyř zdravých botů na osamoceného útočníka u vlastních budov. Zraněný člen odejde samostatně. Nová rozhodnutí platí po 10. minutě, fungující začátek hry zůstává.
+- [x] Zahrnout Cask/golem do dostupné kontroly; v koordinované obraně použít Warlock R i na jediného důležitého soupeře a WD Maledict / bezpečný Death Ward i při více spojencích. Čekání už neblokuje všechny původní spelly bezpečně stojících casterů. Ověřeno simulovanými scénáři.
+- [x] Kontrola TP před odletem i během channelu: aktuálně viditelné nebezpečí, zdraví skuteční místní pomocníci, jejich reálné příchozí TP a pravděpodobná věž dopadu. Vzdálený či jen přítomný lidský hráč se nepočítá jako slíbená pomoc.
+- [x] Bezpečný Shadow Amulet fade: jednou zastavit pohyb a blokovat spelly/itemy během fade; nečekat při potvrzené detekci, věži, neznámém spell projektilu či odhadovaném smrtícím damage. Nezaměňovat s plánováním dlouhodobého pobytu v hotové invis.
+- [x] Odmítnout nil lokaci ground itemu a golem/channel guardu; přidat bezpečný handler se zdrojovým názvem do hero/item/defense/roam cest. Diagnostika nevyhodí další chybu při nestandardním typu error objektu.
+- [ ] Přesně lokalizovat původní engine chybu `GetUnitToLocationDistance ... got void`. Starý log nemá stack; nové kontroly a handler ji nepovažují za zpětně prokázanou a zcela opravenou.
+- [ ] Odehrát novou hru a porovnat obranu/TP/fade s logem. Ve 34:40 WD původního zápasu již nežil, scénář s jeho kombem je samostatný simulovaný test, ne tvrzení o jeho tehdejší dostupnosti.
+- [ ] Navázat přesnějším spell/item damage rozpočtem, délkovým plánováním chain disable a náborem pro gank mimo základnu; současný engine odhad + tlak u budov negarantuje kill a nesimuluje celý Maledict/golem/Satanic.
+- [ ] Cíleně ověřit dokončování soubojů. Nízké HP Snipera kolem 27:35 je doložené, dostupnost okamžitého finishing spellu spojeneckých botů poblíž nikoli.
+
+Původní seznam níže zůstává pro širší plán; jeho starší popis guardů Zeuse/Warlocka předchází experimentální změně, která rozšířila guardy na zbytek patnácti vybraných hrdinů. Herní test neověřil správnost každé větve všech hrdinů.
+
 Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REPLAY-9035705167.md). Implementováno a ověřeno simulovanými testy: přerušení nebezpečné farmy, posouzení ceny kouzlení pod Curse/Last Word u Zeuse a Warlocka a první společný plán ganku na lokálně dominantního viditelného soupeře. **Herní ověření zůstává otevřené**, další části bodů níže jsou plán. Podrobnosti a omezení jsou v [auditu](SHAI-BEHAVIOR-AUDIT.md#první-opravy-podle-replaye-farma-a-cena-kouzlení). Pool zůstává 15 hrdinů. Zachovat fungující sběr říčních/Wisdom run a užitečné support rotace.
 
 ## P0: spolehlivý další test
 
 - [x] Zachovat a celé dekódovat poslední replay; publikovat rozlišení evidence/nejistot.
 - [x] Připravit `tools/Check-SHAILog.ps1`: unikátní start marker, kontrola opakované telemetrie, end marker, report časového pokrytí a přesná lokální záloha.
-- [ ] **Ověřit v běžící Dotě:** `-con_logfile`, echo a opakované `[SHAI] behavior` všech 9 botů v krátkém lobby. Nastavení parametru ani úspěšný test helperu nejsou důkaz herního zápisu.
-- [ ] V dalším dlouhém zápase ověřit diagnostiku brzy po načtení; před restartem uložit log po end markeru/ukončení klienta a zachovat `.dem`. Zkontrolovat začátek, konec i mezery každého bota proti délce zápasu.
+- [x] **Ověřeno v běžící Dotě:** `-con_logfile`, `log_flags Console -ConsoleOnly`, echo a opakované `[SHAI] behavior` všech sedmi botů při třech lidech. Potvrzena automatická rotace na match ID; helper vyžaduje správný aktuální LogPath.
+- [x] Zápas 9036262600: ověřena diagnostika před dlouhým hraním, zachovány oba rotované logy se start/end markerem a `.dem` po ukončení klienta. Začátek, konec a všechny mezery přes 30 s porovnány s replayem; v každé takové mezeře je smrt příslušného hrdiny. To nezaručuje záznam všech rozhodnutí.
 - [x] Doplnit omezenou diagnostiku `unsafe-farm` a `cast-penalty` v první opravě; zprávy `[SHAI] safety` jsou omezené na jednu za 5 sekund z každého helperu/bota.
 - [x] První gankový plán loguje fáze a důvody jako `group-not-ready`, `insufficient-damage`, `insufficient-control`, `enemy-backup`, `target-unavailable`; samostatně odchod člena.
 - [x] Doplnit první `[SHAI] finish` pro vybrané dorážení, počet zásahů, trade, odhad času/damage a přerušení. Odmítnuté proveditelné damage kandidáty omezovat na zprávu za 5 s; log není kompletní rozhodovací strom.

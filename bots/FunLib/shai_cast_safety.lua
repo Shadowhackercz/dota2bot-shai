@@ -83,4 +83,21 @@ function X.DamagePurpose(bot, J, target, damage, castPoint, hasControl)
     return 'farm'
 end
 
+-- Shared dispatch policy for the selected hero pool. Explicit control/save/escape
+-- remains useful under Curse; optional damage is classified using the chosen unit.
+function X.AllowDecision(bot,J,ability,target,kind)
+    if not bot:HasModifier(curse) and not bot:HasModifier(lastWord) then return true end
+    local purpose=kind
+    if kind=='damage' or kind=='damage-control' or kind=='engage' then
+        target=target or J.GetProperTarget(bot)
+        if kind~='engage' and target~=nil then
+            purpose=X.DamagePurpose(bot,J,target,ability:GetAbilityDamage(),ability:GetCastPoint(),kind=='damage-control')
+        elseif J.IsRetreating(bot) and kind=='engage' then purpose='escape'
+        elseif J.IsInTeamFight(bot,1200) or (kind=='engage' and J.IsGoingOnSomeone(bot)) then purpose='teamfight'
+        else purpose='harass' end
+    elseif kind=='control' and target~=nil and not J.IsValidHero(target) then purpose='farm'
+    elseif kind=='swap' then purpose=target~=nil and target:GetTeam()==bot:GetTeam() and 'save' or 'control' end
+    return X.Allow(bot,J,ability,purpose)
+end
+
 return X

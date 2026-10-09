@@ -11,6 +11,7 @@ local bDebugMode = ( 1 == 10 )
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -205,7 +206,7 @@ function X.SkillsComplement()
 
 	
 	castASDesire, sMotive = X.ConsiderAS()
-	if ( castASDesire > 0 )
+	if ( castASDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityAS,nil,'escape')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -218,7 +219,7 @@ function X.SkillsComplement()
 	
 
 	castEDesire, castELocation, sMotive = X.ConsiderE()
-	if ( castEDesire > 0 )
+	if ( castEDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityE,nil,'damage')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -230,7 +231,7 @@ function X.SkillsComplement()
 
 
 	castQDesire, castQTarget, sMotive = X.ConsiderQ()
-	if ( castQDesire > 0 )
+	if ( castQDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityQ,castQTarget,'control')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -242,7 +243,7 @@ function X.SkillsComplement()
 
 
 	castWDesire, sMotive = X.ConsiderW()
-	if ( castWDesire > 0 )
+	if ( castWDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityW,nil,'save')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -251,7 +252,7 @@ function X.SkillsComplement()
 	end
 
 	castRDesire, castRLocation, sMotive = X.ConsiderR()
-	if ( castRDesire > 0 )
+	if ( castRDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityR,nil,'channel')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 

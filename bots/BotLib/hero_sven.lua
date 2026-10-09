@@ -11,6 +11,7 @@ local bDebugMode = ( 1 == 10 )
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -156,7 +157,7 @@ function X.SkillsComplement()
 
 
 	castRDesire = X.ConsiderR()
-	if ( castRDesire > 0 )
+	if ( castRDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityR,nil,'engage')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -167,7 +168,7 @@ function X.SkillsComplement()
 	end
 
 	castQDesire, castQTarget = X.ConsiderQ()
-	if ( castQDesire > 0 )
+	if ( castQDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityQ,castQTarget,'control')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -178,7 +179,7 @@ function X.SkillsComplement()
 	end
 
 	castEDesire = X.ConsiderE()
-	if ( castEDesire > 0 )
+	if ( castEDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityE,nil,'save')
 	then
 
 		J.SetQueuePtToINT( bot, false )

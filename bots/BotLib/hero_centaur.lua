@@ -2,6 +2,7 @@ local X             = {}
 local bot           = GetBot()
 
 local J             = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion        = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList   = J.Skill.GetTalentList( bot )
 local sAbilityList  = J.Skill.GetAbilityList( bot )
@@ -97,35 +98,35 @@ function X.SkillsComplement()
 	if J.CanNotUseAbility(bot) then return end
 
     HitchARideDesire, HitchARideTarget = X.ConsiderHitchARide()
-    if HitchARideDesire > 0
+    if HitchARideDesire > 0 and CastSafety.AllowDecision(bot,J,HitchARide,HitchARideTarget,'save')
     then
         bot:Action_UseAbilityOnEntity(HitchARide, HitchARideTarget)
         return
     end
 
     WorkHorseDesire, HitchARideTarget = X.ConsiderWorkHorse()
-    if WorkHorseDesire > 0
+    if WorkHorseDesire > 0 and CastSafety.AllowDecision(bot,J,WorkHorse,nil,'escape')
     then
         bot:Action_UseAbility(WorkHorse)
         return
     end
 
     StampedeDesire = X.ConsiderStampede()
-    if StampedeDesire > 0
+    if StampedeDesire > 0 and CastSafety.AllowDecision(bot,J,Stampede,nil,'escape')
     then
         bot:Action_UseAbility(Stampede)
         return
     end
 
     HoofStompDesire = X.ConsiderHoofStomp()
-    if HoofStompDesire > 0
+    if HoofStompDesire > 0 and CastSafety.AllowDecision(bot,J,HoofStomp,nil,'control')
     then
         bot:Action_UseAbility(HoofStomp)
         return
     end
 
     DoubleEdgeDesire, DoubleEdgeTarget = X.ConsiderDoubleEdge()
-    if DoubleEdgeDesire > 0
+    if DoubleEdgeDesire > 0 and CastSafety.AllowDecision(bot,J,DoubleEdge,DoubleEdgeTarget,'damage')
     then
         bot:Action_UseAbilityOnEntity(DoubleEdge, DoubleEdgeTarget)
         return

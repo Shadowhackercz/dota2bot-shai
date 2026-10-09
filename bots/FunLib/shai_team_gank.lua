@@ -9,6 +9,7 @@ local spells = {
     {'dragon_knight_dragon_tail','unit'}, {'vengefulspirit_magic_missile','unit'},
     {'centaur_hoof_stomp','self','radius'}, {'axe_berserkers_call','self','radius',true},
     {'tidehunter_ravage','self','radius'}, {'crystal_maiden_frostbite','unit',nil,false,true},
+    {'witch_doctor_paralyzing_cask','unit'}, {'warlock_rain_of_chaos','point'},
 }
 local items = {{'item_sheepstick','unit'}, {'item_orchid','unit',nil,false,true},
     {'item_bloodthorn','unit',nil,false,true}}
@@ -50,7 +51,8 @@ local function Controls(h, target, defenses, inRange)
             local aoeTalent=h:GetAbilityByName('special_bonus_unique_lion_4')
             if aoeTalent~=nil and aoeTalent:IsTrained() then kind='point' end
         end
-        options[#options+1] = {ability=ability, kind=kind, range=range, item=isItem, dispellable=spec[5]}
+        options[#options+1] = {ability=ability, kind=kind, range=range, item=isItem, dispellable=spec[5],
+            ultimate=spec[1]=='warlock_rain_of_chaos' or spec[1]=='tidehunter_ravage'}
     end
     for _, spec in ipairs(spells) do Add(spec,h:GetAbilityByName(spec[1]),false) end
     for _, spec in ipairs(items) do Add(spec,FindItem(h,spec[1]),true) end
@@ -326,6 +328,7 @@ function X.Think(bot,J)
     X.Update(bot,J)
     local p=Current(bot,J)
     if p==nil then return false end
+    bot.shaiTacticalUntil=DotaTime()+0.5
     if J.CanNotUseAction(bot) then return true end
     if p.phase=='gather' then bot:Action_MoveToLocation(p.rally)
     elseif p.phase=='approach' then
@@ -337,5 +340,34 @@ function X.Think(bot,J)
         else bot:Action_AttackUnit(p.target,false) end
     end
     return true
+end
+-- Same evaluated control subset for local defense, without starting a map gank.
+function X.HasLocalControl(bot,target,J)
+    return not J.CanNotUseAction(bot) and Visible(target,J) and #Controls(bot,target,Defenses(target),true)>0
+end
+-- Assessment may inspect a teammate already casting, but action issuance may not.
+function X.LocalControlOptions(bot,target,J,inRange)
+    if not Visible(target,J) then return {} end
+    return Controls(bot,target,Defenses(target),inRange)
+end
+function X.TargetDefenses(target) return Defenses(target) end
+function X.TryLocalControl(bot,target,J,members,allowUltimate)
+    if J.CanNotUseAction(bot) or not Visible(target,J) or J.IsDisabled(target) then return false end
+    for _,h in ipairs(members) do
+        if h.shaiDefenseControlUntil~=nil and DotaTime()<h.shaiDefenseControlUntil then return false end
+    end
+    if Defenses(target).aeon then return false end
+    for _,opt in ipairs(Controls(bot,target,Defenses(target),true)) do
+        if (allowUltimate~=false or not opt.ultimate) and (opt.item or CastSafety.Allow(bot,J,opt.ability,'control')) then
+            local untilTime=DotaTime()+opt.ability:GetCastPoint()+math.max(0.35,GetUnitToUnitDistance(bot,target)/900)
+            for _,h in ipairs(members) do h.shaiDefenseControlUntil=untilTime end
+            bot.shaiDefenseControlUntil=untilTime
+            if opt.kind=='self' then bot:Action_UseAbility(opt.ability)
+            elseif opt.kind=='point' then bot:Action_UseAbilityOnLocation(opt.ability,target:GetLocation())
+            else bot:Action_UseAbilityOnEntity(opt.ability,target) end
+            return true
+        end
+    end
+    return false
 end
 return X

@@ -12,6 +12,7 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local CastSurvival = require(GetScriptDirectory()..'/FunLib/shai_cast_survival')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -253,7 +254,8 @@ function X.SkillsComplement()
 
 
 	castRFRDesire, castRFRLocation = X.ConsiderRFR()
-	if castRFRDesire > 0 and CastSafety.Allow(bot, J, abilityR, 'teamfight')
+	if castRFRDesire > 0 and J.GetHP(bot)>=0.5 and CastSafety.Allow(bot, J, abilityR, 'teamfight')
+		and CastSurvival.Allow(bot,J,abilityR,castRFRLocation,'golem')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -268,6 +270,7 @@ function X.SkillsComplement()
 
 	castRDesire, castRLocation = X.ConsiderR()
 	if castRDesire > 0 and CastSafety.Allow(bot, J, abilityR, 'teamfight')
+		and CastSurvival.Allow(bot,J,abilityR,castRLocation,'golem')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -304,6 +307,7 @@ function X.SkillsComplement()
 
 	castEDesire, castELocation = X.ConsiderE()
 	if castEDesire > 0 and CastSafety.Allow(bot, J, abilityE, 'channel')
+		and CastSurvival.Allow(bot,J,abilityE,castELocation,'channel')
 	then
 
 		J.SetQueuePtToINT( bot, true )

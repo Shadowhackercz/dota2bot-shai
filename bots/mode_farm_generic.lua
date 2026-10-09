@@ -1,3 +1,4 @@
+local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 if GetBot():IsInvulnerable() or not GetBot():IsHero() or not string.find(GetBot():GetUnitName(), "hero") or GetBot():IsIllusion() then
 	return;
 end
@@ -55,7 +56,7 @@ local runMode = false;
 
 if bot.farmLocation == nil then bot.farmLocation = bot:GetLocation() end
 
-function GetDesire()
+local function ModeDesireInternal()
 	-- local cacheKey = 'GetFarmDesire'..tostring(bot:GetPlayerID())
 	-- local cachedVar = J.Utils.GetCachedVars(cacheKey, 0.4)
 	-- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
@@ -476,7 +477,7 @@ function OnEnd()
 	bot:SetTarget(nil);
 end
 
-function Think()
+local function ModeThinkInternal()
 	if J.CanNotUseAction(bot) then return end
 	if FarmSafety.InterruptFarm(bot, J) then return end
 	if J.Utils.IsBotThinkingMeaningfulAction(bot, Customize.ThinkLess, "farm") then return end
@@ -1211,3 +1212,6 @@ function X.IsThereT3Detroyed()
 	end	
 	return false;
 end
+
+function GetDesire() return Runtime.Call(bot,'farm.desire',ModeDesireInternal,0) end
+function Think() Runtime.Call(bot,'farm.think',ModeThinkInternal,nil) end

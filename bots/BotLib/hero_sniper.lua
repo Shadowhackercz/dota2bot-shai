@@ -11,6 +11,7 @@ local bDebugMode = ( 1 == 10 )
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -172,7 +173,7 @@ function X.SkillsComplement()
 	hEnemyHeroList = J.GetNearbyHeroes(bot, 1600, true, BOT_MODE_NONE )
 
 	castRDesire, castRTarget = X.ConsiderR()
-	if ( castRDesire > 0 )
+	if ( castRDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityR,castRTarget,'channel')
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -183,7 +184,7 @@ function X.SkillsComplement()
 	end
 
 	castEDesire = X.ConsiderE()
-	if ( castEDesire > 0 )
+	if ( castEDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityE,nil,'engage')
 	then
 
 		bot:Action_ClearActions( false )
@@ -194,7 +195,7 @@ function X.SkillsComplement()
 	end
 
 	castQDesire, castQLocation = X.ConsiderQ()
-	if ( castQDesire > 0 )
+	if ( castQDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityQ,nil,'damage')
 	then
 
 		J.SetQueuePtToINT( bot, false )
@@ -206,7 +207,7 @@ function X.SkillsComplement()
 	end
 	
 	castASDesire, castASTarget = X.ConsiderAS()
-	if ( castASDesire > 0 )
+	if ( castASDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityAS,nil,'escape')
 	then
 		
 		J.SetQueuePtToINT( bot, true )

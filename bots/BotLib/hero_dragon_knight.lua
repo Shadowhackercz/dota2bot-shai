@@ -11,6 +11,7 @@ local bDebugMode = ( 1 == 10 )
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -216,28 +217,28 @@ function X.SkillsComplement()
     nEnemyHeroes = bot:GetNearbyHeroes(1600, true, BOT_MODE_NONE)
 
 	ElderDragonFormDesire = X.ConsiderElderDragonForm()
-	if ElderDragonFormDesire> 0 then
+	if ElderDragonFormDesire> 0  and CastSafety.AllowDecision(bot,J,ElderDragonForm,nil,'engage')then
 		J.SetQueuePtToINT(bot, false)
 		bot:ActionQueue_UseAbility(ElderDragonForm)
 		return
 	end
 
 	BreatheFireDesire, BreatheFireLocation = X.ConsiderBreatheFire()
-	if BreatheFireDesire > 0 then
+	if BreatheFireDesire > 0  and CastSafety.AllowDecision(bot,J,BreatheFire,nil,'damage')then
 		J.SetQueuePtToINT(bot, false)
 		bot:ActionQueue_UseAbilityOnLocation(BreatheFire, BreatheFireLocation)
 		return
 	end
 
 	DragonTailDesire, DragonTailTarget = X.ConsiderDragonTail()
-	if DragonTailDesire > 0 then
+	if DragonTailDesire > 0  and CastSafety.AllowDecision(bot,J,DragonTail,DragonTailTarget,'control')then
 		J.SetQueuePtToINT(bot, false)
 		bot:ActionQueue_UseAbilityOnEntity(DragonTail, DragonTailTarget)
 		return
 	end
 
 	FireballDesire, FireballLocation = X.ConsiderFireball()
-	if FireballDesire > 0 then
+	if FireballDesire > 0  and CastSafety.AllowDecision(bot,J,Fireball,nil,'damage')then
 		J.SetQueuePtToINT(bot, false)
 		bot:ActionQueue_UseAbilityOnLocation(Fireball, FireballLocation)
 		return

@@ -71,6 +71,7 @@ J.IsSuspiciousIllusion = function(u) return u.illusion==true end
 J.GetNearbyHeroes = function(_,_,enemy) return enemy and state.enemies or state.allies end
 J.CanNotUseAction = function() return bot.channel or false end
 J.CanNotUseAbility = no
+J.GetHP = function(h) return h:GetHealth()/h:GetMaxHealth() end
 J.GetModifierTime = function(_,name) return bot.mods[name] and (state.protectionTime or 5) or 0 end
 J.GetTeamFountain = function() return Vector(-6000,-6000,0) end
 J.GetPosition = function() return 1 end

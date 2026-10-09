@@ -14,6 +14,9 @@ local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local RoshanCommands = require(GetScriptDirectory()..'/FunLib/shai_roshan_commands')
 local TeamGank = require(GetScriptDirectory()..'/FunLib/shai_team_gank')
 local CombatFinish = require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
+local Defense = require(GetScriptDirectory()..'/FunLib/shai_defense')
+local Travel = require(GetScriptDirectory()..'/FunLib/shai_tactical_travel')
+local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
@@ -1002,7 +1005,8 @@ local function ItemUsageComplement()
 			if	X.ConsiderItemDesire[sItemName] ~= nil
 				and not X.IsItemInStash( sItemName )
 			then
-				local nItemDesire, hItemTarget, sCastType, sMotive = X.ConsiderItemDesire[sItemName]( hItem )
+				local nItemDesire, hItemTarget, sCastType, sMotive = Runtime.Call(bot,'item.'..sItemName,
+					function() return X.ConsiderItemDesire[sItemName]( hItem ) end,0)
 
 				if nItemDesire > 0
 				then
@@ -1015,9 +1019,7 @@ local function ItemUsageComplement()
 						J.SetReportMotive( bDebugMode, sItemName..'→'..sMotive )
 					end
 
-					X.SetUseItem( hItem, hItemTarget, sCastType )
-
-					return nSlot + 1
+					if X.SetUseItem( hItem, hItemTarget, sCastType ) then return nSlot + 1 end
 				end
 			end
 		end
@@ -1032,26 +1034,31 @@ function X.SetUseItem( hItem, hItemTarget, sCastType )
 	if sCastType == 'none'
 	then
 		bot:Action_UseAbility( hItem )
-		return
+		return true
 	elseif sCastType == 'unit' and type(hItemTarget) == 'table'
 	then
 		bot:Action_UseAbilityOnEntity( hItem, hItemTarget )
-		return
+		return true
 	elseif sCastType == 'ground' or (hItemTarget and type(hItemTarget) ~= 'number' and type(hItemTarget) ~= 'table' and hItemTarget.x ~= nil) -- in case target is a location
 	then
+		if not Runtime.Location(bot,'item.cast.'..hItem:GetName(),hItemTarget) then return false end
+		if hItem:GetName()=='item_tpscroll' then
+			hItemTarget=Travel.PrepareTeleport(bot,J,hItemTarget)
+			if hItemTarget==nil then return false end
+		end
 		bot:Action_UseAbilityOnLocation( hItem, hItemTarget )
-		return
+		return true
 	elseif sCastType == 'tree'
 	then
 		bot:Action_UseAbilityOnTree( hItem, hItemTarget )
-		return
+		return true
 	elseif sCastType == 'twice'
 	then
 		bot:Action_UseAbility( hItem )
 		bot:ActionQueue_UseAbility( hItem )
-		return
+		return true
 	end
-
+	return false
 end
 
 
@@ -8371,12 +8378,13 @@ end
 
 function ItemUsageThink()
 	if RefreshBotHandle() then return end
+	if Travel.RecheckTeleport(bot,J) or Travel.ThinkFade(bot,J) then return end
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
 	if bot.lastItemFrameProcessTime == nil then bot.lastItemFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastItemFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) then return end
 	bot.lastItemFrameProcessTime = DotaTime()
 	if CombatFinish.IsCommitting(bot,J) then return end
-	if not J.IsNoItemIllution(bot) then ItemUsageComplement() end
+	if not J.IsNoItemIllution(bot) then Runtime.Call(bot,'items',ItemUsageComplement,nil) end
 end
 
 function AbilityUsageThink()
@@ -8394,11 +8402,13 @@ function AbilityUsageThink()
 	if bot.lastAbilityFrameProcessTime == nil then bot.lastAbilityFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastAbilityFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) and bot.isBear == nil then return end
 	bot.lastAbilityFrameProcessTime = DotaTime()
+	if Travel.ThinkFade(bot,J) then return end
 	ObjectiveCommands.ReleaseObjective(bot,J)
 	if CombatFinish.IsCommitting(bot,J) then return end
-	if TeamGank.TryControl(bot,J) or TeamGank.HoldOffense(bot,J) then return end
+	if Runtime.Call(bot,'defense.abilities',function() return Defense.GuardAbilities(bot,J) end,true) then return end
+	if Runtime.Call(bot,'gank.abilities',function() return TeamGank.TryControl(bot,J) or TeamGank.HoldOffense(bot,J) end,true) then return end
 	if CombatFinish.TryAction(bot,J) then return end
-	if BotBuild ~= nil and not J.IsNoAbilityIllution(bot) then BotBuild.SkillsComplement() end
+	if BotBuild ~= nil and not J.IsNoAbilityIllution(bot) then Runtime.Call(bot,'hero.'..botName,BotBuild.SkillsComplement,nil) end
 end
 
 function BuybackUsageThink()

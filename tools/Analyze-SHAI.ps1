@@ -2,7 +2,29 @@ param([Parameter(Mandatory)][string]$LogPath)
 $ErrorActionPreference = 'Stop'
 $previous = @{}
 $events = @()
+$decisions = @()
+$reportedErrors = @()
+$scriptExceptions = 0
+$invalidLocations = 0
+$helperFailures = 0
 foreach ($line in Get-Content -LiteralPath $LogPath) {
+    if ($line -match 'Script Runtime Error') { $scriptExceptions++ }
+    if ($line -match 'GetUnitToLocationDistance.*(got void|expected vector)') { $invalidLocations++ }
+    if ($line -match '\[SHAI\] runtime ') { $helperFailures++ }
+    if ($line -match 'Script Runtime Error|GetUnitToLocationDistance.*(got void|expected vector)|\[SHAI\] runtime ') {
+        $reportedErrors += $line
+    }
+    if ($line -match '\[SHAI\] (defense|gank|gank-member|gank-reinforce|finish|safety|travel|runtime|idle-recovery) (.*)') {
+        $kind, $detail = $Matches[1], $Matches[2]
+        $decisionFields = @{}
+        foreach ($field in $detail -split '; ') {
+            $pair = $field -split '=', 2
+            if ($pair.Count -eq 2) { $decisionFields[$pair[0]] = $pair[1] }
+        }
+        $decisions += [pscustomobject]@{Kind=$kind; Reason=$decisionFields.reason;
+            Time=$decisionFields.t; Hero=$decisionFields.hero; Target=$decisionFields.target;
+            Source=$decisionFields.source; Detail=$detail}
+    }
     if ($line -notmatch '\[SHAI\] behavior (.*)') { continue }
     $fields = @{}
     foreach ($field in $Matches[1] -split '; ') {
@@ -29,3 +51,11 @@ $summaries = foreach ($key in ($previous.Keys | Sort-Object)) {
 $summaries | Format-Table -AutoSize
 Write-Output 'Intervals to inspect in replay (time in seconds; output is throttled):'
 $events | Format-Table -AutoSize
+Write-Output 'Decision reason counts (throttled diagnostics, not total decisions):'
+$decisions | Group-Object -Property Kind,Reason | Sort-Object -Property Count -Descending |
+    Select-Object Name,Count | Format-Table -AutoSize
+Write-Output "Reported script exceptions: $scriptExceptions; invalid-location warnings: $invalidLocations; helper failures: $helperFailures (engine may suppress duplicates)."
+$reportedErrors | Select-Object -First 12 | Write-Output
+Write-Output 'Recent defense, travel and helper error details (up to 20 records):'
+$decisions | Where-Object { $_.Kind -in @('defense','travel','runtime') } |
+    Select-Object -Last 20 | ForEach-Object { "[$($_.Kind)] $($_.Detail)" }

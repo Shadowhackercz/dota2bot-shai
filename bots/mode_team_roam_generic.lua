@@ -11,6 +11,9 @@ local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
 local Stability = require(GetScriptDirectory()..'/FunLib/shai_decision_stability')
 local TeamGank = require(GetScriptDirectory()..'/FunLib/shai_team_gank')
 local CombatFinish = require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
+local Defense = require(GetScriptDirectory()..'/FunLib/shai_defense')
+local Travel = require(GetScriptDirectory()..'/FunLib/shai_tactical_travel')
+local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local Item = require(GetScriptDirectory()..'/FunLib/aba_item')
 local Roles = require(GetScriptDirectory()..'/FunLib/aba_role')
 local AttackSpecialUnit = dofile(GetScriptDirectory()..'/FunLib/aba_special_units')
@@ -33,6 +36,7 @@ local ShouldHelpAlly, ShouldHelpWhenCoreIsTargeted = false, false
 local nearbyAllies, nearbyEnemies
 local coordinatedGank = false
 local immediateFinish = false
+local defendingBase = false
 
 -- Pickup / swap timers
 local PickedItem = nil
@@ -71,12 +75,13 @@ local function CapForLanePush(desire)
 end
 
 function GetDesire()
+    if Travel.HoldFade(bot,J) then return 1.08 end
     -- local cacheKey = 'GetTeamRoamDesire'..tostring(bot:GetPlayerID())
     -- local cachedVar = J.Utils.GetCachedVars(cacheKey, 0.2 * (1 + Customize.ThinkLess))
     -- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
 
-    local res = GetDesireHelper()
-    if coordinatedGank or immediateFinish then return res end
+    local res = Runtime.Call(bot,'roam.desire',GetDesireHelper,0)
+    if coordinatedGank or immediateFinish or defendingBase then return res end
     res = CapForLanePush(res)
 
     -- J.Utils.SetCachedVars(cacheKey, res)
@@ -85,6 +90,7 @@ end
 function GetDesireHelper()
     coordinatedGank = false
     immediateFinish = false
+    defendingBase = false
     ShouldAttackSpecialUnit = false
     hTargetCreep = nil
     if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then
@@ -127,6 +133,12 @@ function GetDesireHelper()
             hTargetCreep, targetUnit = nil, nil
             -- Ordinary retreat is capped at 1; special escape desires still win.
             return 1.05
+        end
+        local defenseDesire=Defense.GetDesire(bot,J)
+        if defenseDesire~=nil then
+            defendingBase=true
+            hTargetCreep,targetUnit=nil,nil
+            return defenseDesire
         end
         local gankDesire = TeamGank.GetDesire(bot,J)
         if gankDesire ~= nil then
@@ -320,7 +332,8 @@ end
 -- ==============================
 -- Think
 -- ==============================
-function Think()
+local function TeamRoamThinkInternal()
+    if Travel.ThinkFade(bot,J) then return end
     if J.CanNotUseAction(bot) then return end
 	-- diabled think less to avoid failing to last hit
     -- if J.Utils.IsBotThinkingMeaningfulAction(bot, Customize.ThinkLess, "team_roam") then return end
@@ -332,6 +345,7 @@ function Think()
         CombatFinish.TryAction(bot,J)
         return
     end
+    if defendingBase then Defense.Think(bot,J); return end
     if coordinatedGank and TeamGank.Think(bot,J) then return end
 
 	if J.IsValid(hTargetCreep) then
@@ -1744,6 +1758,8 @@ function J.FindLeastExpensiveItemSlot()
 
 	return idx
 end
+
+function Think() Runtime.Call(bot,'roam.think',TeamRoamThinkInternal,nil) end
 
 X.GetDesire = GetDesire
 X.Think = Think

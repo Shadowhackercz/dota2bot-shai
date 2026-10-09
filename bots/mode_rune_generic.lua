@@ -1,3 +1,4 @@
+local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local X = {}
 local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
 local Customize = require(GetScriptDirectory()..'/Customize/general')
@@ -130,7 +131,7 @@ local collectingWisdom = false
 --------------------------------------------------------------------
 -- GetDesire  (reference structure, with local additions)
 --------------------------------------------------------------------
-function GetDesire()
+local function ModeDesireInternal()
 	collectingWisdom = false
 	if not bot:IsAlive() then return BOT_MODE_DESIRE_NONE end
 	X.InitRune()
@@ -320,7 +321,7 @@ end
 -- Think  (reference structure)
 --------------------------------------------------------------------
 local fNextMovementTime = -math.huge
-function Think()
+local function ModeThinkInternal()
 	if not bot:IsAlive() then return end
 	if bot:IsInvulnerable() and bot:DistanceFromFountain() < 500 then
 		bot:Action_MoveToLocation(bot:GetLocation() + RandomVector(500))
@@ -936,3 +937,6 @@ function X.GetShrineOfWisdomTeam()
 
 	return nil
 end
+
+function GetDesire() return Runtime.Call(bot,'rune.desire',ModeDesireInternal,0) end
+function Think() Runtime.Call(bot,'rune.think',ModeThinkInternal,nil) end

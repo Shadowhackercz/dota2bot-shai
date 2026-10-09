@@ -1,5 +1,6 @@
 local J = {}
 local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
+local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 
 local bDebugMode = ( 1 == 10 )
 local tAllyIDList = GetTeamPlayers( GetTeam() )
@@ -3963,6 +3964,7 @@ end
 
 
 function J.GetNearbyLocationToTp( nLoc )
+    if not Runtime.Location(GetBot(),'tp.nearby-location',nLoc) then return nil end
 
 	local nTeam = GetTeam()
 	local nFountain = J.GetTeamFountain()
@@ -3976,7 +3978,7 @@ function J.GetNearbyLocationToTp( nLoc )
 	local minDist = 99999
 	for i=0, 10, 1 do
 		local tower = GetTower( nTeam, i )
-		if tower ~= nil
+		if tower ~= nil and not tower:IsNull() and tower:IsAlive()
 			and GetUnitToLocationDistance( tower, nLoc ) < minDist
 		then
 			 targetTower = tower
@@ -6497,7 +6499,7 @@ function J.CheckBotIdleState()
 	if DotaTime() <= 0 then return false end
 
 	local bot = GetBot()
-	if not bot:IsAlive() then return false end
+	if bot==nil or not bot:IsAlive() then return false end
 
 	local botName = bot:GetUnitName();
 	local botId = bot:GetPlayerID();
@@ -6505,9 +6507,22 @@ function J.CheckBotIdleState()
 
 	-- print('Checking bot '..botName..' idle state.')
 	local botState = botIdleStateTracker[botId]
+	-- A bounded tactical reservation is renewed only by an active plan. Resting
+	-- at a rally, finishing a cast, fading or channeling is not a stuck bot.
+	if J.IsTryingtoUseAbility(bot) or bot:HasModifier('modifier_teleporting')
+		or bot:HasModifier('modifier_item_shadow_amulet_fade')
+		or (bot.shaiTacticalUntil~=nil and bot.shaiTacticalUntil>DotaTime())
+		or bot:NumQueuedActions()>0 or bot:WasRecentlyDamagedByAnyHero(3) then
+		botIdleStateTracker[botId]={botLocation=bot:GetLocation(),lastCheckTime=DotaTime(),idleCount=0}
+		return false
+	end
 	if botState then
 		if DotaTime() - botState.lastCheckTime >= botIdelStateTimeThreshold then
 			local diffDistance = J.GetLocationToLocationDistance( botState.botLocation, bot:GetLocation())
+			-- Update BEFORE the early return below, otherwise every frame repeats
+			-- the same idle interval and cancels the recovery order again.
+			botState.botLocation = bot:GetLocation()
+			botState.lastCheckTime = DotaTime()
 			if not J.IsTryingtoUseAbility(bot)
 			-- and not bot:WasRecentlyDamagedByAnyHero(3)
 			and not J.IsAttacking(bot)
@@ -6524,12 +6539,12 @@ function J.CheckBotIdleState()
 							print('Bot '..botName.." has enqueued actions i="..i..", type="..tostring(aType))
 						end
 					end
-					bot:Action_ClearActions(true);
-
 					-- Should send it to most desire farming lane, if in laning or send it to desire push lane.
 					local frontLoc = GetLaneFrontLocation(GetTeam(), bot:GetAssignedLane(), 0);
+					if not Runtime.Location(bot,'idle.lane-front',frontLoc) then return false end
+					bot:Action_ClearActions(true);
 					bot:ActionQueue_AttackMove(frontLoc)
-					print('[ERROR] Relocating the idle bot: '..botName..'. Sending it to the lane# it was originally assigned: '..tostring(bot:GetAssignedLane()))
+					print('[SHAI] idle-recovery hero='..botName..'; lane='..tostring(bot:GetAssignedLane()))
 				else
 					print('Bot '..botName..' is in idle state for unknown reasons. N/A.')
 				end

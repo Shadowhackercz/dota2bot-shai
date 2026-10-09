@@ -11,6 +11,7 @@ local bDebugMode = ( 1 == 10 )
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -217,7 +218,7 @@ function X.SkillsComplement()
 
 	-- Secure an intended hero engagement before drain or a slower damage spell.
 	castWDesire, castWTarget, sMotive = X.ConsiderEngagementHex()
-	if castWDesire > 0 then
+	if castWDesire > 0  and CastSafety.AllowDecision(bot,J,abilityW,nil,'control')then
 		J.SetReportMotive(bDebugMode, sMotive)
 		J.SetQueuePtToINT(bot, true)
 		if talent8:IsTrained() then
@@ -230,7 +231,7 @@ function X.SkillsComplement()
 	
 
 	castEDesire, castETarget, sMotive = X.ConsiderE()
-	if ( castEDesire > 0 )
+	if ( castEDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityE,castETarget,'channel')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -242,7 +243,7 @@ function X.SkillsComplement()
 
 
 	castRDesire, castRTarget, sMotive = X.ConsiderR()
-	if ( castRDesire > 0 )
+	if ( castRDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityR,castRTarget,'damage')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -255,7 +256,7 @@ function X.SkillsComplement()
 
 
 	castQDesire, castQLocation, sMotive = X.ConsiderQ()
-	if ( castQDesire > 0 )
+	if ( castQDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityQ,nil,'control')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -268,7 +269,7 @@ function X.SkillsComplement()
 
 
 	castWDesire, castWTarget, sMotive = X.ConsiderW()
-	if ( castWDesire > 0 )
+	if ( castWDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityW,nil,'control')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 

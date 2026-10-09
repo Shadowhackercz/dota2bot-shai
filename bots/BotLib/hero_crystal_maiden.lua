@@ -3,6 +3,7 @@ local bDebugMode = ( 1 == 10 )
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -171,7 +172,7 @@ function X.SkillsComplement()
 --	if talent2:IsTrained() then aetherRange = aetherRange + talent2:GetSpecialValueInt( 'value' ) end
 
 	ArcaneAuraDesire = X.ConsiderArcaneAura()
-	if ( ArcaneAuraDesire > 0 )
+	if ( ArcaneAuraDesire > 0 ) and CastSafety.AllowDecision(bot,J,ArcaneAura,nil,'save')
 	then
 		J.SetQueuePtToINT( bot, false )
 
@@ -180,7 +181,7 @@ function X.SkillsComplement()
 	end
 
 	CrystalCloneDesire, CrystalCloneLocation = X.ConsiderCrystalClone()
-	if CrystalCloneDesire > 0
+	if CrystalCloneDesire > 0 and CastSafety.AllowDecision(bot,J,CrystalClone,nil,'escape')
 	then
 		J.SetQueuePtToINT(bot, false)
 		bot:ActionQueue_UseAbilityOnLocation(CrystalClone, CrystalCloneLocation)
@@ -188,7 +189,7 @@ function X.SkillsComplement()
 	end
 
 	castQDesire, castQLoc = X.ConsiderQ()
-	if ( castQDesire > 0 )
+	if ( castQDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityQ,nil,'damage')
 	then
 		J.SetQueuePtToINT( bot, false )
 
@@ -198,7 +199,7 @@ function X.SkillsComplement()
 
 
 	castWDesire, castWTarget = X.ConsiderW()
-	if ( castWDesire > 0 )
+	if ( castWDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityW,castWTarget,'control')
 	then
 		J.SetQueuePtToINT( bot, false )
 
@@ -207,7 +208,7 @@ function X.SkillsComplement()
 	end
 
 	castRDesire = X.ConsiderR()
-	if ( castRDesire > 0 )
+	if ( castRDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityR,nil,'channel')
 	then
 		J.SetQueuePtToINT( bot, false )
 

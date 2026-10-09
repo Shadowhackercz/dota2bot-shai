@@ -2,6 +2,7 @@ local X             = {}
 local bot           = GetBot()
 
 local J             = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion        = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList   = J.Skill.GetTalentList( bot )
 local sAbilityList  = J.Skill.GetAbilityList( bot )
@@ -139,21 +140,21 @@ function X.SkillsComplement()
     botTarget = J.GetProperTarget(bot)
 
     NetherSwapDesire, NetherSwapTarget = X.ConsiderNetherSwap()
-    if NetherSwapDesire > 0
+    if NetherSwapDesire > 0 and CastSafety.AllowDecision(bot,J,NetherSwap,NetherSwapTarget,'swap')
     then
         bot:Action_UseAbilityOnEntity(NetherSwap, NetherSwapTarget)
         return
     end
 
     MagicMissileDesire, MagicMissileTarget = X.ConsiderMagicMissile()
-    if MagicMissileDesire > 0
+    if MagicMissileDesire > 0 and CastSafety.AllowDecision(bot,J,MagicMissile,MagicMissileTarget,'control')
     then
         bot:Action_UseAbilityOnEntity(MagicMissile, MagicMissileTarget)
         return
     end
 
     WaveOfTerrorDesire, WaveOfTerrorLocation = X.ConsiderWaveOfTerror()
-    if WaveOfTerrorDesire > 0
+    if WaveOfTerrorDesire > 0 and CastSafety.AllowDecision(bot,J,WaveOfTerror,nil,'damage')
     then
         bot:Action_UseAbilityOnLocation(WaveOfTerror, WaveOfTerrorLocation)
         return

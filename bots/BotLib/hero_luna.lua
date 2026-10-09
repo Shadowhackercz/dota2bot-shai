@@ -2,6 +2,7 @@ local X = {}
 local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
+local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -109,14 +110,14 @@ function X.SkillsComplement()
 	-- 	return
 	-- end
 	LunarOrbitDesire = X.ConsiderLunarOrbit()
-	if LunarOrbitDesire > 0
+	if LunarOrbitDesire > 0 and CastSafety.AllowDecision(bot,J,LunarOrbit,nil,'engage')
 	then
 		bot:Action_UseAbility(LunarOrbit)
 		return
 	end
 
 	EclipseDesire = X.ConsiderEclipse()
-	if EclipseDesire > 0
+	if EclipseDesire > 0 and CastSafety.AllowDecision(bot,J,Eclipse,nil,'engage')
 	then
 		if J.HasPowerTreads(bot)
 		then
@@ -141,7 +142,7 @@ function X.SkillsComplement()
 	end
 
 	LucentBeamDesire, LucentBeamTarget = X.ConsiderLucentBeam()
-	if LucentBeamDesire > 0
+	if LucentBeamDesire > 0 and CastSafety.AllowDecision(bot,J,LucentBeam,LucentBeamTarget,'damage-control')
 	then
 		if J.HasPowerTreads(bot)
 		then
