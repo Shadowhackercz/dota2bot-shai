@@ -120,6 +120,20 @@ reset(); target.level=15; target.dps=700
 assert(Gank.GetDesire(lion,J)==0.97,'Damage/health dominance can qualify even without level gap')
 reset(); axe.abilities={}; assert(Gank.GetDesire(lion,J)==nil,'Single control source insufficient')
 reset(); for _,h in ipairs(allies) do h.dps=150 end; assert(Gank.GetDesire(lion,J)==nil,'Reject inadequate damage')
+-- Three is a minimum, not a ceiling: count the full available local group.
+reset(); for _,h in ipairs(allies) do h.dps=350 end
+assert(Gank.GetDesire(lion,J)==nil,'Three lack the required damage reserve')
+local fourth=hero('npc_dota_hero_luna',4,-1900); fourth.dps=350; allies[#allies+1]=fourth
+advance(); assert(Gank.GetDesire(lion,J)==0.97 and #lion.shaiGankPlan.members==4,
+    'Fourth damage member enables a plan that three could not secure')
+reset(); for _,h in ipairs(allies) do h.dps=270 end
+fourth=hero('npc_dota_hero_luna',4,-1900); fourth.dps=270; allies[#allies+1]=fourth
+assert(Gank.GetDesire(lion,J)==nil,'Four may still lack enough damage')
+local fifth=hero('npc_dota_hero_zuus',5,-2000); fifth.dps=270; allies[#allies+1]=fifth
+advance(); assert(Gank.GetDesire(lion,J)==0.97 and #lion.shaiGankPlan.members==5,
+    'Full five-bot team may secure the plan')
+assert(fourth.shaiGankPlan==lion.shaiGankPlan and fifth.shaiGankPlan==lion.shaiGankPlan,
+    'Fourth and fifth participants receive the same coordinated plan')
 reset(); axe.busy=true; assert(Gank.GetDesire(lion,J)==nil,'Casting/channel member not recruited')
 reset(); axe.id=4; sniper.id=11; assert(Gank.GetDesire(lion,J)==nil,'Human presence is not a promise to participate')
 reset(); target.visible=false; assert(Gank.GetDesire(lion,J)==nil,'No hidden inventory or position reads')
