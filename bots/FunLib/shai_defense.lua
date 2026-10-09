@@ -20,7 +20,8 @@ local function Trace(bot,p)
     if DotaTime()-(bot.shaiDefensePrinted or -math.huge)<3 and bot.shaiDefenseReason==p.reason then return end
     bot.shaiDefensePrinted,bot.shaiDefenseReason=DotaTime(),p.reason
     print(string.format('[SHAI] defense t=%.2f; hero=%s; reason=%s; target=%s; members=%d; damage=%.0f; controls=%d; backups=%d; hp=%.0f; openerDelay=%.2f; ready=%s; excluded=%s; attacks=%.0f; spells=%.0f; summons=%.0f; mana=%.0f',
-        DotaTime(),bot:GetUnitName(),p.reason,p.target:GetUnitName(),#p.members,p.damage,p.controls,p.backups,p.target:GetHealth(),p.openerDelay,p.available,p.excluded,p.budget.attacks,p.budget.spells,p.budget.summons,p.budget.mana))
+        DotaTime(),bot:GetUnitName(),p.reason,p.target:GetUnitName(),#p.members,p.damage,p.controls,p.backups,p.target:GetHealth(),p.openerDelay,p.available,p.excluded,p.budget.attacks,p.budget.spells,p.budget.summons,p.budget.mana)
+        ..'; utility='..p.utility..'; healthy='..p.healthy..'; regenBudget='..p.regenBudget..'; effectiveHP='..p.effectiveHP)
 end
 local function Incoming(h,enemies,seconds)
     local n=0
@@ -53,6 +54,7 @@ function X.GetPlan(bot,J)
     if target==nil then leader.shaiDefensePlan=nil; return nil end
     local p={target=target,members={},damage=0,controls=0,hard=0,backups=0,ancient=ancient,enemies=enemies,checked=DotaTime(),excluded='',available='',openerDelay=math.huge,leader=leader}
     p.budget={attacks=0,spells=0,summons=0,mana=0}
+    p.roles,p.utilityOptions,p.utility,p.healthy={},{},0,0
     local defenses=Gank.TargetDefenses(target)
     local controlSeconds=0
     local funded={}
@@ -64,15 +66,33 @@ function X.GetPlan(bot,J)
         local reason
         if not h:IsBot() and h:GetAttackTarget()~=target then reason='human-not-attacking'
         elseif h:HasModifier('modifier_teleporting') then reason='teleporting'
-        elseif h:GetHealth()<h:GetMaxHealth()*0.4 then reason='low-hp'
         elseif h:IsHexed() then reason='hexed'
         elseif h:IsStunned() then reason='stunned'
         elseif Dist(h,target)>1400 then reason='distant' end
+        local utilityOptions
+        if reason==nil and h:GetHealth()<h:GetMaxHealth()*0.4 then
+            reason='low-hp'
+            if h:IsBot() and not J.CanNotUseAction(h) and h:GetHealth()>=h:GetMaxHealth()*0.2 and Dist(h,target)>target:GetAttackRange()+200 then
+                local options=Gank.LocalControlOptions(h,target,J,true)
+                local m=Budget.Member(h,target,J,options,{horizon=5,controlsOnly=true,
+                    bkb=defenses.bkb,block=defenses.block,caught=target:IsStunned() or target:IsHexed()})
+                for _,opt in ipairs(options) do
+                    if m.available[opt.ability:GetName()] and Incoming(h,enemies,Chain.Delay(h,target,opt.ability,opt.kind)+0.2)<h:GetHealth()*0.6 then
+                        utilityOptions=utilityOptions or {}; utilityOptions[#utilityOptions+1]=opt
+                    end
+                end
+                if utilityOptions then reason=nil end
+            end
+        end
         if reason then p.excluded=p.excluded..h:GetUnitName()..':'..reason..','; return end
         p.members[#p.members+1]=h
+        if utilityOptions then
+            p.roles[h:GetPlayerID()]='utility'; p.utilityOptions[h:GetPlayerID()]=utilityOptions; p.utility=p.utility+1
+        else p.roles[h:GetPlayerID()]='healthy'; p.healthy=p.healthy+1 end
         if not h:IsStunned() and h:IsBot() then
-            local options=Gank.LocalControlOptions(h,target,J,true)
-            local m=Budget.Member(h,target,J,options,{horizon=5,bkb=defenses.bkb,block=defenses.block,caught=target:IsStunned() or target:IsHexed()})
+            local options=utilityOptions or Gank.LocalControlOptions(h,target,J,true)
+            local m=Budget.Member(h,target,J,options,{horizon=5,controlsOnly=utilityOptions~=nil,
+                bkb=defenses.bkb,block=defenses.block,caught=target:IsStunned() or target:IsHexed()})
             funded[h:GetPlayerID()]=options
             local accepted,hard=false,false
             local duration=0
@@ -97,7 +117,7 @@ function X.GetPlan(bot,J)
     for _,h in ipairs(p.members) do
         local m=Budget.Member(h,target,J,funded[h:GetPlayerID()],{horizon=5,bkb=defenses.bkb,
             block=defenses.block,caught=target:IsStunned() or target:IsHexed(),backups=p.backups,
-            controlSeconds=math.min(5,controlSeconds),attacksOnly=not h:IsBot()})
+            controlSeconds=math.min(5,controlSeconds),attacksOnly=not h:IsBot(),controlsOnly=p.roles[h:GetPlayerID()]=='utility'})
         p.damage=p.damage+m.total
         for _,key in ipairs({'attacks','spells','summons','mana'}) do p.budget[key]=p.budget[key]+m[key] end
     end
@@ -126,21 +146,26 @@ function X.GetPlan(bot,J)
         -- it lands. Don't demand two seconds of unopposed support tanking.
         if Incoming(h,enemies,control and p.openerDelay or 2)<h:GetHealth()*0.75 then survivable=survivable+1 end
     end
-    local lethal=#p.members>=2 and p.damage>target:GetHealth()*1.2 and control and survivable>=2
+    p.regenBudget=math.max(0,target:GetHealthRegen())*5
+    p.effectiveHP=target:GetHealth()+p.regenBudget
+    local lethal=#p.members>=2 and p.damage>p.effectiveHP*1.2 and control and survivable>=2
     -- Pressure on an isolated diver under OUR buildings need not guarantee a
-    -- kill. Require four healthy contributors and coordinated control.
-    local pressure=#p.members>=4 and p.backups==0 and nearBuilding and survivable>=3
+    -- kill. A safe utility controller can replace one of four healthy bodies.
+    local pressure=#p.members>=4 and p.healthy>=3 and p.backups==0 and nearBuilding and survivable>=3
         and (p.controls>=2 and p.hard>=1 or (controlled or landing or followThrough) and control)
-        and p.damage>=target:GetHealth()*0.5 and not target:IsMagicImmune()
+        and p.damage>=p.effectiveHP*0.5 and not target:IsMagicImmune()
         and not defenses.aeon and (not defenses.bkb or controlled or p.hard>=2)
-    p.ready=not defenses.aeon and (lethal or pressure or (followThrough and #p.members>=3 and p.backups==0 and survivable>=2 and control))
+    local continuing=followThrough and #p.members>=3 and p.healthy>=2 and p.backups==0
+        and survivable>=2 and control and p.damage>=p.effectiveHP*0.35
+    p.ready=not defenses.aeon and (lethal or pressure or continuing)
     p.emergency=target:GetAttackTarget()==ancient
         and target:GetEstimatedDamageToTarget(true,ancient,6,DAMAGE_TYPE_ALL)>=ancient:GetHealth()
     p.reason=p.emergency and 'ancient-emergency' or p.ready and (lethal and 'group-ready' or 'group-pressure')
         or p.backups>0 and 'enemy-backup' or #p.members<2 and 'insufficient-members'
         or not control and 'no-opener' or survivable<2 and 'unsafe-opener' or 'insufficient-damage'
     p.hold=not p.ready and not p.emergency
-    p.commitUntil=p.ready and DotaTime()+0.8 or 0
+    -- Only a fresh viable assessment renews the deadline, not follow-through itself.
+    p.commitUntil=p.ready and ((lethal or pressure) and DotaTime()+0.8 or continuing and previous.commitUntil) or 0
     leader.shaiDefensePlan=p
     Trace(bot,p)
     return Dist(bot,target)<2200 and p or nil
@@ -175,7 +200,9 @@ function X.Think(bot,J,anchor)
     local p=Current(bot,J)
     if p==nil then return Wave.Think(bot,J,false) end
     bot.shaiTacticalUntil=DotaTime()+0.5
-    if (p.ready and Member(p,bot)) or p.emergency then
+    if p.roles[bot:GetPlayerID()]=='utility' then
+        if X.TryUtility(bot,J,p) then return true end
+    elseif (p.ready and Member(p,bot)) or p.emergency then
         bot:SetTarget(p.target)
         -- The movement callback must not reveal a caster with a hit before
         -- its coordinated control/debuff/channel follow-up has a chance to start.
@@ -183,7 +210,7 @@ function X.Think(bot,J,anchor)
         return true
     end
     bot:SetTarget(nil)
-    if Wave.Think(bot,J,false) then return true end
+    if p.roles[bot:GetPlayerID()]~='utility' and Wave.Think(bot,J,false) then return true end
     local building=p.building or anchor or p.ancient
     local destination=J.VectorAway(building:GetLocation(),J.GetTeamFountain(),-300)
     if Dist(bot,p.target)<p.target:GetAttackRange()+250 then destination=J.VectorAway(bot:GetLocation(),p.target:GetLocation(),500) end
@@ -214,6 +241,31 @@ local function Issued(bot,a,p,purpose)
             ..'; target='..p.target:GetUnitName()..'; members='..#p.members..'; purpose='..purpose..'; until='..untilTime)
     end
 end
+function X.TryUtility(bot,J,p)
+    if not p.ready and not p.emergency then return false end
+    if J.CanNotUseAction(bot) or bot:GetHealth()<bot:GetMaxHealth()*0.2
+        or Dist(bot,p.target)<=p.target:GetAttackRange()+200 then return false end
+    local options=p.utilityOptions[bot:GetPlayerID()] or {}
+    local defenses=Gank.TargetDefenses(p.target)
+    local budget=Budget.Member(bot,p.target,J,options,{horizon=5,controlsOnly=true,
+        bkb=defenses.bkb,block=defenses.block,caught=J.IsDisabled(p.target)})
+    for _,opt in ipairs(options) do
+        local a=opt.ability
+        if budget.available[a:GetName()] and Dist(bot,p.target)<=opt.range-25
+            and CastSurvivable(bot,J,p,Chain.Delay(bot,p.target,a,opt.kind)+0.2,0.6)
+            and not Chain.Wait(bot,p.target,J,a,opt.kind)
+            and (opt.item or not J.CanNotUseAbility(bot) and CastSafety.Allow(bot,J,a,'control')) then
+            local reservation=Chain.Reserve(bot,p.target,a,opt.kind,p.members)
+            for _,h in ipairs(p.members) do h.shaiDefenseControlUntil=reservation.untilTime end
+            bot:SetTarget(nil)
+            if opt.kind=='self' then bot:Action_UseAbility(a)
+            elseif opt.kind=='point' then bot:Action_UseAbilityOnLocation(a,p.target:GetLocation())
+            else bot:Action_UseAbilityOnEntity(a,p.target) end
+            Issued(bot,a,p,'utility-control'); return true
+        end
+    end
+    return false
+end
 local function CastPoint(bot,J,a,p,purpose)
     local target=p.target
     if a==nil or not a:IsFullyCastable() or a:IsHidden() or J.CanNotUseAbility(bot)
@@ -234,6 +286,10 @@ function X.GuardAbilities(bot,J)
     if J.CanNotUseAction(bot) then return false end
     local p=Current(bot,J)
     if p==nil then return Wave.Think(bot,J,true) end
+    if p.roles[bot:GetPlayerID()]=='utility' then
+        X.TryUtility(bot,J,p)
+        return true -- no ordinary offensive damage/channel from the wounded utility role
+    end
     if (p.ready and Member(p,bot)) or p.emergency then
         bot:SetTarget(p.target)
         if Gank.TryLocalControl(bot,p.target,J,p.members) then return true end

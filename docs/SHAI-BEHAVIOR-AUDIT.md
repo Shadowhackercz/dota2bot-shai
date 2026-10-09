@@ -1,5 +1,17 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Oslabený controller a omezené pokračování obrany — 10. října
+
+Pod 40 % HP už bot nemusí být automaticky vyřazen: mezi 20–40 % může získat roli `utility`, pokud právě může vydat akci, stojí mimo attack range soupeře + 200, má funded control v aktuálním konzervativním dosahu a přežije jeho cast/přistání s rezervou podle odhadu viditelných útočníků. Kontrolní profil a mana se znovu ověřují při vydání. Počítá se pouze control budget; ne autoattacky, obecné nuky nebo Death Ward channel. Bot nevykročí k cíli pro získání dosahu a generic hero offense je v této roli blokován. Stále může použít item callbacky. Živé utility členy sdílí týmový plán, přítomnost člověka nepředpokládá jeho spolupráci. Při změně HP/dosahu/damage může utility cast odmítnout i před přepočtem cache.
+
+Pressure výjimka vyžaduje čtyři členy a alespoň tři healthy role; jeden bezpečný controller může nahradit čtvrté zdravé tělo. Lethal větev dál používá skutečný konzervativní rozpočet a survival podmínky. Ready členové proto nepřestanou automaticky bojovat, pokud jeden oslabený bot stále dodává potřebný stun, ale jeho hypotetické několikasekundové DPS nesmí odůvodnit commit. Po spotřebování schopnosti se role znovu přepočte; bez bezpečné kontroly se oslabený bot vrátí k obrannému držení prostoru. Již konkrétně vydaný finishing má dosavadní prioritu.
+
+Follow-through po ztrátě původní pressure síly je nejvýše do původního 0,8s deadline. Vyžaduje alespoň tři členy/dvě healthy role, dvě přežitelné role, izolovaný cíl, dostupnou kontrolu a damage alespoň 35 % efektivních HP. Sám deadline neobnovuje; nová lethal/pressure readiness ano. Tím se zachová krátké dokončení zahájení bez nekonečného pokračování jen díky vlastnímu starému commitu.
+
+Efektivní HP pro damage prahy nyní obsahují aktuální viditelnou regeneraci během pěti sekund stejného horizontu jako combat budget. `regenBudget` a `effectiveHP` jsou v trace společně s počty `utility`/`healthy`; `defense-cast purpose=utility-control` označuje skutečný pokus o control. Neodhadujeme zatím lifesteal ze skutečných útoků, spell lifesteal/Rot ani externí heal; konstantní regen extrapolace nezaručuje skutečné léčení. Attack range + 200 není úplná ochrana proti Hooku či jiným spellům.
+
+Regrese skutečných callbacků ověřují oslabený backline Hex, nulový attack credit, žádný walk do dosahu/autoattack fallback, nové HP/retaliation, channel guard, více slabých controllerů, původní continuation deadline a regeneraci. Herní chování stále čeká na nový test; běžný gank roster tímto obranným rozšířením změněný není.
+
 ## Obranné spell follow-upy a jejich vydání — 10. října
 
 Obranný rozpočet obsahuje profily Maledict/Death Ward i ve dvojici, ale jejich zvláštní dispatch byl omezen na nejméně tři členy. Zvláštní follow-up nyní funguje od dvou členů, pouze uvnitř již připravené obrany a pro jejího člena (případně stávající Ancient emergency). Počet dvou sám o sobě nespustí útok: dosavadní damage/control/survival readiness zůstává. Pohybový Think nejprve použije stejný obranný ability dispatcher místo okamžitého autoattacku, aby schopný caster dostal příležitost zahájit control/debuff/channel ve stejném callbacku.

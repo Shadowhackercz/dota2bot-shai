@@ -24,6 +24,7 @@ local function hero(name,id,x)
     function h:GetTeam() return 2 end
     function h:GetLocation() visible(self); return Vector(self.x,0) end
     function h:GetHealth() visible(self); return self.hp end
+    function h:GetHealthRegen() visible(self); return self.regen or 0 end
     function h:GetMaxHealth() visible(self); return self.maxHp end
     function h:GetUnitName() visible(self); return self.name end
     function h:GetEstimatedDamageToTarget(_,target,time) visible(self); return self.damage*time end
@@ -41,6 +42,9 @@ local function hero(name,id,x)
     function h:IsHexed() return false end
     function h:IsSilenced() return false end
     function h:IsMuted() return false end
+    function h:IsDisarmed() return false end
+    function h:GetEvasion() return 0 end
+    function h:IsFacingLocation() return false end
     function h:IsInvulnerable() visible(self); return false end
     function h:IsMagicImmune() return self.magicImmune or false end
     function h:IsAttackImmune() return false end
@@ -67,6 +71,9 @@ J.IsSuspiciousIllusion=no
 J.GetNearbyHeroes=function(_,_,enemyTeam) return enemyTeam and enemies or allies end
 J.CanNotUseAction=function(h) return h.busy or false end
 J.CanNotUseAbility=no
+J.CanBeAttacked=function(h) return not h:IsAttackImmune() end
+J.CanCastOnNonMagicImmune=function(h) return not h:IsMagicImmune() end
+J.CanCastOnTargetAdvanced=function() return true end
 J.IsDisabled=function(h) return h.stunned or false end
 J.GetRemainStunTime=function(h) return h.remaining or 0 end
 J.GetHP=function(h) return h.hp/h.maxHp end
@@ -172,7 +179,9 @@ assert(Defense.GuardAbilities(warlock,J) and warlock.action=='warlock_rain_of_ch
 warlock.abilities.warlock_rain_of_chaos.ready=false; bot.hp=250; now=now+0.3
 p=Defense.GetPlan(wk,J)
 assert(p.ready and #p.members==3,'One wounded member drops out without canceling a controlled viable follow-through')
+assert(p.commitUntil==now-0.3+0.8,'Continuation alone does not extend its original deadline')
 assert(Defense.GetDesire(bot,J)<1,'Wounded excluded member is not forced to stand and autoattack')
+now=now+1; assert(Defense.GetPlan(wk,J).hold,'Expired follow-through needs a new viable group assessment')
 siege(); for _,h in ipairs(allies) do h.abilities={} end
 assert(Defense.GetPlan(bot,J).hold,'Four bodies alone are not sufficient without a ready opener')
 siege(); local backup=hero('npc_dota_hero_kez',9,400); backup.hp=2500; backup.damage=300
@@ -225,6 +234,46 @@ vanished.visible=false
 assert(Defense.GuardAbilities(doctor,J) and doctor.action=='witch_doctor_maledict','Follow-up safety never reads hidden backup stats')
 doctor.hp=0; assert(not Defense.HoldingCast(doctor),'Death clears short spell release lease')
 print('PASS: shared four-bot siege response, single-target golem, wounded-member continuation, no-opener/backup/protection rejection and Maledict/Death Ward')
+
+-- Wounded backline control contributes once without promising attack DPS.
+local controller
+local function utilitySiege()
+    siege(); enemy.range=150; enemy.hp=1500; enemy.damage=100
+    controller=hero('npc_dota_hero_lion',5,-200); controller.hp=500; controller.damage=4000
+    controller.abilities.lion_voodoo=ability('lion_voodoo',600)
+    allies={bot,wk,sniper,controller}
+end
+utilitySiege(); p=Defense.GetPlan(bot,J)
+assert(p.ready and p.utility==1 and p.healthy==3 and p.roles[5]=='utility','Safe wounded controller participates with three healthy defenders')
+local expectedDamage=p.damage
+controller.damage=1; now=now+0.3; p=Defense.GetPlan(bot,J)
+assert(p.damage==expectedDamage,'Wounded utility never contributes hypothetical autoattack damage')
+assert(Defense.Think(controller,J) and controller.action=='lion_voodoo','Actual defense callback uses safe backline Hex')
+assert(controller.target==nil,'Utility cast does not establish an offensive attack target')
+Defense.Think(controller,J); assert(controller.action=='lion_voodoo','Repeated movement cannot overwrite the utility cast')
+controller.abilities.lion_voodoo.ready=false; now=now+0.6
+Defense.Think(controller,J); assert(controller.action~='attack','After spending control the wounded bot does not turn into frontline DPS')
+utilitySiege(); controller.x=100
+assert(Defense.GetPlan(bot,J).utility==0,'Wounded hero inside enemy attack reach is not a promised safe controller')
+utilitySiege(); controller.hp=300
+assert(Defense.GetPlan(bot,J).utility==0,'Critically wounded hero below twenty percent is excluded')
+utilitySiege(); controller.busy=true
+Defense.Think(controller,J); assert(controller.action==nil,'Utility cannot interrupt a channel or queued action')
+utilitySiege(); p=Defense.GetPlan(bot,J); controller.hp=100
+Defense.GuardAbilities(controller,J); assert(controller.action==nil,'Utility rechecks HP before dispatch, even with cached roster')
+utilitySiege(); p=Defense.GetPlan(bot,J); enemy.damage=5000
+Defense.GuardAbilities(controller,J); assert(controller.action==nil,'New retaliation before cast cancels unsafe utility contribution')
+utilitySiege(); p=Defense.GetPlan(bot,J); controller.x=-1000
+Defense.Think(controller,J); assert(controller.action~='lion_voodoo' and controller.action~='attack','Utility never walks forward to acquire cast range')
+utilitySiege(); local second=hero('npc_dota_hero_lion',6,-250); second.hp=500
+second.abilities.lion_voodoo=ability('lion_voodoo',600)
+allies={bot,wk,controller,second}
+p=Defense.GetPlan(bot,J)
+assert(p.hold and p.utility==2 and p.healthy==2,'Multiple wounded controllers do not replace a healthy pressure group')
+reset(); bot.damage,ally.damage=1200,1200; enemy.regen=1000
+p=Defense.GetPlan(bot,J)
+assert(p.hold and p.regenBudget==5000 and p.effectiveHP==8000,'Five-second visible regeneration raises the required combat damage')
+print('PASS: wounded utility roster/budget/actual casts, no approach or attack commitment, safety recheck, bounded continuation and visible regeneration')
 
 -- Actual siege creeps must be dealt with even when no hero engage is viable.
 local Wave=require('bots/FunLib/shai_defense_wave')

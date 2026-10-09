@@ -6,7 +6,7 @@ try {
         '[SHAI] behavior t=0.00; team=2; player=3; hero=zuus; mode=LANING; hp=1.00; target=none; rapid=0; reversals=0',
         '[SHAI] behavior t=1.00; team=2; player=3; hero=zuus; mode=RETREAT; hp=0.40; target=none; rapid=2; reversals=1',
         '[SHAI] behavior t=10.00; team=2; player=3; hero=zuus; mode=RETREAT; hp=0.50; target=none; rapid=2; reversals=1',
-        '[SHAI] defense t=1500; hero=warlock; reason=group-pressure; target=ogre; members=4; damage=1600; excluded=centaur:low-hp',
+        '[SHAI] defense t=1500; hero=warlock; reason=group-pressure; target=ogre; members=4; damage=1600; excluded=centaur:low-hp; utility=1; healthy=3; regenBudget=500; effectiveHP=2500',
         '[SHAI] travel t=1510; hero=centaur; reason=unsafe-tp-destination',
         '[SHAI] glyph t=1511; hero=lion; reason=imminent-loss; fall=3.00; dps=500; attackers=3',
         '[SHAI] gank t=1511; leader=lion; phase=declined; reason=insufficient-damage; attacks=500; spells=200; summons=0; mana=100',
@@ -51,6 +51,7 @@ try {
         $output -notmatch '\[travel\].*reason=route-detour; purpose=wisdom; x=100; y=200' -or
         $output -notmatch '\[escape\].*reason=escape-stampede; enemy=pudge' -or
         $output -notmatch '\[defense-cast\].*reason=issued; spell=witch_doctor_maledict; target=pudge; members=2; purpose=engage; until=1525.5' -or
+        $output -notmatch '\[defense\].*utility=1; healthy=3; regenBudget=500; effectiveHP=2500' -or
         $output -notmatch '\[farm-spell\].*reason=lion-spike; hits=2; damage=255; reserve=380') { throw "Analyzer lost decision reasons, objective readiness, combat budgets, memory snapshots or runtime failures: $output" }
     'unrelated engine output' | Set-Content -LiteralPath $fixture.FullName
     $rejected = $false

@@ -1,5 +1,7 @@
 # Analýza chování SHAI
 
+Oslabená obrana: u ranged controllera na 20–40 % HP sledovat `defense utility=...; healthy=...` a `defense-cast purpose=utility-control`. Má zkusit bezpečný dostupný stun z místa, po něm se nepřiblížit pro autoattack a nezrušit tím platný útok zdravých členů. Změna dosahu/retaliation může cast odmítnout. Více slabých botů nesmí samo nahradit pressure skupinu. Porovnat `regenBudget/effectiveHP` s reálnou regenerací a léčením; lifesteal a spell heal nejsou těmito novými poli modelované.
+
 Obranné follow-upy: sledovat, zda připravený WD nejprve dává Maledict a po jeho castu Death Ward i ve skutečně dostatečné dvojici. `defense-cast` uvádí vydání, ne dopad/úplný channel. Pohyb nemá zrušit právě vydaný spell prvním autoattackem; nový spell naopak musí odmítnout nepřežitelný wind-up. Warlockův golem má navázat podle zbývající kontroly, nikoli automaticky překrýt dlouhý stun. Srovnat s replayem, cooldowny, manou, skutečným damage a přerušeními.
 
 Navazující sada po Pudge testu má 28 Lua + dvě PowerShell sady, syntax 332 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
