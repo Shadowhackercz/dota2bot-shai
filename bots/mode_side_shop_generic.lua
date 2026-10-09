@@ -4,6 +4,7 @@ local bot = GetBot()
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
 local Customize = require( GetScriptDirectory()..'/Customize/general' )
+local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 
 local Tormentor = nil
 local TormentorLocation = 0
@@ -41,6 +42,10 @@ end
 function GetDesireHelper()
 	decisionReason = 'not-ready'
 	if not bot:IsAlive() then return Decline('dead') end
+	if ObjectiveCommands.IsBlocked(bot,'tormentor') then
+		canDoTormentor,bot.tormentor_team_healthy=false,false
+		return Decline('player-veto')
+	end
 	nCoreCountInLoc, nSuppCountInLoc = 0, 0
 	canDoTormentor = false
 	bot.tormentor_team_healthy = false
@@ -286,6 +291,7 @@ local fStillAlive = 0
 local bTormentorAlive = false
 function Think()
     if J.CanNotUseAction(bot) then return end
+    if ObjectiveCommands.ReleaseObjective(bot,J,'tormentor') then return end
     if J.Utils.IsBotThinkingMeaningfulAction(bot, Customize.ThinkLess, "side_shop") then return end
     if DotaTime() - bot.tormentor_kill_time <= nRestForSeconds then
         bot:Action_MoveToLocation(TormentorLocation + RandomVector(50))

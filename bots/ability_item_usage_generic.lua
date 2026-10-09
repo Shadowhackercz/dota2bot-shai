@@ -13,6 +13,7 @@ local BehaviorTrace = require(GetScriptDirectory()..'/FunLib/shai_behavior_trace
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local RoshanCommands = require(GetScriptDirectory()..'/FunLib/shai_roshan_commands')
 local TeamGank = require(GetScriptDirectory()..'/FunLib/shai_team_gank')
+local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
 local Customize = require(GetScriptDirectory()..'/Customize/general')
@@ -8381,6 +8382,7 @@ function AbilityUsageThink()
 	if not bInstallChatCallbackDone and GetGameState() == GAME_STATE_GAME_IN_PROGRESS then
 		bInstallChatCallbackDone = true
 		InstallChatCallback(function(chat)
+			if ObjectiveCommands.Handle(bot,J,chat) then return end
 			if RoshanCommands.Handle(bot, J, chat) then return end
 			if bot:GetPlayerID() == J.Role.GetReplyMemberID() then X.SetReplyHumanTime(chat) end
 		end)
@@ -8390,6 +8392,7 @@ function AbilityUsageThink()
 	if bot.lastAbilityFrameProcessTime == nil then bot.lastAbilityFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastAbilityFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) and bot.isBear == nil then return end
 	bot.lastAbilityFrameProcessTime = DotaTime()
+	ObjectiveCommands.ReleaseObjective(bot,J)
 	if TeamGank.TryControl(bot,J) or TeamGank.HoldOffense(bot,J) then return end
 	if BotBuild ~= nil and not J.IsNoAbilityIllution(bot) then BotBuild.SkillsComplement() end
 end

@@ -22,6 +22,8 @@ function bot:GetNearbyNeutralCreeps() return state.seenRoshan and {roshan} or {}
 local illusion = {IsAlive = function() return true end, IsIllusion = function() return true end}
 GetBot = function() return bot end
 DotaTime = function() return 1200 end
+GAME_STATE_GAME_IN_PROGRESS=7
+GetGameState=function() return GAME_STATE_GAME_IN_PROGRESS end
 GetAncient = function() return {} end
 GetUnitList = function() return {bot, illusion} end
 GetUnitToLocationDistance = function() return 5000 end
@@ -69,6 +71,9 @@ state.roshHP = 0.01
 local finishingDesire = GetDesireHelper()
 assert(halfHealthDesire < 0.6 and finishingDesire > 0.95,
     'Finishing urgency must scale over fractional health rather than percent health')
+bot.shaiRoshanVeto={issued=1200,untilTime=1260}
+assert(GetDesireHelper()==0,'Player veto overrides autonomous finishing urgency')
+bot.shaiRoshanVeto=nil
 state.hp = 0.2
 assert(GetDesireHelper() == 0, 'Nearly dead bot should not chase a finishing objective')
 GetBot = function() return nil end

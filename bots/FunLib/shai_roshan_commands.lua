@@ -1,9 +1,11 @@
 local X = {}
+local ObjectiveCommands=require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 local function Real(unit)
     return unit ~= nil and not unit:IsNull() and unit:IsHero() and not unit:IsIllusion() and unit:IsAlive()
 end
 
 function X.RequestSafe(bot, J)
+    if ObjectiveCommands.IsBlocked(bot,'roshan') then return false end
     if bot.shaiRoshanRequestUntil == nil or DotaTime() >= bot.shaiRoshanRequestUntil
         or bot.shaiRoshanParticipants == nil or #bot.shaiRoshanParticipants < 3 then return false end
     local pit = J.GetCurrentRoshanLocation()
@@ -40,6 +42,7 @@ function X.Handle(bot, J, chat)
         print('[SHAI] roshan-request t='..now..'; player='..chat.player_id..'; reply='..message)
         return true
     end
+    if ObjectiveCommands.IsBlocked(bot,'roshan') then return Reply('Not now - Roshan is paused. Use !normal or wait for the veto to expire.') end
     if requester == nil then return Reply('Not now - you need to be alive.') end
     if not J.IsRoshanAlive() then return Reply('Not now - Roshan is not available.') end
     if J.GetEnemiesAroundAncient(bot, 3200) > 0 or J.GetHP(GetAncient(bot:GetTeam())) < 0.8 then

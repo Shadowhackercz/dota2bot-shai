@@ -37,6 +37,10 @@ Výpis ukáže poslední kumulativní počty a úseky s rychlými změnami. Čas
 
 ## Co hodnotit
 
+Nové příkazy: v bezpečném kontrolním lobby nejprve vyvolat `!roshan`, potom `!stop roshan`; všechny vybrané boty mají přestat usilovat o objektiv a přijít jedna anglická odpověď. `!normal` obnoví běžné rozhodování, nikoli starou výzvu. Totéž ověřit na autonomním Tormentor scoutingu/útoku a `!stop tormentor`; `!stop objectives` blokuje oba, ne runy/Wisdom. Ověřit také doběhnutí 60 sekund, nepřátelský příkaz, smrt/respawn a pokračování sebeobrany. Diagnostic `[SHAI] objective-command` obsahuje čas, autora, příkaz a expiraci.
+
+Rozšíření ganku má `[SHAI] gank-reinforce`: důvod, původní/nový počet a fázi. Sledovat, zda noví členové opravdu přicházejí ke stejnému cíli a zda plán nezůstává aktivní jen díky vzdálené pomoci. Během engage může přibrat jen bota do 1100; během gather/approach do 2400. Nečekat nábor přes celou mapu nebo automatické TP. Příchod posily neprodlužuje původní deadline 18 s. Tyto zprávy se vypisují při skutečně přijatém rozšíření, nikoli při každém kandidátovi.
+
 - **0–10 min:** last hity/deny, ztracené wave při runách, spotřeba many, harass bez zbytečné smrti, návrat na linku. Zapsat CS v 10. minutě a podmínky soupeře; nelze stanovit univerzální správné CS pro všechny role.
 - **10–25 min:** otočky bez změny hrozby, docházka na smysluplný fight, oddělení carry farmy od podpory, reakce na útok na věž.
 - **Po vyhraném fightu:** zda přeživší využijí prostor pro věž, objektiv či bezpečnou farmu. Nevyžadovat automatický push s nízkým HP nebo proti buybacku.

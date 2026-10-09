@@ -6,6 +6,7 @@ if bot == nil or bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() o
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local Customize = require( GetScriptDirectory()..'/Customize/general' )
 local RoshanCommands = require(GetScriptDirectory()..'/FunLib/shai_roshan_commands')
+local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 
 local killTime = 0.0
 local shouldKillRoshan = false
@@ -31,6 +32,10 @@ function GetDesire()
 end
 EvaluateRoshan = function()
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return BOT_MODE_DESIRE_NONE end
+    if ObjectiveCommands.IsBlocked(bot,'roshan') then
+        bot.shaiRoshanRequestUntil,bot.shaiRoshanParticipants=nil,nil
+        return BOT_MODE_DESIRE_NONE
+    end
     -- Recover rather than starting or continuing a voluntary objective while wounded.
     if J.GetHP(bot) < 0.4 then return BOT_MODE_DESIRE_NONE end
     if Roshan == nil then

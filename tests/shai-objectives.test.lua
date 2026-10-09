@@ -69,6 +69,14 @@ assert(GetDesire() >= 0.8, 'Strong team should assign a scout from minute fiftee
 bot.tormentor_state, state.near = true, true
 assert(GetDesire() > 0.7, 'Human elsewhere without a ping must not veto a healthy team attempt')
 Think(); assert(state.action == 'attack', 'A sufficiently grouped team should attack the visible objective')
+GAME_STATE_GAME_IN_PROGRESS=7
+GetGameState=function() return GAME_STATE_GAME_IN_PROGRESS end
+J.GetTeamFountain=function() return location end
+bot.SetTarget=function() end
+bot.shaiTormentorVeto={issued=state.time,untilTime=state.time+60}
+assert(GetDesire()==0,'Player veto overrides autonomous Tormentor readiness')
+state.action=nil; Think(); assert(state.action=='move','Stale active Tormentor Think must yield after veto')
+bot.shaiTormentorVeto=nil
 assert(GetDesire() > 0.7, 'Repeated evaluations must retain valid readiness')
 GetTower = function() return nil end
 J.GetCoresAverageNetworth = function() return 30000 end

@@ -1,7 +1,7 @@
 package.path='./?.lua;'..package.path
 GetScriptDirectory=function() return 'bots' end
 BOT_MODE_NONE,BOT_MODE_FARM,BOT_MODE_RETREAT,BOT_MODE_EVASIVE_MANEUVERS=0,1,2,3
-BOT_MODE_ROSHAN,BOT_MODE_TORMENTOR,BOT_MODE_TEAM_ROAM,BOT_MODE_LANING=4,5,6,7
+BOT_MODE_ROSHAN,BOT_MODE_SIDE_SHOP,BOT_MODE_TEAM_ROAM,BOT_MODE_LANING=4,5,6,7
 BOT_MODE_DESIRE_NONE,DAMAGE_TYPE_ALL,DAMAGE_TYPE_PHYSICAL=0,0,1
 UNIT_LIST_ALLIED_HEROES,UNIT_LIST_ENEMY_HEROES=1,2
 Vector=function(x,y,z) return {x=x,y=y,z=z or 0} end
@@ -135,6 +135,7 @@ advance(); assert(Gank.GetDesire(lion,J)==0.97 and #lion.shaiGankPlan.members==5
 assert(fourth.shaiGankPlan==lion.shaiGankPlan and fifth.shaiGankPlan==lion.shaiGankPlan,
     'Fourth and fifth participants receive the same coordinated plan')
 reset(); axe.busy=true; assert(Gank.GetDesire(lion,J)==nil,'Casting/channel member not recruited')
+reset(); axe.mode=BOT_MODE_SIDE_SHOP; assert(Gank.GetDesire(lion,J)==nil,'Actual Tormentor mode is excluded from gank recruitment')
 reset(); axe.id=4; sniper.id=11; assert(Gank.GetDesire(lion,J)==nil,'Human presence is not a promise to participate')
 reset(); target.visible=false; assert(Gank.GetDesire(lion,J)==nil,'No hidden inventory or position reads')
 reset(); target.illusion=true; assert(Gank.GetDesire(lion,J)==nil,'No illusion bait')
@@ -170,6 +171,35 @@ local function engaged()
     advance(); Gank.GetDesire(lion,J)
     assert(lion.shaiGankPlan.phase=='engage')
 end
+reset(); Gank.GetDesire(lion,J); local expandedPlan=lion.shaiGankPlan; local deadline=expandedPlan.expires
+for _,h in ipairs(allies) do h.dps=350 end
+fourth=hero('npc_dota_hero_luna',4,-1900); fourth.dps=350; allies[#allies+1]=fourth
+advance(); assert(Gank.GetDesire(lion,J)==0.97 and lion.shaiGankPlan==expandedPlan and #expandedPlan.members==4,
+    'Gathering plan recruits a fourth member when its damage becomes insufficient')
+for _,h in ipairs(allies) do h.dps=270 end
+fifth=hero('npc_dota_hero_zuus',5,-2000); fifth.dps=270; allies[#allies+1]=fifth
+advance(); assert(Gank.GetDesire(lion,J)==0.97 and #expandedPlan.members==5 and fifth.shaiGankPlan==expandedPlan,
+    'Existing plan can expand again to full five-bot group')
+assert(expandedPlan.expires==deadline,'Reinforcements do not extend the finite deadline')
+engaged(); expandedPlan=lion.shaiGankPlan
+for _,h in ipairs(allies) do h.dps=350 end
+fourth=hero('npc_dota_hero_luna',4,-650); fourth.dps=350; allies[#allies+1]=fourth
+advance(); assert(Gank.GetDesire(lion,J)==0.97 and lion.shaiGankPlan==expandedPlan and #expandedPlan.members==4
+    and expandedPlan.phase=='engage','Close reinforcement supports ongoing fight without restarting gathering')
+Gank.Think(fourth,J); assert(fourth.attacked==target,'New damage member attacks the existing shared target')
+engaged(); lion.abilities.lion_voodoo.ready=false
+fourth=hero('npc_dota_hero_vengefulspirit',4,-500)
+fourth.abilities.vengefulspirit_magic_missile=ability('vengefulspirit_magic_missile'); allies[#allies+1]=fourth
+advance(); assert(Gank.GetDesire(axe,J)==0.97 and fourth.shaiGankPlan==axe.shaiGankPlan,'Recruit missing control, not just extra DPS')
+engaged(); for _,h in ipairs(allies) do h.dps=350 end
+fourth=hero('npc_dota_hero_luna',4,-1900); fourth.dps=350; allies[#allies+1]=fourth
+advance(); assert(Gank.GetDesire(lion,J)==nil and fourth.shaiGankPlan==nil,'Distant help cannot justify continuing an insufficient fight')
+engaged(); for _,h in ipairs(allies) do h.dps=100 end
+fourth=hero('npc_dota_hero_luna',4,-650); fourth.dps=100; allies[#allies+1]=fourth
+advance(); assert(Gank.GetDesire(lion,J)==nil and fourth.shaiGankPlan==nil,'Failed expansion does not reserve extra bots')
+engaged(); enemies[#enemies+1]=hero('backup1',11,200); enemies[#enemies+1]=hero('backup2',12,300)
+fourth=hero('npc_dota_hero_luna',4,-650); allies[#allies+1]=fourth
+advance(); assert(Gank.GetDesire(lion,J)==nil and fourth.shaiGankPlan==nil,'Reinforcement cannot override enemy backup safety')
 engaged(); local survivorPlan=lion.shaiGankPlan
 sniper.hp=100; target.hp=900; target.stunned=true; advance()
 assert(Gank.GetDesire(lion,J)==0.97 and lion.shaiGankPlan==survivorPlan and sniper.shaiGankPlan==nil,
@@ -214,7 +244,8 @@ advance(); assert(GetDesire()==0.97); roam.Think(); assert(lion.action=='lion_vo
 local casts=0
 local callback=dofile('.tools/lua/shai-ability-callback.lua') -- extracted from real source by Test-SHAI.ps1
 local invoke=callback(lion,J,Gank,{Observe=function() end},{BehaviorTrace=false},{ThinkLess=0},
-    {SkillsComplement=function() casts=casts+1 end},function() return false end,true,lion.name)
+    {SkillsComplement=function() casts=casts+1 end},function() return false end,true,lion.name,
+    {ReleaseObjective=function() return false end})
 lion.lastAbilityFrameProcessTime=nil; lion.frameProcessTime=0.1
 invoke(); assert(casts==0,'Generic callback honors control landing reservation')
 advance(); advance(); target.stunned=true; invoke(); assert(casts==1,'Generic callback resumes damage dispatch on disabled target')

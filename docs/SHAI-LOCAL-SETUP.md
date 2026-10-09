@@ -60,6 +60,17 @@ Při souhlasu zvolení boti dostanou na 30 herních sekund zvýšenou prioritu R
 
 Typické odpovědi: `Yes, we can try Roshan. Group up - I will reassess if it becomes unsafe.`, `Not yet - we need more damage.`, `Not now - defend our base.` Důvod se zapisuje i jako `[SHAI] roshan-request`. Pokud mód některého bota ještě nemá inicializovaný evaluator, bot se nepovažuje za připraveného. Odhad poškození není simulace odrazu/útoků Roshana, healů, spellů ani plné fyzické redukce podle aktuálního patche; schopnost přežít se odhaduje HP/rolí/úrovní. Skutečnou jednu odpověď a přesun skupiny je potřeba potvrdit v novém zápase.
 
+## Dočasné zastavení objektivů
+
+- `!stop roshan` (také `!stop rosh`) zakáže dobrovolný Roshan plán na 60 herních sekund a zruší přijatou výzvu.
+- `!stop tormentor` zakáže Tormentor včetně scoutingu/svolávání na 60 herních sekund.
+- `!stop objectives` zastaví oba tyto objektivy. Runy/Wisdom ani bojové ganky tím nejsou zakázané.
+- `!normal` okamžitě odstraní obě blokace. Neobnoví zrušenou starou Roshan výzvu; pro novou lze znovu napsat `!roshan` při dodržení jeho chatového cooldownu.
+
+Příkaz přijímá jen od lidského spoluhráče; funguje i při jeho smrti a při odeslání do all chatu. Odpovídá jeden bot anglicky, přednostně živý. Zákaz dostanou také mrtví boti pro případ respawnu; při smrti všech botů je zvolen jeden z nich jako správce. Skutečný chat/callback a přenos polí mezi boty, zejména během smrti, musí ještě ověřit klient. Opakování příkazu po více než jedné sekundě prodlouží blokaci od nového času. `!normal` nečeká na cooldown odpovědí k Roshanovi.
+
+Zákaz snižuje prioritu skutečných módů na nulu. Vlastní Tormentor Think a generic callback také nahrazují starý objektivový pohyb/útok ústupem, než engine přepne mód. Hero/item helpery respektují veto pro další dobrovolné kouzlení na objektiv. Nezruší probíhající cast/channel/teleport a nevymaže aktuální hero cíl při sebeobraně. Log obsahuje `[SHAI] objective-command`; Tormentor reason může být `player-veto`. Jde o implementaci ověřenou simulovanými scénáři, nikoli zatím novým zápasem.
+
 ## Když se zápas nespustí
 
 Čekání na hledání lobby/serveru je potřeba odlišit od prodlev při výběru hrdinů. Zkontrolovat **Local Host**; samotné nastavení Local Dev Script neurčuje hostování zápasu. Zkrácení draftu neřeší hledání serveru.

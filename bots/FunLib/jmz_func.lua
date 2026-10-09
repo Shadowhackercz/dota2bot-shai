@@ -1,4 +1,5 @@
 local J = {}
+local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 
 local bDebugMode = ( 1 == 10 )
 local tAllyIDList = GetTeamPlayers( GetTeam() )
@@ -1664,7 +1665,7 @@ function J.IsDoingRoshan( bot )
 
 	local mode = bot:GetActiveMode()
 
-	return mode == BOT_MODE_ROSHAN
+	return mode == BOT_MODE_ROSHAN and not ObjectiveCommands.IsBlocked(bot,'roshan')
 
 end
 
@@ -5537,7 +5538,7 @@ function J.IsTormentor(nTarget)
 end
 
 function J.IsDoingTormentor(bot)
-	return bot:GetActiveMode() == BOT_MODE_SIDE_SHOP
+	return bot:GetActiveMode() == BOT_MODE_SIDE_SHOP and not ObjectiveCommands.IsBlocked(bot,'tormentor')
 end
 
 function J.IsLocationInChrono(loc)

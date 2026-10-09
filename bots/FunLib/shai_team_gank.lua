@@ -62,7 +62,7 @@ local function Healthy(h, J, initial)
         and not h:IsStunned() and not h:IsHexed() and not h:HasModifier('modifier_teleporting')
         and h:GetActiveMode() ~= BOT_MODE_EVASIVE_MANEUVERS
         and (not initial or (not J.CanNotUseAction(h) and h:GetActiveMode() ~= BOT_MODE_RETREAT
-            and h:GetActiveMode() ~= BOT_MODE_ROSHAN and h:GetActiveMode() ~= BOT_MODE_TORMENTOR))
+            and h:GetActiveMode() ~= BOT_MODE_ROSHAN and h:GetActiveMode() ~= BOT_MODE_SIDE_SHOP))
 end
 
 local function CombatReady(h,target,J,engaged)
@@ -142,6 +142,46 @@ local function Cancel(leader,plan,reason)
     leader.shaiGankRetry=DotaTime()+20
 end
 
+local function Reinforce(plan,allies,J,reason)
+    if reason~='insufficient-damage' and reason~='insufficient-control' and reason~='group-not-ready' then return false end
+    local engaged=plan.phase=='engage'
+    local selected,seen,candidates={},{},{}
+    for _,h in ipairs(plan.members) do selected[#selected+1]=h; seen[h:GetPlayerID()]=true end
+    local defenses=Defenses(plan.target)
+    for _,h in pairs(allies) do
+        if Healthy(h,J,true) and not seen[h:GetPlayerID()]
+            and GetUnitToUnitDistance(h,plan.target)<=(engaged and 1100 or 2400)
+            and GetUnitToUnitDistance(h,plan.target)/math.max(200,h:GetCurrentMovementSpeed())<=8
+            and (h.shaiGankPlan==nil or h.shaiGankPlan==plan) then
+            local retaliation=plan.target:GetEstimatedDamageToTarget(true,h,2,DAMAGE_TYPE_ALL)
+            if retaliation<h:GetHealth()*0.85 or #Controls(h,plan.target,defenses,false)>0 then
+                candidates[#candidates+1]=h
+            end
+        end
+    end
+    table.sort(candidates,function(a,b)
+        local da,db=GetUnitToUnitDistance(a,plan.target),GetUnitToUnitDistance(b,plan.target)
+        if da==db then return a:GetPlayerID()<b:GetPlayerID() end
+        return da<db
+    end)
+    for _,h in ipairs(candidates) do
+        if #selected>=5 then break end
+        selected[#selected+1]=h
+        if Assess(selected,plan.target,J,engaged,engaged) then
+            local oldCount=#plan.members
+            plan.members=selected
+            for _,member in ipairs(selected) do member.shaiGankPlan=plan end
+            if SHAI.BehaviorTrace then
+                print(string.format('[SHAI] gank-reinforce t=%.2f; target=%s; reason=%s; old=%d; members=%d; phase=%s',
+                    DotaTime(),plan.name,reason,oldCount,#selected,plan.phase))
+            end
+            return true
+        end
+    end
+    -- Do not publish reservations for extra bots unless the expanded plan is viable.
+    return false
+end
+
 function X.Update(bot,J)
     local now=DotaTime()
     if now<600 then bot.shaiGankPlan=nil; bot.shaiTeamGank=nil; bot.shaiGankChecked=nil; bot.shaiGankRetry=nil; return end
@@ -161,22 +201,24 @@ function X.Update(bot,J)
     if plan~=nil then
         if now<plan.created or now>=plan.expires then Cancel(leader,plan,'expired'); return end
         if not Visible(plan.target,J) then Cancel(leader,plan,'target-unavailable'); return end
-        if plan.phase=='engage' then
-            local remaining={}
-            for _,h in ipairs(plan.members) do
-                if CombatReady(h,plan.target,J,true) then remaining[#remaining+1]=h
-                else
-                    if SHAI.BehaviorTrace then
-                        print(string.format('[SHAI] gank-member t=%.2f; hero=%s; reason=wounded-or-unready',now,h:GetUnitName()))
-                    end
-                    h.shaiGankPlan=nil
-                    if h:GetTarget()==plan.target then h:SetTarget(nil) end
+        local remaining={}
+        for _,h in ipairs(plan.members) do
+            if CombatReady(h,plan.target,J,plan.phase=='engage') and GetUnitToUnitDistance(h,plan.target)<=2600 then
+                remaining[#remaining+1]=h
+            else
+                if SHAI.BehaviorTrace then
+                    print(string.format('[SHAI] gank-member t=%.2f; hero=%s; reason=wounded-unready-or-distant',now,h:GetUnitName()))
                 end
+                h.shaiGankPlan=nil
+                if h:GetTarget()==plan.target then h:SetTarget(nil) end
             end
-            plan.members=remaining
         end
+        plan.members=remaining
         local landing=plan.controlUntil~=nil and now<plan.controlUntil
         local safe,reason=Assess(plan.members,plan.target,J,false,plan.phase=='engage',landing)
+        if not safe and Reinforce(plan,allies,J,reason) then
+            safe,reason=Assess(plan.members,plan.target,J,false,plan.phase=='engage',landing)
+        end
         if not safe then Cancel(leader,plan,reason); return end
         plan.updated=now
         local close,_,closeOpener=Assess(plan.members,plan.target,J,true,plan.phase=='engage',landing)
