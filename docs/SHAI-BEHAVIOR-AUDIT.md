@@ -1,5 +1,19 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Lion: farm Spike, skutečný damage a tower safety — 9. října
+
+Pudge test hlásil Lionův creep stun pod enemy T2 a pozdější nevyužité farm Q při dvou zbylých neutrálech. Kód skutečně obsahoval tři oddělené farm/push větve, pevnou podmínku nejméně tří neutrálů a kruhový `FindAoELocation` pro liniové kouzlo. Farm Q bylo navíc dispatchované jako control s nil cílem, takže pod Curse nemuselo projít optional-farm pravidlem. Nový `shai_lion_farm` tyto farm větve nahrazuje jedním konzervativním kandidátem; neprohlašujeme tím zpětně dokázanou příčinu všech tehdejších pohybů.
+
+Cast je dovolen pouze ve farm/push/defend, při naučeném Q alespoň druhé úrovně, bez hero cíle/viditelného skutečného hrdiny do 1600, farm hrozby/krátké paměti, recent hero damage a HP pod 45 %. Viditelná věž mířící na Liona nebo s Lionem v dosahu +100 odmítne dobrovolný farm cast. Creep a jeho odhadnutá pozice po cast pointu a letu musí být v raw cast range minus 25. Neobnovuje se starý AoE příkaz, který by mohl nejprve popojít do dosahu. Neukládá se nová farm cesta ani pohyb k lepšímu úhlu.
+
+Odhad pracuje s predikovanými viditelnými creep pozicemi, úzkou přímou linií (75 % width), skutečnou odolností, damage capped aktuálním HP a minimem dvou zasažitelných creepů. Užitečný součet musí odpovídat alespoň 2,5 raw autoattackům. Dva téměř mrtví creepové nejsou důvod k plýtvání kouzlem. Neznámý width/speed/damage a nevalidní vektor nepřidají hypotetický zásah. Cone talent, collision hull, length buffer a cast-range bonusy nezvětšují zdejší konzervativní model; skutečný engine může zasáhnout víc. Extrapolace sama nezaručí pohyb po nové cestě ani přesný hit.
+
+Mana po Q musí pokrýt základ 100 a mana cost současně ready naučeného Hexu/Fingeru. Finger na cooldownu neblokuje farmu svou nedostupnou rezervou. Safe užitečný Spike předchází volitelnému creep Drainu; blízký hero nebo intended hero target tuto prioritu nepovolí. Optional Spike používá `farm` cast purpose a stejný recheck v native dispatchi, důležitý control se plošně nezakazuje. Jde o první ekonomiku tohoto kouzla, nikoli úplné pořadí všech Lionových schopností nebo ochranu last hitů spojenců.
+
+Ověření [Valve hero feedu Lion](https://www.dota2.com/datafeed/herodata?language=english&hero_id=26) doložilo Earth Spike specials `damage`, `width` a `speed`; základní damages pole je nulové. Native Q kill odhad nyní čte damage special, stejně jako nový farm helper, místo spoléhání na `GetAbilityDamage`. Runtime si konkrétní čísla načítá z ability.
+
+`[SHAI] farm-spell` zaznamenává vydaný `lion-spike` s odhadem zásahů/damage a rezervou many; odmítnutí `unsafe-farm`, `preserve-control-near-hero`, `tower-danger`, `reserve-control-mana` a `no-useful-line` jsou omezená na jednu zprávu za 3 s. Nejde o záznam každého odmítnutého kandidáta. Analyzer načítá tento nový typ. Ověření: 25 Lua a dvě PowerShell sady, syntax 325 Lua souborů. Nový test skutečného helperu/hero dispatchi pokrývá dva neutrály, nevhodný kruh/pohyb/dosah, fog/imunitu/glyph, trivial damage, manu/cooldown, hero/paměť/threat/tower, Curse purpose, zachování laningu/retreat/busy a dispatch před Drainem. Herní kvalita míření, engine dosah/poškození a farm efektivita zůstávají otevřené.
+
 ## Hotová invis a WK dočasný život — 9. října
 
 `shai_invisible_escape` se uplatní pouze při skutečné item invis (Glimmer, Shadow Blade, Silver Edge), ústupu/konkrétní hrozbě či nízkém HP. Běžný zdravý offensive windwalk nemění. Společné ability/item callbacky a team-roam dávají přednost úniku před odhalujícím útokem nebo volitelným spellem. Existující lokální route helper nabídne legální mezibody od viditelného soupeře; bez místní hrozby bot pokračuje domů. Dust/Track/Amplify, viditelný gem do 1000 či věž do 900 uvolní guard, aby původní save/control mohl reagovat na odhaleného bota. Inventář/poloha skrytého nepřítele se nečte.

@@ -12,6 +12,7 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local FarmSpike = require(GetScriptDirectory()..'/FunLib/shai_lion_farm')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -183,7 +184,7 @@ local talent4 = bot:GetAbilityByName( sTalentList[4] )
 local talent5 = bot:GetAbilityByName( sTalentList[5] )
 local talent8 = bot:GetAbilityByName( sTalentList[8] )
 
-local castQDesire, castQLocation
+local castQDesire, castQLocation, castQPurpose
 local castWDesire, castWTarget
 local castEDesire, castETarget
 local castRDesire, castRTarget
@@ -230,6 +231,16 @@ function X.SkillsComplement()
 	end
 	
 
+	-- Safe, funded creep damage precedes an optional creep Mana Drain.
+	local farmSpike=FarmSpike.GetPlan(bot,J,abilityQ)
+	if farmSpike~=nil then
+		J.SetQueuePtToINT(bot,true)
+		bot:ActionQueue_UseAbilityOnLocation(abilityQ,farmSpike.location)
+		lastCastQTime=DotaTime()
+		FarmSpike.Trace(bot,farmSpike)
+		return
+	end
+
 	castEDesire, castETarget, sMotive = X.ConsiderE()
 	if ( castEDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityE,castETarget,'channel')
 	then
@@ -255,8 +266,9 @@ function X.SkillsComplement()
 	end
 
 
-	castQDesire, castQLocation, sMotive = X.ConsiderQ()
-	if ( castQDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityQ,nil,'control')
+	castQDesire, castQLocation, sMotive, castQPurpose = X.ConsiderQ()
+	if ( castQDesire > 0 ) and (castQPurpose=='farm' and CastSafety.Allow(bot,J,abilityQ,'farm')
+		or castQPurpose~='farm' and CastSafety.AllowDecision(bot,J,abilityQ,nil,'control'))
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -356,7 +368,7 @@ function X.ConsiderQ()
 	local nRadius	 = abilityQ:GetSpecialValueInt( "width" )
 	local nCastPoint = abilityQ:GetCastPoint()
 	local nManaCost = abilityQ:GetManaCost()
-	local nDamage = abilityQ:GetAbilityDamage()
+	local nDamage = abilityQ:GetSpecialValueInt('damage')
 	local nDamageType = DAMAGE_TYPE_MAGICAL
 	local nInRangeEnemyList = J.GetNearbyHeroes(bot, nCastRange, true, BOT_MODE_NONE )
 	local nInBonusEnemyList = J.GetNearbyHeroes(bot, nCastRange + 200, true, BOT_MODE_NONE )
@@ -431,55 +443,10 @@ function X.ConsiderQ()
 	end
 
 
-	--Farm
-	if J.IsFarming( bot )
-		and nSkillLV >= 2
-		and J.GetManaAfter( nManaCost ) > 0.3
-	then
-		local nNeutralCreeps = bot:GetNearbyNeutralCreeps( nCastRange )
-		if #nNeutralCreeps >= 3
-		then
-			local locationAoE = bot:FindAoELocation( true, false, bot:GetLocation(), nCastRange, nRadius + 50, 0, 0 )
-			if locationAoE.count >= 2
-			then
-				nTargetLocation = locationAoE.targetloc
-				return BOT_ACTION_DESIRE_HIGH, nTargetLocation, "Q-打钱:"..locationAoE.count
-			end
-		end
-		local nLaneCreeps = bot:GetNearbyLaneCreeps( nCastRange, true )
-		if #nLaneCreeps >= 3
-		then
-			local locationAoE = bot:FindAoELocation( true, false, bot:GetLocation(), nCastRange, nRadius + 50, 0, 0 )
-			if locationAoE.count >= 3
-			then
-				nTargetLocation = locationAoE.targetloc
-				return BOT_ACTION_DESIRE_HIGH, nTargetLocation, "Q-Farm:"..locationAoE.count
-			end
-		end
+	local farmSpike=FarmSpike.GetPlan(bot,J,abilityQ)
+	if farmSpike~=nil then
+		return BOT_ACTION_DESIRE_HIGH,farmSpike.location,'Q-SHAI-farm','farm'
 	end
-
-
-	--Push
-	if ( J.IsPushing( bot ) or J.IsDefending( bot ) or J.IsFarming( bot ) )
-		and J.IsAllowedToSpam( bot, nManaCost )
-		and nSkillLV >= 4 and DotaTime() > 9 * 60
-		and #hAllyList <= 2 and #hEnemyList == 0
-		and not bot:HasScepter()
-	then
-		local laneCreepList = bot:GetNearbyLaneCreeps( 1300, true )
-		if #laneCreepList >= 5
-			and J.IsValid( laneCreepList[1] )
-			and not laneCreepList[1]:HasModifier( "modifier_fountain_glyph" )
-		then
-			local locationAoEHurt = bot:FindAoELocation( true, false, bot:GetLocation(), nCastRange, nRadius + 90, 0, 0 )
-			if locationAoEHurt.count >= 3
-			then
-				nTargetLocation = locationAoEHurt.targetloc
-				return BOT_ACTION_DESIRE_HIGH, nTargetLocation, "Q-推线"..locationAoEHurt.count
-			end
-		end
-	end
-
 
 	--Roshan
 	if J.IsDoingRoshan( bot )
@@ -517,22 +484,6 @@ function X.ConsiderQ()
 			then
 				nTargetLocation = npcEnemy:GetLocation()
 				return BOT_ACTION_DESIRE_HIGH, nTargetLocation, 'Q-常规'
-			end
-		end
-	end
-
-	--Farming: use Earth Spike on neutral creeps
-	if J.IsFarming( bot )
-		and J.GetManaAfter( nManaCost ) > 0.3
-		and nSkillLV >= 2
-	then
-		local nNeutralCreeps = bot:GetNearbyNeutralCreeps( nCastRange )
-		if nNeutralCreeps ~= nil and #nNeutralCreeps >= 3
-		then
-			local locationAoE = bot:FindAoELocation( true, false, bot:GetLocation(), nCastRange, nRadius + 50, 0, 0 )
-			if locationAoE.count >= 3
-			then
-				return BOT_ACTION_DESIRE_HIGH, locationAoE.targetloc, 'Q-Farm neutrals'
 			end
 		end
 	end

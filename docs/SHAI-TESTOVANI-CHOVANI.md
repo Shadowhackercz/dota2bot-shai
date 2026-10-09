@@ -1,6 +1,8 @@
 # Analýza chování SHAI
 
-Navazující sada po Pudge testu má 24 Lua + dvě PowerShell sady, syntax 323 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+Navazující sada po Pudge testu má 25 Lua + dvě PowerShell sady, syntax 325 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+
+Lion: pozorovat farm Q se dvěma zbývajícími srovnanými neutrály, safe creep clear z dosahu bez chůze pod enemy věž a odmítnutí při blízkém hero/Curse/nedostatku rezervy. `[SHAI] farm-spell` loguje vydání, odhad počtu zásahů/damage a rezervu nebo vybrané odmítací důvody. Porovnat odhad s reálným zásahem a manou; extrapolace a `hits=2` nejsou doklad dvou engine damage eventů. Ověřit, že se pod hrozbou obnoví ústup nebo hero control, nikoli stará duplicitní farm větev. Creepové se zbytkovým HP nemají přimět bota k plýtvání Spikem; původní opening laning se touto farm větví nezapíná.
 
 Nově cíleně pozorovat hotovou Glimmer/invis: po fade nezrušit únik kvůli útoku do creepa; při dust/gemu/věži dovolit save/control; safe TP domů zachovat, při blízké viditelné hrozbě/projectile jej nezahajovat. Aktuální skupinový engage může invis záměrně přerušit. Trace `[SHAI] invis` má důvody `preserve-escape`, `safe-home-tp`, `known-detection`, `visible-gem`, `enemy-tower`. Směr sám nedokazuje ztrátu enemy vision ani bezpečný úkryt mezi stromy.
 
