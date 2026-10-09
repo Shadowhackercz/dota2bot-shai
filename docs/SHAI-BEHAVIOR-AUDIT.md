@@ -1,5 +1,13 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Bottle a záměr pingu — 9. října
+
+Původní assemble přijímal jednotlivý běžný ping a opakovaným čtením stejného záznamu prodlužoval deadline. Nový `shai_ping_intent` sleduje všechny živé lidské spoluhráče odděleně: dva pozorované normální pingy stejného hráče do 1,5 s a 400 jednotek vytvoří jednorázovou výzvu. Platnost končí pět sekund po druhém pingu, příchodem do 500 jednotek nebo opuštěním módu; ústup, recent hero damage a teamfight ji odmítnou/přeruší. Think zachovává cast/channel/queue guard. Danger ping výzvu nevytvoří a přeruší skládání dvojice; sám neruší dříve přijatou výzvu. API poskytuje jen poslední ping, takže dvě kliknutí mezi pozorováními mohou být přehlédnuta. Nejde o bezpečnostní plán celé cesty ani příkaz ke sběru lotusu.
+
+`shai_rune_share` před výběrem dostupné posthorn říční runy a před dispatch v Think nechá prostor blízkému, skutečně přibližujícímu se spoluhráči s Bottle v hlavním inventáři. Musí být do 900 jednotek a odhadnutých 2,5 s podle rychlosti, bez channel/stun/hex/root a s nejméně 35 % HP. Water má smysl pro Bottle s méně než třemi charges; power rune i pro plnou Bottle. Bot s vlastní užitečnou Bottle příležitostí nebo HP pod 35 % nečeká; viditelný/recent enemy do 1200 čekání také odmítne. Existující rune safety dál rozhoduje, zda je pickup bezpečný. Lease trvá nejvýše tři sekundy a jiný spoluhráč jej neprodlouží. Předem vydaný pickup se neruší. Bounty/Wisdom se touto předností nemění; ETA není pathfinding ani ověření obsahu uložené Bottle runy.
+
+Obyčejný ping již sám nerezervuje runu pro člověka; přímý pickup nebo skutečný pohyb k runě zůstává lidským záměrem. Danger veto runy má krátké osmivteřinové okno a odmítá budoucí timestamp. Trace `rune-share` a `ping-intent` zachovává analyzátor. Mocky ověřují deadline, konkurenci, idle/backpack/full water Bottle, více lidí, časy/vektory a skutečné módové callbacky; herní výsledek čeká na nový test.
+
 ## Lion: farm Spike, skutečný damage a tower safety — 9. října
 
 Pudge test hlásil Lionův creep stun pod enemy T2 a pozdější nevyužité farm Q při dvou zbylých neutrálech. Kód skutečně obsahoval tři oddělené farm/push větve, pevnou podmínku nejméně tří neutrálů a kruhový `FindAoELocation` pro liniové kouzlo. Farm Q bylo navíc dispatchované jako control s nil cílem, takže pod Curse nemuselo projít optional-farm pravidlem. Nový `shai_lion_farm` tyto farm větve nahrazuje jedním konzervativním kandidátem; neprohlašujeme tím zpětně dokázanou příčinu všech tehdejších pohybů.

@@ -1,6 +1,8 @@
 # Analýza chování SHAI
 
-Navazující sada po Pudge testu má 25 Lua + dvě PowerShell sady, syntax 325 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+Navazující sada po Pudge testu má 26 Lua + dvě PowerShell sady, syntax 328 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+
+Bottle/ping: zkusit blízkého spoluhráče s Bottle, který skutečně jde k runě, potom idle/backpack/plnou water Bottle a blízkého soupeře. Čekání nesmí překročit tři sekundy; již vydaný pickup se neruší. Jeden běžný ping na Wisdom/lotus nemá svolat tým. Dva normální pingy stejného hráče na stejné místo do 1,5 s mají vytvořit krátkou assemble výzvu, kterou starý ping neprodlužuje. Ověřit více lidí a přerušení při boji/ústupu. Logy: `[SHAI] rune-share` a `[SHAI] ping-intent`; ty potvrzují rozhodnutí, nikoli skutečný capture runy.
 
 Lion: pozorovat farm Q se dvěma zbývajícími srovnanými neutrály, safe creep clear z dosahu bez chůze pod enemy věž a odmítnutí při blízkém hero/Curse/nedostatku rezervy. `[SHAI] farm-spell` loguje vydání, odhad počtu zásahů/damage a rezervu nebo vybrané odmítací důvody. Porovnat odhad s reálným zásahem a manou; extrapolace a `hits=2` nejsou doklad dvou engine damage eventů. Ověřit, že se pod hrozbou obnoví ústup nebo hero control, nikoli stará duplicitní farm větev. Creepové se zbytkovým HP nemají přimět bota k plýtvání Spikem; původní opening laning se touto farm větví nezapíná.
 

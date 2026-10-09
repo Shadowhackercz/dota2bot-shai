@@ -40,10 +40,20 @@ function bot:IsBot() return true end
 function human:IsAlive() return true end
 function human:IsBot() return false end
 function human:GetMostRecentPing()
-    return state.pingTime and {normal_ping=true, time=state.pingTime, location=GetRuneSpawnLocation(state.rune)} or nil
+    return state.pingTime and {normal_ping=not state.dangerPing, time=state.pingTime, location=GetRuneSpawnLocation(state.rune)} or nil
 end
-function human:IsFacingLocation() return state.claim end
-function human:GetCurrentActionType() return state.claim and BOT_ACTION_TYPE_PICK_UP_RUNE or 1 end
+BOT_ACTION_TYPE_MOVE_TO,BOT_MODE_RUNE=3,4
+function human:IsFacingLocation() return state.claim or state.approaching end
+function human:GetCurrentActionType() return state.claim and BOT_ACTION_TYPE_PICK_UP_RUNE or state.approaching and BOT_ACTION_TYPE_MOVE_TO or 1 end
+function human:FindItemSlot() return state.humanBottle and (state.humanBottleSlot or 0) or -1 end
+function human:GetItemInSlot() return {GetCurrentCharges=function() return state.humanCharges or 0 end} end
+function human:GetCurrentMovementSpeed() return 300 end
+function human:GetUnitName() return 'npc_dota_hero_storm_spirit' end
+function human:IsChanneling() return state.humanChannel or false end
+function human:IsStunned() return false end
+function human:IsHexed() return false end
+function human:IsRooted() return false end
+function support:FindItemSlot() return -1 end
 function human:GetEstimatedDamageToTarget() return state.incoming end
 function bot:GetHealth() return state.hp * 1000 end
 function bot:GetAttackRange() return 600 end
@@ -104,6 +114,7 @@ local function setup(changes)
         bottle=true, incoming=100, enemies={}, lastHit=false, damaged=false, mp=1}
     for key, value in pairs(changes or {}) do state[key] = value end
     bot.rune = nil
+    bot.shaiBottleShare=nil
     dofile('bots/mode_rune_generic.lua')
 end
 setup()
@@ -149,9 +160,35 @@ assert(GetDesire() > 0, 'Ineligible nearby support must not block eligible mid c
 setup({human=true, claim=true, humanDistance=100})
 assert(GetDesire() == 0, 'Respect clear allied pickup intent')
 setup({human=true, pingTime=120})
-assert(GetDesire() == 0, 'Respect fresh explicit allied rune ping')
+assert(GetDesire() > 0, 'A normal informational rune ping does not claim the rune')
 setup({human=true, pingTime=100})
 assert(GetDesire() > 0, 'Expired claim must not suppress pickup')
+setup({human=true,pingTime=120,dangerPing=true})
+assert(GetDesire()==0,'Fresh danger ping remains a short avoidance signal')
+setup({human=true,pingTime=130,dangerPing=true})
+assert(GetDesire()>0,'Future danger timestamp does not create a permanent veto')
+setup({human=true,bottle=false,humanBottle=true,approaching=true,humanDistance=700})
+assert(GetDesire()==0,'Approaching nearby Bottle owner receives a short priority opportunity')
+state.time=124.1
+assert(GetDesire()>0,'Uncollected rune is available to the bot after the fixed three-second deadline')
+Think(); assert(state.action=='pickup','Expired handoff does not leave an idle pickup controller')
+setup({human=true,bottle=false,humanBottle=true,humanDistance=700})
+assert(GetDesire()>0,'Idle Bottle owner does not reserve a rune indefinitely')
+setup({human=true,bottle=false,humanBottle=true,approaching=true,humanDistance=1400})
+assert(GetDesire()>0,'Distant Bottle owner does not cause a wasted wait')
+setup({human=true,bottle=false,humanBottle=true,approaching=true,humanDistance=700,humanBottleSlot=7})
+assert(GetDesire()>0,'Backpack Bottle does not receive active item priority')
+setup({human=true,bottle=false,humanBottle=true,approaching=true,humanDistance=700,humanCharges=3})
+assert(GetDesire()>0,'Full allied Bottle does not justify waiting for a water refill')
+setup({human=true,bottle=false,humanBottle=true,approaching=true,humanDistance=700,humanCharges=3,time=601})
+assert(GetDesire()==0,'Power rune storage is useful to the approaching Bottle owner even with full charges')
+setup({human=true,bottle=false,humanBottle=true,approaching=true,humanDistance=700,recentEnemies={6}})
+assert(GetDesire()>0,'Known nearby competition secures a safe rune rather than waiting for Bottle')
+setup({human=true,bottle=false,humanBottle=true,humanDistance=700})
+assert(GetDesire()>0); state.approaching=true
+Think(); assert(state.action~='pickup','Pickup dispatch rechecks newly approaching Bottle owner')
+state.humanChannel=true
+Think(); assert(state.action=='pickup','Channeling ally is not promised immediate collection')
 setup({enemies={human}})
 assert(GetDesire() > 0, 'Safe 1v1 must not be conceded')
 Think(); assert(state.action == 'pickup', 'Secure close rune before attacking')

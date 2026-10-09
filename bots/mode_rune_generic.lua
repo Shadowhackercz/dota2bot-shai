@@ -1,6 +1,7 @@
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local X = {}
 local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
+local RuneShare = require(GetScriptDirectory()..'/FunLib/shai_rune_share')
 local Customize = require(GetScriptDirectory()..'/Customize/general')
 Customize.ThinkLess = Customize.Enable and Customize.ThinkLess or 1
 
@@ -30,14 +31,8 @@ local function IsHumanClaimingRune(nRune)
 		if member ~= nil and member:IsAlive() and not member:IsBot() then
 			local distance = GetUnitToLocationDistance(member, vRuneLoc)
 			if distance <= 600 and distance <= botDistance + 100
-			and (distance <= 150 or member:IsFacingLocation(vRuneLoc, 30)
+			and (distance <= 150 or member:IsFacingLocation(vRuneLoc, 30) and member:GetCurrentActionType()==BOT_ACTION_TYPE_MOVE_TO
 				or member:GetCurrentActionType() == BOT_ACTION_TYPE_PICK_UP_RUNE) then
-				return true
-			end
-			local ping = member:GetMostRecentPing()
-			if ping ~= nil and ping.normal_ping
-			and J.GetDistance(ping.location, vRuneLoc) < 800
-			and GameTime() - ping.time >= 0 and GameTime() - ping.time < 5 then
 				return true
 			end
 		end
@@ -420,6 +415,7 @@ local function ModeThinkInternal()
 		rune.distance = GetUnitToLocationDistance(bot, GetRuneSpawnLocation(rune.location))
 
 		local vRuneLocation = GetRuneSpawnLocation(rune.location)
+		if rune.status==RUNE_STATUS_AVAILABLE and RuneShare.Yield(bot,J,rune.location,vRuneLocation) then return end
 		if rune.status == RUNE_STATUS_MISSING and not RiverPreSpawnWindow() then
 			if rune.distance <= 250 then
 				rune.checked = rune.checked or {}
@@ -571,6 +567,7 @@ function X.GetBestRune()
 		if X.IsTheClosestAlly(bot, vRuneLocation, rune)
 		and not X.IsPingedByHumanPlayer(vRuneLocation, math.huge)
 		and not IsHumanClaimingRune(rune)
+		and not RuneShare.Yield(bot,J,rune,vRuneLocation)
 		and not X.IsMissing(rune)
 		and X.IsRuneSafe(rune)
 		then
@@ -655,7 +652,7 @@ end
 --------------------------------------------------------------------
 -- Utility functions
 --------------------------------------------------------------------
-local pingTimeDelta = 30
+local pingTimeDelta = 8
 function X.IsPingedByHumanPlayer(vLocation, nRadius)
 	for i = 1, 5 do
 		local member = GetTeamMember(i)
@@ -667,7 +664,7 @@ function X.IsPingedByHumanPlayer(vLocation, nRadius)
 			if ping then
 				if not ping.normal_ping
 				and J.GetDistance(ping.location, vLocation) <= 800
-				and GameTime() - ping.time < pingTimeDelta
+					and GameTime() - ping.time >= 0 and GameTime() - ping.time < pingTimeDelta
 				then
 					return true
 				end

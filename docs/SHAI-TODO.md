@@ -24,8 +24,9 @@ Celý log i replay jsou zachované; [rozbor a všechny podněty](SHAI-MATCH-9036
 - [ ] **P2: invis a WK — herní ověření a rozšíření.** Potvrdit modifier/délku ducha, casty/útoky/expiraci, reakci na detekci a skutečný únik/TP. Doplnit úkryty podle terénu/vision a vhodné offensive itemy; úspěšné mock scénáře nejsou ověřené herní chování.
 - [x] **P2: Lion — první bezpečný farm Spike.** Dva skutečně vhodně srovnaní creepové mohou stačit; odhad linie používá extrapolaci během castu/letu, skutečný `damage` special, odolnost a užitečný damage oproti autoattackům. Cast location zůstává v současném konzervativním dosahu, bez chůze pod věž. Viditelný hero/krátká paměť, tower threat, recent damage/nízké HP a mana rezerva na ready Hex/Finger mohou farm cast odmítnout. Užitečný safe creep Spike předchází volitelnému creep Drainu. Duplicitní staré farm větve odstraněné; creepový purpose je farm i pod Curse, důležitý hero control zůstává odlišný.
 - [ ] **P2: ekonomika spellů a wardy — další práce a runtime.** Ve hře ověřit Lionovo míření, skutečný dosah/poškození, chování u věže, manu a rozdíl proti dvěma zbývajícím neutrálům; nejde o úplný farm/pathfinding plán, ochranu last hitů spoluhráče ani všechny control situace. Dále Zeus bezpečné Q last hity/harass, kvalita observer/sentry a deward příležitosti. Wardění existuje a v replayi jsou ward casts.
-- [ ] **P2: týmové zdroje a komunikace.** Blízký Bottle spoluhráč má rozumnou prioritu runy a omezené čekání/ping. Informační ping na Wisdom/lotus nebrat bez dalšího jako rozkaz. Hláška „<1 %“ je jen kill-gap/random threshold, nahradit poctivým textem a zachovat obranu.
-- [ ] Po dokončení souvisejících oprav cílený nový zápas; nová sada prošla **25 Lua a dvěma PowerShell sadami**, syntax **325 Lua souborů**. Není to důkaz správného chování v herním enginu. Další hlavní práce: ověření invis/ducha/Lion farm castu, širší bezpečné přesuny, skutečný skupinový engage a rozšíření obrany; zbývající jemnější úkoly jsou níže.
+- [x] **P2: první Bottle přednost a rozlišení pingů.** Blízký přibližující se spoluhráč s Bottle dostane nejvýše tři sekundy na dostupnou říční runu; konkurence a urgentní vlastní potřeba čekání odmítnou. Jeden běžný ping již nespouští assemble; dva pozorované normální pingy stejného hráče do 1,5 s a 400 jednotek vytvoří nejvýše pětisekundovou výzvu. Starý ping neprodlužuje cestu, boj/ústup ji přeruší. Automatický ping pro Bottle spoluhráče přidaný není.
+- [ ] **P2: zdroje/komunikace — herní ověření a další práce.** Ověřit Bottle handoff, deadline a single/double ping v klientu; pokračovat ward/deward kvalitou. Hláška „<1 %“ je jen kill-gap/random threshold, nahradit poctivým textem a zachovat obranu.
+- [ ] Po dokončení souvisejících oprav cílený nový zápas; nová sada prošla **26 Lua a dvěma PowerShell sadami**, syntax **326 Lua souborů**. Není to důkaz správného chování v herním enginu. Další hlavní práce: ověření invis/ducha/Lion farm castu, širší bezpečné přesuny, skutečný skupinový engage a rozšíření obrany; zbývající jemnější úkoly jsou níže.
 
 ### Nejbližší zbývající práce napříč posledními třemi hrami
 
@@ -35,7 +36,7 @@ Celý log i replay jsou zachované; [rozbor a všechny podněty](SHAI-MATCH-9036
 4. **WK dočasný duch:** ověřit nový damage/stun plán a skutečnou dobu modifieru; rozšířit vhodná item/summon komba. Běžná mana rezerva živého WK zůstává.
 5. **Boj a ekonomika spellů:** ověřit nový Lion farm Spike; dále lifesteal/heal/BKB/Manta/Linken, širší finishing a item komba a bezpečný harass. Kill nepovažovat za jistý jen podle počtu spojenců.
 6. **Objektivy:** Tormentor síla/reflect, ověřit Scan API/výsledek, Roshan přesunová trasa, rozšířit glyph o konkrétní relief/waveclear/refresh. První ochrany neznamenají hotový objektivový plán.
-7. **Týmové zdroje a komunikace:** Bottle přednost s krátkým čekáním, rozlišení informačního pingu, kvalita ward/deward a odstranění falešné procentní predikce porážky.
+7. **Týmové zdroje a komunikace:** herně ověřit novou Bottle přednost a single/double ping; dále kvalita ward/deward a odstranění falešné procentní predikce porážky.
 
 ## Potvrzený další postup z posledních dvou zápasů
 

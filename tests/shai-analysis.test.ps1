@@ -21,6 +21,8 @@ try {
         '[SHAI] invis t=1518; hero=witch_doctor; reason=safe-home-tp',
         '[SHAI] wraith t=1519; hero=skeleton_king; reason=stun; target=pudge; remaining=3',
         '[SHAI] farm-spell t=1520; hero=lion; reason=lion-spike; hits=2; damage=255; reserve=380',
+        '[SHAI] rune-share t=1521; hero=lion; reason=bottle-approach; target=zeus; rune=0; until=1524',
+        '[SHAI] ping-intent t=1522; hero=lion; reason=double-ping; player=3',
         'Script Runtime Error: error in error handling',
         'GetUnitToLocationDistance parameter 2: expected vectorws but got void.'
     ) | Set-Content -LiteralPath $fixture.FullName
@@ -41,6 +43,8 @@ try {
         $output -notmatch '\[escape\].*reason=jump-issued; terrain=true; x=100; y=200' -or
         $output -notmatch '\[invis\].*reason=safe-home-tp' -or
         $output -notmatch '\[wraith\].*reason=stun; target=pudge; remaining=3' -or
+        $output -notmatch '\[rune-share\].*reason=bottle-approach; target=zeus; rune=0; until=1524' -or
+        $output -notmatch '\[ping-intent\].*reason=double-ping; player=3' -or
         $output -notmatch '\[farm-spell\].*reason=lion-spike; hits=2; damage=255; reserve=380') { throw "Analyzer lost decision reasons, objective readiness, combat budgets, memory snapshots or runtime failures: $output" }
     'unrelated engine output' | Set-Content -LiteralPath $fixture.FullName
     $rejected = $false
