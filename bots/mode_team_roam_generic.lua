@@ -10,6 +10,7 @@ Customize.ThinkLess = Customize.Enable and Customize.ThinkLess or 1
 local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
 local Stability = require(GetScriptDirectory()..'/FunLib/shai_decision_stability')
 local TeamGank = require(GetScriptDirectory()..'/FunLib/shai_team_gank')
+local CombatFinish = require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
 local Item = require(GetScriptDirectory()..'/FunLib/aba_item')
 local Roles = require(GetScriptDirectory()..'/FunLib/aba_role')
 local AttackSpecialUnit = dofile(GetScriptDirectory()..'/FunLib/aba_special_units')
@@ -31,6 +32,7 @@ local lastIdleStateCheck, isInIdleState = -1, false
 local ShouldHelpAlly, ShouldHelpWhenCoreIsTargeted = false, false
 local nearbyAllies, nearbyEnemies
 local coordinatedGank = false
+local immediateFinish = false
 
 -- Pickup / swap timers
 local PickedItem = nil
@@ -74,7 +76,7 @@ function GetDesire()
     -- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
 
     local res = GetDesireHelper()
-    if coordinatedGank then return res end
+    if coordinatedGank or immediateFinish then return res end
     res = CapForLanePush(res)
 
     -- J.Utils.SetCachedVars(cacheKey, res)
@@ -82,6 +84,7 @@ function GetDesire()
 end
 function GetDesireHelper()
     coordinatedGank = false
+    immediateFinish = false
     ShouldAttackSpecialUnit = false
     hTargetCreep = nil
     if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then
@@ -119,6 +122,12 @@ function GetDesireHelper()
     end
 
     if not HasModifierThatNeedToAvoidEffects() then
+        if CombatFinish.GetPlan(bot,J) ~= nil then
+            immediateFinish = true
+            hTargetCreep, targetUnit = nil, nil
+            -- Ordinary retreat is capped at 1; special escape desires still win.
+            return 1.05
+        end
         local gankDesire = TeamGank.GetDesire(bot,J)
         if gankDesire ~= nil then
             coordinatedGank = true
@@ -318,6 +327,11 @@ function Think()
 
     ItemOpsThink()
 
+    if immediateFinish then
+        -- A stale finish must not fall through to an unrelated attack/farm order.
+        CombatFinish.TryAction(bot,J)
+        return
+    end
     if coordinatedGank and TeamGank.Think(bot,J) then return end
 
 	if J.IsValid(hTargetCreep) then

@@ -205,9 +205,6 @@ function GetDesireHelper()
     if botHP < 0.3 and #nEnemyHeroes >= 2 and bot:WasRecentlyDamagedByAnyHero(1) then
         return RemapValClamped(botHP, 0.5, 0, BOT_MODE_DESIRE_HIGH, BOT_MODE_DESIRE_ABSOLUTE)
     end
-    if X.LowChanceToRun() then
-        return BOT_MODE_DESIRE_MODERATE
-    end
 
     -- Not part of actual retreat
     if (botName == 'npc_dota_hero_lone_druid' and DotaTime() > 25 and DotaTime() < fRetreatFromRoshanTime + 6.5) then
@@ -413,26 +410,6 @@ function GetDesireHelper()
 
     ordinaryRetreat = true
     return Clamp(nDesire, 0, 1.0)
-end
-
-function X.LowChanceToRun()
-    local nEnemysHeroes = J.GetNearbyHeroes(bot, 900, true, BOT_MODE_NONE)
-    if #nEnemysHeroes >= 3 and #nEnemysHeroes >= #nAllyHeroes and botHP < 0.4
-        and bot:WasRecentlyDamagedByAnyHero(1) and bot:GetCurrentMovementSpeed() < 330
-    then
-        if J.IsValidHero(botTarget) and J.CanKillTarget(botTarget, bot:GetAttackDamage() * 2.5, DAMAGE_TYPE_PHYSICAL) then
-            return true
-        end
-        for _, enemy in pairs(nEnemysHeroes) do
-            if J.IsValidHero(enemy) and J.CanKillTarget(enemy, bot:GetAttackDamage() * 2.5, DAMAGE_TYPE_PHYSICAL) then
-                if not J.IsValidHero(botTarget) then
-                    bot:SetTarget(enemy)
-                end
-                return true
-            end
-        end
-    end
-    return false
 end
 
 function X.GetUnitDesire(nRadius)

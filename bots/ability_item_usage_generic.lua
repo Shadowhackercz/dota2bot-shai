@@ -13,6 +13,7 @@ local BehaviorTrace = require(GetScriptDirectory()..'/FunLib/shai_behavior_trace
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local RoshanCommands = require(GetScriptDirectory()..'/FunLib/shai_roshan_commands')
 local TeamGank = require(GetScriptDirectory()..'/FunLib/shai_team_gank')
+local CombatFinish = require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
 local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
@@ -8374,6 +8375,7 @@ function ItemUsageThink()
 	if bot.lastItemFrameProcessTime == nil then bot.lastItemFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastItemFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) then return end
 	bot.lastItemFrameProcessTime = DotaTime()
+	if CombatFinish.IsCommitting(bot,J) then return end
 	if not J.IsNoItemIllution(bot) then ItemUsageComplement() end
 end
 
@@ -8393,7 +8395,9 @@ function AbilityUsageThink()
 	if DotaTime() > 30 and (DotaTime() - bot.lastAbilityFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) and bot.isBear == nil then return end
 	bot.lastAbilityFrameProcessTime = DotaTime()
 	ObjectiveCommands.ReleaseObjective(bot,J)
+	if CombatFinish.IsCommitting(bot,J) then return end
 	if TeamGank.TryControl(bot,J) or TeamGank.HoldOffense(bot,J) then return end
+	if CombatFinish.TryAction(bot,J) then return end
 	if BotBuild ~= nil and not J.IsNoAbilityIllution(bot) then BotBuild.SkillsComplement() end
 end
 

@@ -70,6 +70,7 @@ local function hero(name,id,x)
 end
 local J={Utils={},Role={}}
 J.IsValidHero=function(h) return h~=nil and h:IsAlive() end
+J.GetHP=function(h) return h:GetHealth()/h:GetMaxHealth() end
 J.IsSuspiciousIllusion=function(h) return h:IsIllusion() end
 J.CanNotUseAction=function(h) return h.busy or false end
 J.IsDisabled=function(h) return h.stunned or false end
