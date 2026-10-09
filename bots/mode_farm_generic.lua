@@ -585,27 +585,15 @@ local function ModeThinkInternal()
 	if GameTime() >= (bot._farm_repick_at or 0) then
 		bot._farm_repick_at = GameTime() + 1.0
 
-		local old = preferedCamp
-		if old then
-			local oldDist = old and GetUnitToLocationDistance(bot, old.cattr.location) or 9e9
-	
-			local avail = J.Role['availableCampTable']
-			local nearest = J.Site.GetClosestNeutralSpwan(bot, avail)
-	
-			if nearest then
-				local newDist = GetUnitToLocationDistance(bot, nearest.cattr.location)
-				-- switch if we save >800 units or ETA improves a lot and danger isn’t worse
-				if newDist + 200 < oldDist and not J.Site.IsCampDangerous(bot, nearest) then
-					preferedCamp = nearest
-				end
-			end
-		else
-			preferedCamp = J.Site.GetClosestNeutralSpwan(bot, availableCamp);
-		end
+		local avail = preferedCamp ~= nil and J.Role['availableCampTable'] or availableCamp
+		local nearest = J.Site.GetClosestNeutralSpwan(bot, avail)
+		preferedCamp = FarmSafety.ChooseCamp(bot,J,preferedCamp,nearest)
 	end
 	
 	
-	if preferedCamp == nil then preferedCamp = J.Site.GetClosestNeutralSpwan(bot, availableCamp);end
+	if preferedCamp == nil then
+		preferedCamp = FarmSafety.ChooseCamp(bot,J,nil,J.Site.GetClosestNeutralSpwan(bot, availableCamp))
+	end
 	if preferedCamp ~= nil then
 		local targetFarmLoc = preferedCamp.cattr.location;
 		local cDist = GetUnitToLocationDistance(bot, targetFarmLoc);

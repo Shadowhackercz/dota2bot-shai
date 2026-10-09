@@ -8327,6 +8327,8 @@ end
 
 function AbilityUsageThink()
 	if RefreshBotHandle() then return end
+	-- Team fortification must run even while this hero is dead or its spells yield.
+	if not bot:IsIllusion() then UseGlyph() end
 	if not bInstallChatCallbackDone and GetGameState() == GAME_STATE_GAME_IN_PROGRESS then
 		bInstallChatCallbackDone = true
 		InstallChatCallback(function(chat)
@@ -8353,11 +8355,11 @@ end
 
 function BuybackUsageThink()
 	if RefreshBotHandle() then return end
+	if not bot:IsIllusion() then UseGlyph() end
 	if bot.lastBuybackFrameProcessTime == nil then bot.lastBuybackFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastBuybackFrameProcessTime < 2) then return end
 	bot.lastBuybackFrameProcessTime = DotaTime()
 	if not bot:IsIllusion() then BuybackUsageComplement() end
-	if not bot:IsIllusion() then UseGlyph() end
 end
 
 function CourierUsageThink()

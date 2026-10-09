@@ -80,4 +80,22 @@ reset(); for _,h in pairs(team) do h.human=true end; assert(not Glyph.Try(bot,2)
 reset(); local called,source=0,nil
 local callback=dofile('.tools/lua/shai-glyph-callback.lua')(bot,2,Glyph,{Call=function(_,s,fn) source=s; called=called+1; return fn() end})
 callback(); assert(bot.glyphs==1 and called==1 and source=='glyph','Actual generic callback delegates to the tested shared helper')
+local originalPrint,lines=print,{}
+print=function(line) lines[#lines+1]=line end
+require('bots/Customize/shai').BehaviorTrace=true
+reset(); cooldown=40; Glyph.Try(bot,2)
+assert(#lines==1 and lines[1]:find('reason=cooldown') and lines[1]:find('cooldown=40'))
+now=now+1; Glyph.Try(bot,2); assert(#lines==1,'The diagnostic does not spam on every frame')
+now=now+30; Glyph.Try(bot,2); assert(#lines==2,'Unavailable glyph still produces a periodic callback heartbeat')
+reset(); enemy.target=nil; Glyph.Try(bot,2)
+assert(lines[#lines]:find('reason=ready%-no%-siege'),'Ready glyph without a siege is distinguishable from a missing callback')
+reset(); local actualCooldown=GetGlyphCooldown; GetGlyphCooldown=nil
+assert(not Glyph.Try(bot,2) and lines[#lines]:find('reason=api%-unavailable'),'Unavailable engine API is explicit and safe')
+GetGlyphCooldown=function() return 'unknown' end
+now=now+31
+assert(not Glyph.Try(bot,2) and lines[#lines]:find('reason=invalid%-cooldown'))
+GetGlyphCooldown=actualCooldown
+reset(); bot.ActionImmediate_Glyph=false
+assert(not Glyph.Try(bot,2) and lines[#lines]:find('reason=api%-unavailable'),'An absent action cannot crash fortification handling')
+print=originalPrint
 print('PASS: real glyph callback, mixed teams, executor/failover, cooldown, fog, damage timing, relief and hero/creep/Ancient siege')

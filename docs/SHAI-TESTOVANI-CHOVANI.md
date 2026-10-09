@@ -1,5 +1,11 @@
 # Analýza chování SHAI
 
+Navazující sada po Pudge testu má 22 Lua + dvě PowerShell sady, syntax 317 souborů. V novém lobby nejprve ověřit krátké konkrétní scénáře před dalším dlouhým zápasem: outmatched mid při návratu z runy s blízkým kurýrem/wardou, bezpečný alternativní camp, následně callbacky objektivů. [Audit změn](SHAI-BEHAVIOR-AUDIT.md) a [stav práce](SHAI-TODO.md) rozlišují implementaci a herní ověření.
+
+Glyph musí po první minutě poskytovat pravidelný `[SHAI] glyph` od jednoho executora i bez siege: `cooldown` / `ready-no-siege`. `api-unavailable` nebo `invalid-cooldown` znamená nutnost opravy/ověření kontraktu, nikoli úspěšné použití. Výpis s building/DPS/fall je vydaný pokus, jeho efekt se potvrzuje v replayi. Tormentor od dosavadního spawn času poskytuje `reason=callback-check; source=team-roam` i při přednosti boje; vlastní readiness má jiné reason zprávy. Samotný callback-check není plán nebo útok. Hero/item logika může při skutečném vykonávání rozeznat Tormentora v TEAM_ROAM, hráčovo `!stop tormentor` musí fungovat také tam. Level/health/damage limity ani reflect se zatím nemění.
+
+Při silné hrozbě může týmový roam nyní vykonávat únik, proto jeho mode label sám neznamená útok. Zapsat skutečný pohyb, target a escape spell; běžný návrat či proveditelný finish musí zůstat funkční. Nové chyby `location.GetEnemiesNearLoc`, `location.GetAlliesNearLoc` a `farm.camp-destination` mají caller stack; uchovat jej pro opravu producenta lokace. Neslibovat úplné odstranění všech původních vector warningů jen podle absence pádu těchto helperů.
+
 Wisdom podle uživatele pravidelně navštěvují poblíž příslušného času. To je pozitivní herní pozorování; Tormentor zatím zůstává otevřený. Další priorita je stabilita pohybu a smysluplné rozdělení farmy, boje a obrany.
 
 ## Záznam zápasu

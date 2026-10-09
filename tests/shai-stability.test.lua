@@ -65,6 +65,7 @@ package.loaded['bots/FunLib/utils'] = {SetFrameProcessTime=function() end}
 package.loaded['bots/FunLib/enemy_role_estimation'] = {UpdateEnemyHeroPositions=function() end}
 for _, name in ipairs({'localization','aba_item','aba_role'}) do package.loaded['bots/FunLib/'..name] = {} end
 package.loaded['bots/Customize/general'] = {Enable=true, ThinkLess=1}
+package.loaded['bots/FunLib/shai_farm_safety'] = {GetThreat=function() return nil end}
 local actualDofile = dofile
 local specialDesire, tomb = 0, {}
 dofile = function(path)

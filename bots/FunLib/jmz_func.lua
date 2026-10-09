@@ -475,6 +475,7 @@ end
 
 function J.GetAlliesNearLoc( vLoc, nRadius )
 	local allies = {}
+	if not Runtime.Location(GetBot(),'location.GetAlliesNearLoc',vLoc) then return allies end
 	-- local cacheKey = 'GetAlliesNearLoc'..tostring(nRadius) ..tostring(J.ToNearest500(vLoc.x))..'-'..tostring(J.ToNearest500(vLoc.y))
 	-- local cache = J.Utils.GetCachedVars(cacheKey, 0.5)
 	-- if cache ~= nil then return cache end
@@ -502,9 +503,10 @@ function J.GetEnemiesNearLoc(vLoc, nRadius)
 	-- if cache ~= nil then return cache end
 
 	local enemies = {}
+	if not Runtime.Location(GetBot(),'location.GetEnemiesNearLoc',vLoc) then return enemies end
 	for _, enemyHero in pairs(GetUnitList(UNIT_LIST_ENEMY_HEROES))
 	do
-		if J.IsValidHero(enemyHero)
+		if enemyHero~=nil and not enemyHero:IsNull() and enemyHero:CanBeSeen() and J.IsValidHero(enemyHero)
 		and GetUnitToLocationDistance(enemyHero, vLoc) <= nRadius
 		and not J.IsSuspiciousIllusion(enemyHero)
 		and not J.IsMeepoClone(enemyHero)
@@ -1495,6 +1497,8 @@ end
 function J.IsRetreating( bot )
 
 	local mode = bot:GetActiveMode()
+	local escape=bot.shaiEscapeUntil
+	if mode==BOT_MODE_TEAM_ROAM and escape~=nil and DotaTime()>=escape-0.75 and DotaTime()<escape then return true end
 	local modeDesire = bot:GetActiveModeDesire()
 	local bDamagedByAnyHero = bot:WasRecentlyDamagedByAnyHero( 2.0 )
 
@@ -1541,6 +1545,8 @@ end
 function J.IsGoingOnSomeone( bot )
 
 	local mode = bot:GetActiveMode()
+	local escape=bot.shaiEscapeUntil
+	if mode==BOT_MODE_TEAM_ROAM and escape~=nil and DotaTime()>=escape-0.75 and DotaTime()<escape then return false end
 
 	return mode == BOT_MODE_ROAM
 		or mode == BOT_MODE_TEAM_ROAM
@@ -5540,7 +5546,11 @@ function J.IsTormentor(nTarget)
 end
 
 function J.IsDoingTormentor(bot)
-	return bot:GetActiveMode() == BOT_MODE_SIDE_SHOP and not ObjectiveCommands.IsBlocked(bot,'tormentor')
+	local mode=bot:GetActiveMode()
+	local active=bot.shaiTormentorActiveUntil
+	return (mode == BOT_MODE_SIDE_SHOP or mode == BOT_MODE_TEAM_ROAM
+		and active~=nil and DotaTime()>=active-0.75 and DotaTime()<active)
+		and not ObjectiveCommands.IsBlocked(bot,'tormentor')
 end
 
 function J.IsLocationInChrono(loc)

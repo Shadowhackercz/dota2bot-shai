@@ -1,6 +1,13 @@
 -- Shared fortification executor, including teams containing human players.
 local X={}
 local SHAI=require(GetScriptDirectory()..'/Customize/shai')
+local function Heartbeat(bot,team,reason,cooldown)
+    local now=DotaTime()
+    if not SHAI.BehaviorTrace or bot.shaiGlyphTraceAt~=nil and now>=bot.shaiGlyphTraceAt and now-bot.shaiGlyphTraceAt<30 then return end
+    bot.shaiGlyphTraceAt=now
+    print(string.format('[SHAI] glyph t=%.2f; team=%s; hero=%s; reason=%s; cooldown=%s',
+        now,tostring(team),bot:GetUnitName(),reason,tostring(cooldown)))
+end
 local function Valid(h) return h~=nil and not h:IsNull() end
 local function Executor()
     local first,alive
@@ -14,12 +21,20 @@ local function Executor()
     return alive or first
 end
 function X.Try(bot,team)
-    if DotaTime()<60 or GetGlyphCooldown()>0 then return false end
+    if DotaTime()<60 then return false end
     local leader=Executor()
     if leader~=bot then return false end
     if leader.shaiGlyphIssuedAt~=nil and DotaTime()>=leader.shaiGlyphIssuedAt and DotaTime()-leader.shaiGlyphIssuedAt<1 then return false end
     if leader.shaiGlyphCheckedAt~=nil and DotaTime()>=leader.shaiGlyphCheckedAt and DotaTime()-leader.shaiGlyphCheckedAt<0.25 then return false end
     leader.shaiGlyphCheckedAt=DotaTime()
+    if type(GetGlyphCooldown)~='function' or type(bot.ActionImmediate_Glyph)~='function' then
+        Heartbeat(bot,team,'api-unavailable','-'); return false
+    end
+    local cooldown=GetGlyphCooldown()
+    if type(cooldown)~='number' or cooldown~=cooldown then
+        Heartbeat(bot,team,'invalid-cooldown','-'); return false
+    end
+    if cooldown>0 then Heartbeat(bot,team,'cooldown',cooldown); return false end
     -- Vision and current attack orders only: don't infer a siege from hidden units.
     local attackers={}
     for _,kind in ipairs({UNIT_LIST_ENEMY_HEROES,UNIT_LIST_ENEMY_CREEPS}) do
@@ -61,7 +76,7 @@ function X.Try(bot,team)
             if p~=nil and (best==nil or p.fall<best.fall) then best=p end
         end
     end
-    if best==nil then return false end
+    if best==nil then Heartbeat(bot,team,'ready-no-siege',cooldown); return false end
     bot:ActionImmediate_Glyph()
     -- Replicate the short action reservation so executor failover cannot issue twice.
     for slot=1,5 do local h=GetTeamMember(slot); if Valid(h) and h:IsBot() then h.shaiGlyphIssuedAt=DotaTime() end end

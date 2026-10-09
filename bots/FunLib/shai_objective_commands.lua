@@ -65,7 +65,9 @@ function X.ReleaseObjective(bot,J,objective)
     if objective==nil then
         -- Use the raw mode: the voluntary-objective helpers already respect the veto.
         if bot:GetActiveMode()==BOT_MODE_ROSHAN then objective='roshan'
-        elseif bot:GetActiveMode()==BOT_MODE_SIDE_SHOP then objective='tormentor' end
+        elseif bot:GetActiveMode()==BOT_MODE_SIDE_SHOP or bot:GetActiveMode()==BOT_MODE_TEAM_ROAM
+            and bot.shaiTormentorActiveUntil~=nil and DotaTime()>=bot.shaiTormentorActiveUntil-0.75
+            and DotaTime()<bot.shaiTormentorActiveUntil then objective='tormentor' end
     end
     if objective==nil or not X.IsBlocked(bot,objective) then return false end
     if J.CanNotUseAction(bot) then return true end -- Keep a spell, TP or channel already in progress.

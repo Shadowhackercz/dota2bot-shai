@@ -135,6 +135,13 @@ state.time=2210; GetDesire(); assert(#lines==1,'Unchanged objective reason is th
 state.time=2230; GetDesire(); assert(#lines==2,'Persistent objective rejection gets a periodic heartbeat')
 assert(lines[2]:find('t=2230') and lines[2]:find('reason=base%-threat'),'The heartbeat retains time and actual decision reason')
 print=originalPrint
+lines={}; print=function(line) table.insert(lines,line) end
+state.time=2300; objective.Probe('team-roam')
+state.time=2301; objective.Probe('team-roam')
+state.time=2330; objective.Probe('team-roam')
+assert(#lines==2 and lines[1]:find('reason=callback%-check') and lines[1]:find('source=team%-roam'),
+    'Actual controller can confirm a blocked callback without changing objective readiness')
+print=originalPrint
 GetBot=function() return nil end
 assert(pcall(dofile,'bots/mode_side_shop_generic.lua'),'Objective mode tolerates a missing bot')
 GetBot=function() return bot end

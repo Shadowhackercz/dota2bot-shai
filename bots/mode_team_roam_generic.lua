@@ -14,6 +14,8 @@ local CombatFinish = require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
 local Defense = require(GetScriptDirectory()..'/FunLib/shai_defense')
 local Travel = require(GetScriptDirectory()..'/FunLib/shai_tactical_travel')
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
+local Tormentor = require(GetScriptDirectory()..'/FunLib/shai_tormentor')
+local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
 local Item = require(GetScriptDirectory()..'/FunLib/aba_item')
 local Roles = require(GetScriptDirectory()..'/FunLib/aba_role')
 local AttackSpecialUnit = dofile(GetScriptDirectory()..'/FunLib/aba_special_units')
@@ -37,6 +39,8 @@ local nearbyAllies, nearbyEnemies
 local coordinatedGank = false
 local immediateFinish = false
 local defendingBase = false
+local coordinatedTormentor = false
+local escapingThreat = false
 
 -- Pickup / swap timers
 local PickedItem = nil
@@ -81,7 +85,7 @@ function GetDesire()
     -- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
 
     local res = Runtime.Call(bot,'roam.desire',GetDesireHelper,0)
-    if coordinatedGank or immediateFinish or defendingBase then return res end
+    if coordinatedGank or immediateFinish or defendingBase or coordinatedTormentor or escapingThreat then return res end
     res = CapForLanePush(res)
 
     -- J.Utils.SetCachedVars(cacheKey, res)
@@ -91,11 +95,14 @@ function GetDesireHelper()
     coordinatedGank = false
     immediateFinish = false
     defendingBase = false
+    coordinatedTormentor = false
+    escapingThreat = false
     ShouldAttackSpecialUnit = false
     hTargetCreep = nil
     if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then
         return BOT_MODE_DESIRE_NONE
     end
+    if DotaTime()>=450 then Tormentor.Probe('team-roam') end
 
     Utils.SetFrameProcessTime(bot)
     EnemyRoles.UpdateEnemyHeroPositions()
@@ -117,36 +124,64 @@ function GetDesireHelper()
         IsSupport  = not IsHeroCore
     end
 
-    ItemOpsDesire()
-
-    -- A nearby safe Tombstone is a fight objective, ahead of hero-help and
-    -- incidental last hits; the special-unit policy can yield a secured kill.
-    local tombstoneDesire = AttackSpecialUnit.GetTombstoneDesire(bot)
-    if tombstoneDesire > 0 then
-        ShouldAttackSpecialUnit = true
-        return tombstoneDesire
-    end
-
     if not HasModifierThatNeedToAvoidEffects() then
         if CombatFinish.GetPlan(bot,J) ~= nil then
+            bot.shaiEscapeUntil=nil
             immediateFinish = true
             hTargetCreep, targetUnit = nil, nil
             -- Ordinary retreat is capped at 1; special escape desires still win.
             return 1.05
         end
+    end
+
+    local threat=FarmSafety.GetThreat(bot,J)
+    -- Keep a safe Tombstone ahead of ordinary team/hero targets. An immediate
+    -- lethal finish or concrete escape threat can override this optional attack.
+    local tombstoneDesire=threat==nil and AttackSpecialUnit.GetTombstoneDesire(bot) or 0
+    if tombstoneDesire>0 then
+        bot.shaiEscapeUntil=nil
+        ShouldAttackSpecialUnit=true
+        return tombstoneDesire
+    end
+
+    if not HasModifierThatNeedToAvoidEffects() then
         local defenseDesire=Defense.GetDesire(bot,J)
         if defenseDesire~=nil then
+            bot.shaiEscapeUntil=nil
             defendingBase=true
             hTargetCreep,targetUnit=nil,nil
             return defenseDesire
         end
         local gankDesire = TeamGank.GetDesire(bot,J)
         if gankDesire ~= nil then
+            bot.shaiEscapeUntil=nil
             coordinatedGank = true
             hTargetCreep, targetUnit = nil, nil
             return gankDesire
         end
     end
+
+    if threat~=nil and not HasModifierThatNeedToAvoidEffects() then
+        escapingThreat=true
+        hTargetCreep,targetUnit=nil,nil
+        ShouldHelpAlly,ShouldHelpWhenCoreIsTargeted=false,false
+        return 1.04
+    end
+    bot.shaiEscapeUntil=nil
+
+    -- The engine's legacy side-shop mode may not be scheduled. Reuse the same
+    -- controller through this observed callback, behind combat/escape priorities.
+    if DotaTime()>=450 and DotaTime()>=(J.IsModeTurbo() and 450 or 900) and not J.IsRetreating(bot)
+        and not bot:WasRecentlyDamagedByAnyHero(2) then
+        local desire=Tormentor.GetDesire()
+        if desire>0 then
+            coordinatedTormentor=true
+            hTargetCreep,targetUnit=nil,nil
+            return desire
+        end
+    end
+
+    ItemOpsDesire()
 
     local target
     target, ShouldHelpWhenCoreIsTargeted = X.ConsiderHelpWhenCoreIsTargeted()
@@ -323,6 +358,8 @@ end
 function OnStart() end
 
 function OnEnd()
+    Tormentor.OnEnd()
+    bot.shaiEscapeUntil=nil
     targetUnit, targetLockUntil = nil, -90
     towerTime = 0
     towerCreepMode = false
@@ -338,7 +375,23 @@ local function TeamRoamThinkInternal()
 	-- diabled think less to avoid failing to last hit
     -- if J.Utils.IsBotThinkingMeaningfulAction(bot, Customize.ThinkLess, "team_roam") then return end
 
-    ItemOpsThink()
+    if escapingThreat then
+        bot.shaiEscapeUntil=DotaTime()+0.75
+        bot.shaiTacticalUntil=DotaTime()+0.5
+        if not FarmSafety.InterruptFarm(bot,J) then bot.shaiEscapeUntil=nil end
+        return -- A vanished threat must not fall through into an old courier/ward order.
+    end
+
+    if coordinatedTormentor then
+        if Tormentor.GetDesire()<=0 or J.IsRetreating(bot) or bot:WasRecentlyDamagedByAnyHero(2) then
+            coordinatedTormentor=false
+            Tormentor.OnEnd()
+            return
+        end
+        bot.shaiTormentorActiveUntil=DotaTime()+0.75
+        Runtime.Call(bot,'tormentor.think',Tormentor.Think,nil)
+        return
+    end
 
     if immediateFinish then
         -- A stale finish must not fall through to an unrelated attack/farm order.
@@ -347,6 +400,8 @@ local function TeamRoamThinkInternal()
     end
     if defendingBase then Defense.Think(bot,J); return end
     if coordinatedGank and TeamGank.Think(bot,J) then return end
+
+    ItemOpsThink()
 
 	if J.IsValid(hTargetCreep) then
 		bot:Action_AttackUnit(hTargetCreep, true)

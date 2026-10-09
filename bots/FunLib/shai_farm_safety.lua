@@ -2,6 +2,7 @@
 local X = {}
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
 local Memory = require(GetScriptDirectory()..'/FunLib/shai_threat_memory')
+local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local states = setmetatable({}, {__mode = 'k'})
 
 local function VisibleHero(unit, J)
@@ -11,6 +12,7 @@ end
 function X.GetThreat(bot, J)
     local now = DotaTime()
     if not bot:IsAlive() or now < 0 or bot:IsInvulnerable()
+        or bot:HasModifier('modifier_skeleton_king_reincarnation_scepter_active')
         or bot:HasModifier('modifier_abaddon_borrowed_time')
         or bot:HasModifier('modifier_dazzle_shallow_grave') then
         states[bot] = nil
@@ -94,6 +96,38 @@ function X.InterruptFarm(bot, J)
     end
     bot:Action_MoveToLocation(destination)
     return true
+end
+
+-- Evaluate the destination, not merely the bot's current peaceful location.
+function X.IsCampDangerous(bot,J,camp)
+    local location=camp~=nil and camp.cattr~=nil and camp.cattr.location or nil
+    if not Runtime.Location(bot,'farm.camp-destination',location) then return true end
+    if not IsLocationPassable(location) then return true end
+    for _,enemy in pairs(GetUnitList(UNIT_LIST_ENEMY_HEROES)) do
+        if VisibleHero(enemy,J) then
+            local reach=math.min(1300,enemy:GetAttackRange()+enemy:GetCurrentMovementSpeed()*1.5+250)
+            if GetUnitToLocationDistance(enemy,location)<=reach then
+                local incoming=enemy:GetEstimatedDamageToTarget(true,bot,2,DAMAGE_TYPE_ALL)
+                local outgoing=bot:GetEstimatedDamageToTarget(true,enemy,2,DAMAGE_TYPE_ALL)
+                if enemy:GetHealth()>outgoing*1.15 and
+                    (incoming>=math.max(200,bot:GetHealth()*0.55)
+                    or enemy:GetLevel()>=bot:GetLevel()+5 and incoming>outgoing*1.5) then
+                    return true
+                end
+            end
+        end
+    end
+    return Memory.GetConcern(bot,J,location)~=nil
+end
+
+function X.ChooseCamp(bot,J,current,candidate)
+    local currentSafe=current~=nil and not X.IsCampDangerous(bot,J,current)
+    if candidate==nil or X.IsCampDangerous(bot,J,candidate) then return currentSafe and current or nil end
+    if not currentSafe then return candidate end
+    if GetUnitToLocationDistance(bot,candidate.cattr.location)+200<GetUnitToLocationDistance(bot,current.cattr.location) then
+        return candidate
+    end
+    return current
 end
 
 return X
