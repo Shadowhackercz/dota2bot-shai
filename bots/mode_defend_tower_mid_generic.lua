@@ -12,9 +12,7 @@ end
 
 function GetDesire() return Runtime.Call(bot,'defend.desire',function() return Defend.GetDefendDesire(bot, LANE_MID) end,0) end
 local function DefendThinkInternal()
-    if Defense.GetPlan(bot,J)~=nil then
-        if Defense.Think(bot,J) then return end
-    end
+    if Defense.Think(bot,J) then return end
     Defend.DefendThink(bot, LANE_MID)
 end
 

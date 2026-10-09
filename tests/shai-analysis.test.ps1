@@ -16,6 +16,7 @@ try {
         '[SHAI] roshan-safety t=1514; team=2; hero=lion; reason=outside-pit',
         '[SHAI] glyph t=1515; team=2; hero=lion; reason=ready-no-siege; cooldown=0',
         '[SHAI] tormentor t=1515; team=2; hero=lion; reason=callback-check; source=team-roam',
+        '[SHAI] defense-wave t=1516; hero=zeus; reason=zuus_arc_lightning; target=siege-creep',
         'Script Runtime Error: error in error handling',
         'GetUnitToLocationDistance parameter 2: expected vectorws but got void.'
     ) | Set-Content -LiteralPath $fixture.FullName
@@ -31,7 +32,8 @@ try {
         $output -notmatch 'damageIndex=200; coreLevel=15; supportLevel=12; availability=unknown' -or
         $output -notmatch '\[roshan-safety\].*reason=outside-pit' -or
         $output -notmatch '\[glyph\].*reason=ready-no-siege; cooldown=0' -or
-        $output -notmatch '\[tormentor\].*reason=callback-check; source=team-roam') { throw "Analyzer lost decision reasons, objective readiness, combat budgets, memory snapshots or runtime failures: $output" }
+        $output -notmatch '\[tormentor\].*reason=callback-check; source=team-roam' -or
+        $output -notmatch '\[defense-wave\].*reason=zuus_arc_lightning; target=siege-creep') { throw "Analyzer lost decision reasons, objective readiness, combat budgets, memory snapshots or runtime failures: $output" }
     'unrelated engine output' | Set-Content -LiteralPath $fixture.FullName
     $rejected = $false
     try { & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName } catch { $rejected = $true }

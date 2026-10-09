@@ -42,12 +42,13 @@ local function hero(name,id,x)
     function h:IsSilenced() return false end
     function h:IsMuted() return false end
     function h:IsInvulnerable() visible(self); return false end
-    function h:IsMagicImmune() return false end
+    function h:IsMagicImmune() return self.magicImmune or false end
     function h:IsAttackImmune() return false end
     function h:HasModifier(name) visible(self); return self.mods[name] or false end
     function h:GetAbilityByName(name) return self.abilities[name] end
     function h:GetItemInSlot(slot) visible(self); return self.items[slot] end
-    function h:GetNearbyLaneCreeps() return {} end
+    function h:GetNearbyLaneCreeps() return self.creeps or {} end
+    function h:IsBuilding() return self.name=='ancient' or self.name=='tower' end
     function h:GetActiveMode() return BOT_MODE_NONE end
     function h:GetActiveModeDesire() return 0.9 end
     function h:SetTarget(t) self.target=t end
@@ -184,3 +185,59 @@ assert(Defense.GuardAbilities(doctor,J) and doctor.action=='witch_doctor_maledic
 doctor.abilities.witch_doctor_maledict.ready=false
 assert(Defense.GuardAbilities(doctor,J) and doctor.action=='witch_doctor_death_ward','Caught diver permits safe Death Ward even with four allied heroes')
 print('PASS: shared four-bot siege response, single-target golem, wounded-member continuation, no-opener/backup/protection rejection and Maledict/Death Ward')
+
+-- Actual siege creeps must be dealt with even when no hero engage is viable.
+local Wave=require('bots/FunLib/shai_defense_wave')
+local c1,c2
+local function wave()
+    reset(); enemies={}; ancient.x=-200
+    c1=hero('npc_dota_creep_badguys_melee',20,100); c1.target=ancient; c1.damage=80
+    c2=hero('npc_dota_creep_badguys_siege',21,250); c2.target=ancient; c2.damage=160
+    bot.creeps={c1,c2}
+end
+wave(); assert(Defense.GetDesire(bot,J)==0.94,'Creep-only Ancient siege selects a real defensive action')
+assert(Defense.Think(bot,J) and bot.attacked==c2,'Attack the highest damage siege creep without walking out')
+wave(); for _,file in ipairs({'mid','top','bot'}) do
+    dofile('bots/mode_defend_tower_'..file..'_generic.lua'); local old=fallback
+    Think(); assert(bot.attacked==c2 and fallback==old,'Each real lane callback intercepts creep-only Ancient siege')
+end
+wave(); c2.x=1100
+assert(Defense.Think(bot,J) and bot.attacked==c1,'An unreachable high-priority creep does not hide a reachable target')
+wave(); c1.x=1300; c2.x=1400
+assert(Defense.GetDesire(bot,J)==nil and not Wave.Think(bot,J,false),'No dead-end tactical mode when every attack is out of range')
+wave(); c1.target=nil; c2.target=nil
+assert(not Wave.Think(bot,J,false),'Ordinary nearby creeps are not treated as active siege')
+wave(); c2.visible=false
+assert(Wave.Think(bot,J,false) and bot.attacked==c1,'No hidden creep stats/position reads')
+wave(); bot.name='npc_dota_hero_zuus'; bot.abilities.zuus_arc_lightning=ability('zuus_arc_lightning',850)
+assert(Defense.GuardAbilities(bot,J) and bot.action=='zuus_arc_lightning','Creep-only siege permits a funded wave spell through the actual ability guard')
+local previousAction=bot.action
+assert(Defense.Think(bot,J) and bot.action==previousAction,'Mode think must not overwrite a newly issued spell before the engine updates cast flags')
+assert(Defense.GuardAbilities(bot,J) and bot.action==previousAction,'The next ability callback does not restart the same cast')
+assert(Defense.GetDesire(bot,J)==0.94,'Short release lease preserves the selected action without a new target')
+now=now+0.6; assert(not Wave.HoldingCast(bot),'Release lease expires rather than locking the bot')
+c1.magicImmune=true; bot.action=nil
+assert(not Wave.Think(bot,J,true),'An immune creep does not justify a two-target damage spell')
+wave(); bot.name='npc_dota_hero_crystal_maiden'
+bot.abilities.crystal_maiden_crystal_nova=ability('crystal_maiden_crystal_nova',700,400)
+bot.abilities.crystal_maiden_frostbite=ability('crystal_maiden_frostbite'); bot.abilities.crystal_maiden_frostbite.mana=155
+bot.mana=240
+assert(not Wave.Think(bot,J,true),'Keep mana for the ready Frostbite instead of spending it on the wave')
+bot.mana=300
+assert(Wave.Think(bot,J,true) and bot.castLocation.x==250,'Safe funded Nova hits the grouped siege from current cast range')
+wave(); bot.name='npc_dota_hero_witch_doctor'
+bot.abilities.witch_doctor_paralyzing_cask=ability('witch_doctor_paralyzing_cask')
+bot.abilities.witch_doctor_maledict=ability('witch_doctor_maledict')
+bot.abilities.witch_doctor_death_ward=ability('witch_doctor_death_ward')
+enemy.x=1500; enemies={enemy}
+assert(not Wave.Think(bot,J,true),'Cask is held for the visible hero instead of diverted to creeps')
+enemies={}; bot.mana=350
+assert(not Wave.Think(bot,J,true),'Cask keeps mana for Maledict plus Death Ward')
+bot.mana=600; assert(Wave.Think(bot,J,true),'Spare Cask can clear a grouped creep-only siege')
+wave(); enemy.x=300; enemy.stunned=false; enemies={enemy}
+assert(not Wave.Think(bot,J,false),'A free hero already threatening the caster takes priority over wave farming')
+wave(); bot.busy=true
+assert(not Wave.Think(bot,J,false),'A queued spell/channel is not overwritten by waveclear')
+wave(); now=100
+assert(Defense.GetDesire(bot,J)==nil,'Opening lanes remain outside the new siege policy')
+print('PASS: actual creep siege response, all lane callbacks, funded Q/Nova/Cask, held control/mana, no unsafe walk/fog/channel or impossible-action hold')

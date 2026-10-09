@@ -1,6 +1,7 @@
 package.path='./?.lua;'..package.path
 GetScriptDirectory=function() return 'bots' end
 UNIT_LIST_ALLIED_HEROES,UNIT_LIST_ENEMY_HEROES=1,2
+UNIT_LIST_ALL=3
 DAMAGE_TYPE_ALL,DAMAGE_TYPE_PHYSICAL=1,2
 BOT_MODE_NONE,BOT_MODE_RETREAT,BOT_MODE_FARM,BOT_MODE_ITEM=0,1,2,3
 BOT_ACTION_TYPE_IDLE=0
@@ -8,6 +9,7 @@ local now=1000
 DotaTime=function() return now end
 GetTeam=function() return 2 end
 local function loc(x) return {x=x,y=0,z=0} end
+Vector=function(x,y,z) return {x=x,y=y,z=z} end
 local function hero(id,x,level)
     local h={id=id,x=x,level=level or 12,hp=2000,maxHp=2000,dps=100,visible=true,mods={},items={},projectiles={},actions=0,queue=0}
     local function visible(self) assert(self.visible,'Read hidden enemy') end
@@ -24,7 +26,10 @@ local function hero(id,x,level)
     function h:GetLevel() visible(self); return self.level end
     function h:GetEstimatedDamageToTarget(_,_,t) visible(self); return self.dps*t end
     function h:GetAttackTarget() return self.target end
-    function h:GetAttackDamage() return 100 end
+    function h:GetAttackDamage() visible(self); return self.attackDamage or 100 end
+    function h:GetCurrentMovementSpeed() visible(self); return 300 end
+    function h:GetSecondsPerAttack() visible(self); return 1 end
+    function h:GetAttackRange() visible(self); return 600 end
     function h:GetActualIncomingDamage(d) return d end
     function h:IsBot() return not self.human end
     function h:IsStunned() return self.stunned or false end
@@ -49,14 +54,16 @@ local function hero(id,x,level)
 end
 GetUnitToLocationDistance=function(h,p) assert(p~=nil,'Void vector'); return math.abs(h.x-p.x) end
 GetUnitToUnitDistance=function(a,b) return math.abs(a.x-b.x) end
-local bot,enemy,ally,allies,enemies,tower
+local bot,enemy,ally,allies,enemies,tower,world
 local J={IsValidHero=function(h) return h.hp>0 end,IsSuspiciousIllusion=function() return false end}
 J.GetLocationToLocationDistance=function(a,b) return math.abs(a.x-b.x) end
 J.GetNearbyHeroes=function() return enemies end
 J.GetModifierTime=function(h) return h.remaining or 2 end
+J.IsDisabled=function(h) return h.stunned or false end
 J.IsTryingtoUseAbility=function(h) return h.channel or h.casting or h.using end
 J.IsAttacking=function(h) return h.attacking end
-GetUnitList=function(kind) return kind==UNIT_LIST_ENEMY_HEROES and enemies or allies end
+GetUnitList=function(kind) if kind==UNIT_LIST_ALL then return world end; return kind==UNIT_LIST_ENEMY_HEROES and enemies or allies end
+GetTeamMember=function(slot) return allies[slot] end
 GetTower=function(_,index) return index==0 and tower or nil end
 GetBot=function() return bot end
 GetLaneFrontLocation=function() return loc(4000) end
@@ -66,11 +73,14 @@ local Travel=require('bots/FunLib/shai_tactical_travel')
 local function reset()
     now=now+10
     bot=hero(1,0); enemy=hero(8,4000,24); ally=hero(2,0)
-    allies,enemies,tower={bot,ally},{enemy},nil
+    allies,enemies,tower,world={bot,ally},{enemy},nil,{}
 end
 reset(); assert(not Travel.SafeDestination(bot,J,loc(4000)),'Full HP alone cannot justify landing beside a vastly stronger enemy')
 assert(Travel.PrepareTeleport(bot,J,loc(4000))==nil,'Unsafe TP is rejected before the scroll is spent')
-ally.x=4200; assert(Travel.PrepareTeleport(bot,J,loc(4000))~=nil,'An actual local healthy helper can permit the landing')
+ally.x=4200; assert(not Travel.SafeDestination(bot,J,loc(4000)),'A healthy passer-by cannot justify a TP to the fed enemy')
+ally.target=enemy; assert(not Travel.SafeDestination(bot,J,loc(4000)),'One weak attacker cannot justify a TP to the fed enemy')
+ally.dps=900; enemy.stunned=true
+assert(Travel.PrepareTeleport(bot,J,loc(4000))~=nil,'A surviving actual attacker with control and damage can justify the landing')
 bot.mods.modifier_teleporting=true; bot.channel=true; ally.x=0; now=now+1
 assert(Travel.RecheckTeleport(bot,J) and bot.stopped,'Loss of actual landing support cancels an unsafe channel')
 reset(); enemies={}; assert(Travel.PrepareTeleport(bot,J,loc(4000)))
@@ -79,6 +89,27 @@ assert(not Travel.RecheckTeleport(bot,J) and bot.actions==0,'Safe channels are l
 enemy.visible=false; enemies={enemy}; assert(Travel.SafeDestination(bot,J,loc(4000)),'No enemy HP/position/inventory reads through fog')
 reset(); enemy.x=1500; tower=hero(0,1600); tower.visible=true
 assert(Travel.PrepareTeleport(bot,J,loc(3000))==nil,'Safe cursor location does not conceal an unsafe nearby TP structure')
+reset(); enemy.x=1500; local outpost=hero(0,1600); function outpost:GetUnitName() return '#DOTA_OutpostName_North' end
+world={outpost}; assert(Travel.PrepareTeleport(bot,J,loc(3000))==nil,'Owned outpost footprint is checked even when the requested point is safe')
+reset(); Travel.SafeDestination(bot,J,loc(4000)); enemy.visible=false; now=now+0.3
+assert(not Travel.SafeDestination(bot,J,loc(4000)),'Recently seen fed enemy prevents blind TP after vision disappears')
+enemy.x=10000 -- hidden position must never influence the remembered concern
+assert(not Travel.SafeDestination(bot,J,loc(4000)),'Fog avoidance uses the observed position, not the hidden new position')
+now=now+6; assert(Travel.SafeDestination(bot,J,loc(4000)),'Old uncertain threat does not forbid TP forever')
+reset(); ally.x=4200; ally.target=enemy; ally.dps=900; enemy.stunned=true
+assert(Travel.PrepareTeleport(bot,J,loc(4000))); bot.mods.modifier_teleporting=true
+ally.mods.modifier_teleporting=true
+assert(Travel.RecheckTeleport(bot,J),'Help still teleporting is not assumed to be present')
+reset(); ally.x=4200; ally.target=enemy; ally.dps=500
+local helper=hero(3,4300); helper.target=enemy; helper.dps=500; allies[3]=helper
+assert(Travel.SafeDestination(bot,J,loc(4000)),'Two actual surviving contributors with damage can support arrival before a stun')
+helper.mode=BOT_MODE_RETREAT
+assert(not Travel.SafeDestination(bot,J,loc(4000)),'A withdrawing contributor no longer justifies the group count')
+helper.mode=nil; helper.target=nil
+helper.shaiGankPlan={target=enemy,phase='engage',created=now,updated=now,expires=now+10,members={ally,helper}}
+assert(Travel.SafeDestination(bot,J,loc(4000)),'A current participating engage caster need not have started an autoattack')
+helper.shaiGankPlan.phase='gather'
+assert(not Travel.SafeDestination(bot,J,loc(4000)),'Gathering toward a plan is not present combat support')
 reset(); enemy.level=12; enemy.dps=5; bot.mods.modifier_item_shadow_amulet_fade=true
 assert(Travel.ThinkFade(bot,J) and bot.clears==1 and not bot.stopped,'Safe fade stops the preceding move once')
 assert(Travel.ThinkFade(bot,J) and bot.clears==1,'Fade hold does not keep clearing actions')

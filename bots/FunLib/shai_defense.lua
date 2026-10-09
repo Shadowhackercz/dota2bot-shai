@@ -6,6 +6,7 @@ local CastSafety=require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
 local Finish=require(GetScriptDirectory()..'/FunLib/shai_combat_finish')
 local Budget=require(GetScriptDirectory()..'/FunLib/shai_combat_budget')
 local Chain=require(GetScriptDirectory()..'/FunLib/shai_control_chain')
+local Wave=require(GetScriptDirectory()..'/FunLib/shai_defense_wave')
 local function Visible(h,J)
     return h~=nil and not h:IsNull() and h:CanBeSeen() and J.IsValidHero(h) and not J.IsSuspiciousIllusion(h)
 end
@@ -145,8 +146,12 @@ function X.GetPlan(bot,J)
     return Dist(bot,target)<2200 and p or nil
 end
 function X.GetDesire(bot,J)
+    if Wave.HoldingCast(bot) then return 0.94 end
     local p=X.GetPlan(bot,J)
-    if p==nil then return nil end
+    if p==nil then
+        if Wave.GetAction(bot,J,false)~=nil then return 0.94 end
+        return nil
+    end
     bot.shaiTacticalUntil=DotaTime()+0.5
     local participating=false
     for _,h in ipairs(p.members) do if h==bot then participating=true end end
@@ -162,10 +167,11 @@ local function Member(p,bot)
     return false
 end
 function X.Think(bot,J,anchor)
+    if Wave.HoldingCast(bot) then return true end
     if J.CanNotUseAction(bot) then return false end
     if Finish.IsCommitting(bot,J) then return true end
     local p=Current(bot,J)
-    if p==nil then return false end
+    if p==nil then return Wave.Think(bot,J,false) end
     bot.shaiTacticalUntil=DotaTime()+0.5
     if (p.ready and Member(p,bot)) or p.emergency then
         bot:SetTarget(p.target)
@@ -173,6 +179,7 @@ function X.Think(bot,J,anchor)
         return true
     end
     bot:SetTarget(nil)
+    if Wave.Think(bot,J,false) then return true end
     local building=p.building or anchor or p.ancient
     local destination=J.VectorAway(building:GetLocation(),J.GetTeamFountain(),-300)
     if Dist(bot,p.target)<p.target:GetAttackRange()+250 then destination=J.VectorAway(bot:GetLocation(),p.target:GetLocation(),500) end
@@ -186,10 +193,11 @@ local function CastPoint(bot,J,a,target,purpose)
     bot:Action_UseAbilityOnLocation(a,target:GetLocation()); return true
 end
 function X.GuardAbilities(bot,J)
+    if Wave.HoldingCast(bot) then return true end
     if Finish.IsCommitting(bot,J) then return true end
     if J.CanNotUseAction(bot) then return false end
     local p=Current(bot,J)
-    if p==nil then return false end
+    if p==nil then return Wave.Think(bot,J,true) end
     if (p.ready and Member(p,bot)) or p.emergency then
         bot:SetTarget(p.target)
         if Gank.TryLocalControl(bot,p.target,J,p.members) then return true end
@@ -225,6 +233,7 @@ function X.GuardAbilities(bot,J)
         if a~=nil and a:IsFullyCastable() and not J.CanNotUseAbility(bot) and J.GetHP(bot)<0.65
             and CastSafety.Allow(bot,J,a,'save') then bot:Action_UseAbilityOnEntity(a,bot); return true end
     end
+    if Wave.Think(bot,J,true) then return true end
     -- Don't block every original spell while a healthy caster is safely back.
     return Dist(bot,p.target)<=p.target:GetAttackRange()+250
 end
