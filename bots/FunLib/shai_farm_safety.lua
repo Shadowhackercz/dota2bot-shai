@@ -1,10 +1,11 @@
--- Local, visible threats only. No enemy inventory or hidden position queries.
+-- Visible local threats and bounded team snapshots; no hidden state queries.
 local X = {}
 local SHAI = require(GetScriptDirectory()..'/Customize/shai')
+local Memory = require(GetScriptDirectory()..'/FunLib/shai_threat_memory')
 local states = setmetatable({}, {__mode = 'k'})
 
 local function VisibleHero(unit, J)
-    return J.IsValidHero(unit) and unit:CanBeSeen() and not J.IsSuspiciousIllusion(unit)
+    return unit~=nil and not unit:IsNull() and unit:CanBeSeen() and J.IsValidHero(unit) and not J.IsSuspiciousIllusion(unit)
 end
 
 function X.GetThreat(bot, J)
@@ -22,6 +23,7 @@ function X.GetThreat(bot, J)
     end
     if now - s.checked < 0.2 then return now < s.untilTime and s.threat or nil end
     s.checked = now
+    Memory.Observe(bot,J)
     local enemies = J.GetNearbyHeroes(bot, 1400, true, BOT_MODE_NONE)
     local allies = nil
     local hp = bot:GetHealth()
@@ -32,7 +34,8 @@ function X.GetThreat(bot, J)
             local reach = math.min(1200, enemy:GetAttackRange() + enemy:GetCurrentMovementSpeed() * 0.6 + 150)
             local attacked = enemy:GetAttackTarget() == bot or bot:WasRecentlyDamagedByHero(enemy, 1.5)
             local approaching = enemy:IsFacingLocation(bot:GetLocation(), 75)
-            if distance <= 325 or (distance <= reach and (attacked or approaching)) then
+            local dominantNearby=now>=600 and enemy:GetLevel()>=bot:GetLevel()+5 and distance<=math.min(1100,reach+200)
+            if distance <= 325 or (distance <= reach and (attacked or approaching)) or dominantNearby then
                 local incoming = enemy:GetEstimatedDamageToTarget(true, bot, 2, DAMAGE_TYPE_ALL)
                 local outgoing = bot:GetEstimatedDamageToTarget(true, enemy, 2, DAMAGE_TYPE_ALL)
                 local outmatched = enemy:GetHealth() > outgoing * 1.15
@@ -60,14 +63,16 @@ function X.GetThreat(bot, J)
             end
         end
     end
+    if threat==nil then threat=Memory.GetConcern(bot,J,bot:GetLocation()) end
     if threat ~= nil then
-        s.threat, s.untilTime = threat, now + 0.75
+        s.threat, s.untilTime = threat, threat.memory and math.min(now+0.75,threat.seenAt+5.5) or now+0.75
         if SHAI.BehaviorTrace and now - s.printed >= 5 then
-            print(string.format('[SHAI] safety t=%.2f; hero=%s; reason=unsafe-farm; enemy=%s; severity=%.2f',
-                now, bot:GetUnitName(), threat.name, threat.severity))
+            print(string.format('[SHAI] safety t=%.2f; hero=%s; reason=%s; enemy=%s; severity=%.2f; age=%.2f; confidence=%.2f; radius=%.0f; x=%.0f; y=%.0f',
+                now, bot:GetUnitName(), threat.reason, threat.name, threat.severity,threat.age or 0,
+                threat.confidence or 1,threat.radius or 0,threat.location.x,threat.location.y))
             s.printed = now
         end
-    elseif now >= s.untilTime then
+    elseif now >= s.untilTime or s.threat~=nil and s.threat.memory then
         s.threat = nil
     end
     return s.threat

@@ -6,6 +6,8 @@ BOT_MODE_DESIRE_VERYHIGH, BOT_MODE_DESIRE_MODERATE = 0.8, 0.5
 BOT_MODE_NONE, BOT_MODE_ROSHAN, BOT_MODE_ITEM, BOT_MODE_EVASIVE_MANEUVERS = 0, 1, 2, 3
 BOT_MODE_RETREAT = 20
 UNIT_LIST_ALL, TEAM_NEUTRAL, TEAM_NONE = 0, 4, 5
+UNIT_LIST_ENEMY_HEROES=2
+GetTeamMember=function() return nil end
 GetTeam, GetOpposingTeam = function() return 2 end, function() return 3 end
 DotaTime, GameTime = function() return 1200 end, function() return 1200 end
 Clamp = function(v, lo, hi) return math.max(lo, math.min(hi, v)) end
@@ -78,7 +80,7 @@ assert(GetDesireHelper() == 0, 'Safe healthy bot must not return negative retrea
 -- instantly turn the bot around; special exclusions and new danger stay immediate.
 local threat = {GetTeam=function() return 3 end, HasModifier=no,
     GetUnitName=function() return 'npc_dota_hero_axe' end}
-GetUnitList = function() return state.threat and {threat} or {} end
+GetUnitList = function(kind) return kind~=UNIT_LIST_ENEMY_HEROES and state.threat and {threat} or {} end
 GetUnitToUnitDistance = function() return 900 end
 J.IsValid, J.IsValidHero = function(unit) return unit ~= nil end, function(unit) return unit ~= nil end
 J.IsSuspiciousIllusion, J.IsMeepoClone, J.IsInRange = no, no, no

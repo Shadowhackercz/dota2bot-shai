@@ -18,6 +18,7 @@ local Defense = require(GetScriptDirectory()..'/FunLib/shai_defense')
 local Travel = require(GetScriptDirectory()..'/FunLib/shai_tactical_travel')
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local Glyph = require(GetScriptDirectory()..'/FunLib/shai_glyph')
+local ThreatMemory = require(GetScriptDirectory()..'/FunLib/shai_threat_memory')
 local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
@@ -8337,6 +8338,7 @@ function AbilityUsageThink()
 	if bot.lastAbilityFrameProcessTime == nil then bot.lastAbilityFrameProcessTime = DotaTime() end
 	if DotaTime() > 30 and (DotaTime() - bot.lastAbilityFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) and bot.isBear == nil then return end
 	bot.lastAbilityFrameProcessTime = DotaTime()
+	Runtime.Call(bot,'threat.observe',function() ThreatMemory.Observe(bot,J) end)
 	if Travel.ThinkFade(bot,J) then return end
 	ObjectiveCommands.ReleaseObjective(bot,J)
 	if CombatFinish.IsCommitting(bot,J) then return end

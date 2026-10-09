@@ -6,6 +6,7 @@ BOT_MODE_EVASIVE_MANEUVERS = 4
 BOT_ACTION_DESIRE_NONE, BOT_ACTION_DESIRE_HIGH = 0, 0.8
 BOT_MODE_DESIRE_NONE = 0
 DAMAGE_TYPE_ALL, DAMAGE_TYPE_MAGICAL, DAMAGE_TYPE_PHYSICAL, ATTRIBUTE_INTELLECT = 0, 1, 2, 3
+UNIT_LIST_ENEMY_HEROES=2
 Vector = function(x,y,z) return {x=x,y=y,z=z or 0} end
 RandomInt = function(a) return a end
 GetTeam, GetOpposingTeam = function() return 2 end, function() return 3 end
@@ -24,6 +25,10 @@ local function hero(name, x)
     function h:GetMaxHealth() visible(self); return self.maxHp end
     function h:GetLevel() visible(self); return self.level end
     function h:GetAttackRange() visible(self); return self.range end
+    function h:GetAttackDamage() visible(self); return self.dps end
+    function h:GetSecondsPerAttack() visible(self); return 1 end
+    function h:GetPlayerID() return self.id or 10 end
+    function h:IsBot() return self.team==2 end
     function h:GetCurrentMovementSpeed() visible(self); return 300 end
     function h:GetEstimatedDamageToTarget(ready,_,time) visible(self); assert(ready); return self.dps*time end
     function h:GetUnitName() visible(self); return self.name end
@@ -62,6 +67,9 @@ function bot:ActionQueue_UseAbility(a) state.action=a:GetName() end
 function bot:ActionQueue_UseAbilityOnEntity(a,t) state.action=a:GetName(); state.castTarget=t end
 function bot:ActionQueue_UseAbilityOnLocation(a) state.action=a:GetName() end
 GetBot = function() return bot end
+bot.id=1
+GetTeamMember=function(slot) return slot==1 and bot or nil end
+GetUnitList=function() return state.enemies end
 GetUnitToUnitDistance = function(a,b) return math.abs(a.loc.x-b.loc.x) end
 local no = function() return false end
 local J = {Utils={}, Skill={}, Item={}, Role={IsPvNMode=no,IsAllShadow=no}}
@@ -112,13 +120,13 @@ assert(Farm.GetThreat(bot,J)~=nil, 'Passing ally is not committed help')
 ally.target=silencer; fresh()
 assert(Farm.GetThreat(bot,J)==nil, 'Sufficient nearby committed damage can make a fight viable')
 state.allies={}; silencer.visible=false; fresh()
-assert(Farm.GetThreat(bot,J)==nil, 'No hidden stats may be read')
+assert(Farm.GetThreat(bot,J).memory, 'Remember the previously observed threat without reading hidden stats')
 silencer.visible=true; silencer.illusion=true; fresh()
 assert(Farm.GetThreat(bot,J)==nil, 'Ignore suspicious illusions')
 silencer.illusion=false; fresh(); assert(Farm.GetThreat(bot,J)~=nil)
 silencer.visible=false; silencer.loc.x=1200; state.now=state.now+0.3
 assert(Farm.GetThreat(bot,J).location.x==155, 'Retain snapshot without following hidden movement')
-state.now=state.now+0.6; assert(Farm.GetThreat(bot,J)==nil, 'Short threat hold must expire')
+state.now=state.now+10; assert(Farm.GetThreat(bot,J)==nil, 'Remembered threat must eventually expire')
 silencer.visible=true; silencer.loc.x=1300; fresh()
 assert(Farm.GetThreat(bot,J)==nil, 'Distant strong visible hero is not an immediate farm retreat')
 silencer.loc.x=155; silencer.level=13; silencer.dps=50; fresh()

@@ -10,6 +10,7 @@ try {
         '[SHAI] travel t=1510; hero=centaur; reason=unsafe-tp-destination',
         '[SHAI] glyph t=1511; hero=lion; reason=imminent-loss; fall=3.00; dps=500; attackers=3',
         '[SHAI] gank t=1511; leader=lion; phase=declined; reason=insufficient-damage; attacks=500; spells=200; summons=0; mana=100',
+        '[SHAI] safety t=1511; hero=zeus; reason=remembered-farm-threat; enemy=silencer; age=2.00; confidence=0.80; radius=1140; x=600; y=0',
         '[SHAI] runtime t=1512; source=item.cast; error=missing location',
         'Script Runtime Error: error in error handling',
         'GetUnitToLocationDistance parameter 2: expected vectorws but got void.'
@@ -21,7 +22,8 @@ try {
     if ($output -notmatch 'group-pressure' -or $output -notmatch 'unsafe-tp-destination' -or
         $output -notmatch 'Reported script exceptions: 1; invalid-location warnings: 1; helper failures: 1' -or $output -notmatch 'source=item.cast' -or
         $output -notmatch 'excluded=centaur:low-hp' -or $output -notmatch 'imminent-loss' -or
-        $output -notmatch 'attacks=500; spells=200; summons=0; mana=100') { throw 'Analyzer lost decision reasons, combat budgets or runtime failures' }
+        $output -notmatch 'attacks=500; spells=200; summons=0; mana=100' -or
+        $output -notmatch 'age=2.00; confidence=0.80; radius=1140; x=600; y=0') { throw "Analyzer lost decision reasons, combat budgets, memory snapshots or runtime failures: $output" }
     'unrelated engine output' | Set-Content -LiteralPath $fixture.FullName
     $rejected = $false
     try { & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName } catch { $rejected = $true }

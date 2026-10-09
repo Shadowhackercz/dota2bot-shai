@@ -56,6 +56,6 @@ $decisions | Group-Object -Property Kind,Reason | Sort-Object -Property Count -D
     Select-Object Name,Count | Format-Table -AutoSize
 Write-Output "Reported script exceptions: $scriptExceptions; invalid-location warnings: $invalidLocations; helper failures: $helperFailures (engine may suppress duplicates)."
 $reportedErrors | Select-Object -First 12 | Write-Output
-Write-Output 'Recent defense, gank budgets, glyph, travel and helper error details (up to 20 records):'
-$decisions | Where-Object { $_.Kind -in @('defense','gank','glyph','travel','runtime') } |
+Write-Output 'Recent defense, gank budgets, remembered threats, glyph, travel and helper error details (up to 20 records):'
+$decisions | Where-Object { ($_.Kind -in @('defense','gank','glyph','travel','runtime')) -or ($_.Kind -eq 'safety' -and $_.Reason -eq 'remembered-farm-threat') } |
     Select-Object -Last 20 | ForEach-Object { "[$($_.Kind)] $($_.Detail)" }

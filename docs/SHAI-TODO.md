@@ -1,5 +1,29 @@
 # SHAI: aktuální revize a úkoly
 
+## Potvrzený další postup z posledních dvou zápasů
+
+Pořadí potvrzené hráčem: začít zbývajícími body ze zápasu se Silencerem. Dokončení implementace a herní ověření evidovat odděleně.
+
+### Předposlední zápas: Silencer (9035705167)
+
+- [x] **Delší paměť hrozby — první implementace hotová, herní ověření otevřené.** Tým sdílí snapshot viditelných soupeřů včetně vzdálené ward vision. Po ztrátě vision klesá jistota, omezeně se rozšiřuje oblast možného pohybu a opatrnost vyprší do 5,5 s; snapshot se odstraní do 10 s. Farma/retreat/volitelné farm casts používají poslední známé údaje, ne aktuální skrytou polohu/stats. Po 10. minutě se zohlední i výrazně silnější viditelný soupeř do 1100 jednotek, který právě neběží přímo na bota. Pozorování se obnovuje i během týmového plánu, paměť sama nezakládá gank ani nepřebírá společnou obranu.
+- [ ] **Ověřit paměť ve hře:** vzdálená ward vision → zmizení → opatrnost blízkého farmáře; návrat bezpečné farmy po novém vzdáleném pozorování/expiraci; bez nových otoček a bez změny prvních 10 minut.
+- [ ] **Roshan při přesunu.** Rozpoznat nevhodný/pohybující se cíl a omezit útoky i nebezpečné přiblížení; aktuální podmínky ověřit přes skutečné API.
+- [ ] **Scan.** Ověřit Lua API a možnost číst výsledek, poté navrhnout společného správce a reakci; nedostupná funkce nesmí vyvolávat Lua chyby.
+- [ ] **Tormentor.** Z logů zjistit konkrétní blokaci, doplnit dostupnost objektivu a důvody odmítnutí; potom řešit sílu týmu, sestavu a přežití reflectu.
+- [ ] **Širší dorážení a kombo model.** Rozšířit dosavadní první model o další finishing spelly/itemy a relevantní dispely/lifesteal; nerozšířit útok za cenu zjevné smrti před jeho vypuštěním.
+
+### Poslední zápas s přáteli (9036262600)
+
+- [ ] **Rozhodování po dokončení invis.** Bezpečný fade je implementovaný, ale stání v aktivní invis / ústup / zahájení ještě nemá samostatný plán.
+- [ ] **Původní chybějící lokace.** Z nové zdrojové diagnostiky přesně určit call site `got void`; neslibovat úplnou opravu jen na základě ochranného handleru.
+- [ ] **Obranný waveclear a rozmístění.** Navázat na společnou obranu bezpečným čištěním vln a pozicemi podle role/cast range.
+- [ ] **Pokročilejší glyph.** Navázat na již hotového společného správce: konkrétní waveclear, příchozí TP a refresh.
+
+### Hotové implementace čekající na nový herní test
+
+Bezpečnější farma a casts pod Curse/Last Word; ganky 3–5 botů, společná obrana, rozpočet damage/many a chain control; kontrola TP; Amulet fade; ochrana akcí před idle watchdogem; krátké lethal finish/trade a základní glyph. Zachovat fungující runy/Wisdom a začátek hry. Další zápas musí potvrdit tyto změny a zachytit případné zbývající běhové chyby.
+
 ## Navazující sada: rozpočet boje, chain control a glyph (9. října)
 
 - [x] Gank i obrana používají konkrétní útoky a profily dostupných kouzel místo součtu engine ALL damage. Společný mana pool, čas kouzlení/přiblížení, revival rezerva WK, aktuální obrany cíle a omezený přínos golemu/Death Ward. Z item damage je zatím zahrnut Dagon; celé inventory ani všechny ability kombinace modelované nejsou.
@@ -9,7 +33,7 @@
 - [ ] Ověřit tuto sadu v nové hře: společný engage, pořadí kontrol, skutečný damage/summon uptime a fortification. Odhad není plná simulace souboje; zvlášť ověřit refresh glyphu, dostupný waveclear a změny po posledním patchi.
 - [ ] Dál zbývá Scan API, přesun Roshana, delší paměť viditelné mapové hrozby, plánování již aktivní invis a širší item/spell synergie. Tyto části nebyly touto sadou vyřešené.
 
-Podrobnosti a meze modelu: [audit navazující sady](SHAI-BEHAVIOR-AUDIT.md#navazující-rozpočet-boje-chain-control-a-glyph). Prochází 18 Lua a 2 PowerShell sady, syntax všech 310 Lua souborů. Herní ověření je otevřené.
+Podrobnosti a meze modelu: [audit navazující sady](SHAI-BEHAVIOR-AUDIT.md#navazující-rozpočet-boje-chain-control-a-glyph). Po doplnění paměti prochází 19 Lua a 2 PowerShell sady, syntax všech 312 Lua souborů. Herní ověření je otevřené.
 
 ## Nový herní test: 9036262600 (9. října)
 
@@ -43,7 +67,7 @@ Aktualizováno 9. října 2026 po [datové analýze replaye 9035705167](SHAI-REP
 
 ## P1: boj, farma a přežití
 
-Stav implementace: bod 1 má společný guard ve farm/laning/retreat a testy skutečných módů; bod 2 má dispatch guardy patnácti vybraných hrdinů včetně Liona. Důležitá kontrola/záchrana/únik mají jinou prioritu než volitelný harass. Z bodu 3 je hotová pouze kopie poslední viditelné polohy s krátkou pamětí 0,75 s, nikoli plánování podle dlouhodobé mapové hrozby. Bod 5 má guard přežití cast pointu a prvního channelu Warlocka i týmový přínos golemu v lokální obraně; nejde o kompletní model všech situací. Tyto body neuzavírat bez nového zápasu.
+Stav implementace: bod 1 má společný guard ve farm/laning/retreat a testy skutečných módů; bod 2 má dispatch guardy patnácti vybraných hrdinů včetně Liona. Důležitá kontrola/záchrana/únik mají jinou prioritu než volitelný harass. Bod 3 má nyní týmové snapshoty s postupným úbytkem jistoty a omezenou oblastí možného pohybu; nejde o kompletní mapový plán ani odhad všech blink/teleport tras. Bod 5 má guard přežití cast pointu a prvního channelu Warlocka i týmový přínos golemu v lokální obraně; nejde o kompletní model všech situací. Tyto body neuzavírat bez nového zápasu.
 
 1. **Přerušit nebezpečnou farmu.** Doloženo u Zeuse kolem 27:39. Zohlednit viditelnou hrozbu, nedávný přijatý damage, dosah/rychlost soupeře, sílu obou stran a pomoc v dosahu. Rozhodnout boj nebo únik; farm action nesmí přepsat tento záměr. Ověření: dominantní nepřítel v melee vzdálenosti, skutečný týmový support, i klidná linka bez falešného ústupu.
 2. **Zohlednit Arcane Curse / Last Word před castem.** Zeus má 19 seslání pod Curse v prvních 10 min; Warlock v 31:57 zemřel na Last Word současně s ulti eventem. Model ceny musí rozlišit lehký harass, last hit, únik, důležitý disable/interrupt, kill a záchranu. Nezavádět univerzální zákaz kouzlení. Ověření: nepotřebné Q/W se odmítne, Lion/Shaman smysluplně zastaví soupeře, únik zůstává povolen, last hit pod bezpečnou Curse může být přijat.
