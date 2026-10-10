@@ -1,5 +1,13 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Zeus Jump: skutečné natočení a rozběh u překážky — 10. října
+
+Uživatel doplnil špatné skoky a nevyužívání cliffů. Kód dosud ověřoval plánovaný endpoint, zatímco tolerance facing 12 stupňů připouštěla jiný skutečný dopad; alignment zároveň posílal pozemní direct move až na druhou stranu překážky. To jsou nalezené mezery, nikoli zpětný důkaz příčiny každého úmrtí.
+
+Před castem se nově přepočítá dopad z runtime GetFacing a aktuální hop_distance a projde stejnou bezpečností včetně prostoru pro odchod. Alignment zkouší jen 80/50/30-unit průchozí rozběh s terénními vzorky po nejvýše 20 jednotkách na výchozí straně. Již natočený běžící Zeus s bezpečným dopadem rozběh nepotřebuje; bez bezpečného rozběhu se nevydá pohyb do překážky. Zůstává bounded 0,65s alignment, retry, root/cast/action ochrana. U skoku jsou kandidáty po 15 stupních a bezpečné překonání neprůchozího mezivzorku má bonus 100 ve skóre. Pozemní směrové kandidáty jsou zachované. Přepočítaný plán se ukládá i při změně překážky během alignmentu.
+
+Testy skutečného escape modulu pokrývají clear plán s blokovaným skutečným dopadem, krátký rozběh, změnu originu, překonatelný mezivzorek, absenci rozběhu a již pohybujícího se bota na hraně. Prošla celá Test-SHAI sada a syntax 338 Lua souborů, bez syntaktické chyby. Parametry schopnosti odpovídají [Valve hero data](https://www.dota2.com/datafeed/herodata?language=english&hero_id=22); délku čteme z runtime ability. Engine animace, skutečný cliff crossing, následný odchod i ofenzivní skok vyžadují další lobby. Passability nerozlišuje cliff od stromů a bonus není záruka, že překážka zastaví Pudge Hook nebo nepřátelskou mobilitu.
+
 ## Oslabený controller a omezené pokračování obrany — 10. října
 
 Pod 40 % HP už bot nemusí být automaticky vyřazen: mezi 20–40 % může získat roli `utility`, pokud právě může vydat akci, stojí mimo attack range soupeře + 200, má funded control v aktuálním konzervativním dosahu a přežije jeho cast/přistání s rezervou podle odhadu viditelných útočníků. Kontrolní profil a mana se znovu ověřují při vydání. Počítá se pouze control budget; ne autoattacky, obecné nuky nebo Death Ward channel. Bot nevykročí k cíli pro získání dosahu a generic hero offense je v této roli blokován. Stále může použít item callbacky. Živé utility členy sdílí týmový plán, přítomnost člověka nepředpokládá jeho spolupráci. Při změně HP/dosahu/damage může utility cast odmítnout i před přepočtem cache.

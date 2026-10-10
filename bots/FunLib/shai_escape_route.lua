@@ -86,6 +86,9 @@ local function Score(c,point,jump,minGain)
         score=score+(Distance(c.origin,c.fountain)-Distance(point,c.fountain))*0.35
     end
     for _,h in ipairs(c.enemies) do score=score-math.max(0,h.reach-Distance(point,h.location))*0.5 end
+    -- A clear landing across blocked terrain can buy pursuit time. This is a
+    -- modest preference, not permission to land closer to another threat.
+    if jump and terrain then score=score+100 end
     return score,terrain
 end
 -- A sideways first step can be useful even when it does not immediately gain
@@ -174,7 +177,9 @@ function X.Plan(bot,J,threat,distance,jump)
     if length<1 then return nil end
     dx,dy=dx/length,dy/length
     local best
-    for _,degrees in ipairs({0,30,-30,60,-60,90,-90,120,-120}) do
+    local angles=jump and {0,15,-15,30,-30,45,-45,60,-60,75,-75,90,-90,120,-120}
+        or {0,30,-30,60,-60,90,-90,120,-120}
+    for _,degrees in ipairs(angles) do
         local a=degrees*math.pi/180
         local ux,uy=dx*math.cos(a)-dy*math.sin(a),dx*math.sin(a)+dy*math.cos(a)
         local point=Vector(c.origin.x+ux*distance,c.origin.y+uy*distance,c.origin.z)
@@ -237,17 +242,41 @@ function X.TryZeusJump(bot,J,ability,threat,CastSafety)
     local plan=X.Plan(bot,J,threat,ability:GetSpecialValueInt('hop_distance'),true)
     if plan==nil then bot.shaiJumpAlign=nil; Trace(bot,'no-safe-jump-landing'); return false end
     if not CastSafety.Allow(bot,J,ability,'escape') then bot.shaiJumpAlign=nil; return false end
-    if bot:IsFacingLocation(plan.point,12) and J.IsRunning(bot) then
+    local c=Context(bot,J,threat)
+    if c==nil then bot.shaiJumpAlign=nil; return false end
+    local facing=bot:GetFacing()*math.pi/180
+    local distance=ability:GetSpecialValueInt('hop_distance')
+    local actual=Vector(c.origin.x+math.cos(facing)*distance,c.origin.y+math.sin(facing)*distance,c.origin.z)
+    local actualScore,actualTerrain=Score(c,actual,true)
+    if bot:IsFacingLocation(plan.point,12) and J.IsRunning(bot) and actualScore~=nil then
         -- Direct no-target dispatch preserves locomotion; a tread-switch queue
         -- or stationary optional nuke must not choose the jump direction.
         bot:Action_UseAbility(ability)
         local duration=ability:GetSpecialValueFloat('hop_duration')
         bot.shaiJumpRelease={created=now,untilTime=now+math.min(1,math.max(0.2,duration))}
+        plan.point=actual; plan.terrain=actualTerrain
         bot.shaiJumpAlign=nil; Trace(bot,'jump-issued',plan); return true
     end
+    -- Do not ask the walking controller to reach the far side of a cliff.
+    -- A short, sampled takeoff corridor establishes facing/movement first.
+    local takeoff
+    for _,step in ipairs({80,50,30}) do
+        local point=Vector(c.origin.x+plan.dx*step,c.origin.y+plan.dy*step,c.origin.z)
+        local clear=true
+        for i=1,math.ceil(step/20) do
+            local s=step*i/math.ceil(step/20)
+            if not IsLocationPassable(Vector(c.origin.x+plan.dx*s,c.origin.y+plan.dy*s,c.origin.z)) then clear=false; break end
+        end
+        if clear and Score(c,point,false,0)~=nil then takeoff=point; break end
+    end
+    if takeoff==nil then
+        bot.shaiJumpAlign=nil; bot.shaiJumpRetry=now+0.3
+        Trace(bot,'no-safe-jump-takeoff',plan); return false
+    end
     bot.shaiJumpAlign=attempt or {created=now,plan=plan}
+    bot.shaiJumpAlign.plan=plan
     bot.shaiTacticalUntil=now+0.3
-    bot:Action_MoveDirectly(plan.point)
+    bot:Action_MoveDirectly(takeoff)
     Trace(bot,'align-jump',plan)
     return true
 end

@@ -35,6 +35,7 @@ local function hero(name, x)
     function h:GetLocation() visible(self); return self.loc end
     function h:GetAttackTarget() visible(self); return self.target end
     function h:IsFacingLocation() visible(self); return true end
+    function h:GetFacing() visible(self); return 180 end
     function h:IsStunned() visible(self); return false end
     function h:IsHexed() visible(self); return false end
     function h:IsInvulnerable() return false end

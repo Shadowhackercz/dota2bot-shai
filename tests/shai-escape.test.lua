@@ -17,6 +17,7 @@ end
 local function reset()
     now=now+5; bot=hero(0,0); enemies={hero(200,0)}; towers={}; blocked=function() return false end
     bot.facing=0; bot.running=false
+    function bot:GetFacing() return self.facing end
     function bot:GetPlayerID() return 1 end
     function bot:GetUnitName() return 'npc_dota_hero_zuus' end
     function bot:GetNearbyTowers() return towers end
@@ -68,6 +69,9 @@ local walk=Route.Plan(bot,J,threat(),450,false)
 assert(walk==nil or walk.point.x>= -150,'Walk cannot cross a blocked strip; a legal detour is allowed')
 p=Route.Plan(bot,J,threat(),450,true)
 assert(p and p.terrain and p.point.x< -300,'Jump may cross blocked intermediate terrain to a clear landing and exit')
+reset(); blocked=function(v) return v.x< -100 and v.x> -300 and v.y< -30 end
+p=Route.Plan(bot,J,threat(),450,true)
+assert(p and p.terrain,'A safe nearby terrain crossing can outrank a slightly longer straight escape')
 blocked=function(v) return v.x*v.x+v.y*v.y>10000 end
 assert(Route.Plan(bot,J,threat(),450,true)==nil,'No jump into blocked landing')
 reset(); a.distance=375; p=Route.Plan(bot,J,threat(),a:GetSpecialValueInt('hop_distance'),true)
@@ -79,6 +83,22 @@ bot.facing=180; bot.running=true; now=now+0.1
 assert(Route.TryZeusJump(bot,J,a,threat(),cast) and bot.action=='jump' and bot.casts==1,'Aligned moving bot releases the jump')
 assert(Route.TryZeusJump(bot,J,a,threat(),cast) and bot.casts==1,'Release reservation prevents repeating the cast')
 now=now+0.6; assert(not Route.HoldingJump(bot),'Jump reservation is bounded')
+reset(); a.distance=450
+blocked=function(v) return v.x< -100 and v.x> -300 end
+assert(Route.TryZeusJump(bot,J,a,threat(),cast) and bot.action=='align','Blocked intermediate cliff permits preparing the jump')
+assert(bot.destination.x>= -80 and IsLocationPassable(bot.destination),'Alignment walks only on the takeoff side, never toward far-side landing')
+bot.location=Vector(-40,0); bot.facing=180; bot.running=true; now=now+0.1
+assert(Route.TryZeusJump(bot,J,a,threat(),cast) and bot.action=='jump','Moving from takeoff rechecks and releases a crossing jump')
+reset(); blocked=function(v) return v.x< -100 and v.x> -300 end
+bot.facing=170; bot.running=true
+-- The planned west landing is clear, but the actual heading lands in a small
+-- blocked patch. A nominal 12-degree alignment must not authorize that cast.
+blocked=function(v) return v.x< -100 and v.x> -300 or v.x< -420 and v.y>55 and v.y<100 end
+assert(Route.TryZeusJump(bot,J,a,threat(),cast) and bot.action=='align' and not bot.casts,'Actual heading landing is checked in addition to nominal facing tolerance')
+reset(); blocked=function(v) return v.x< -10 and v.x> -300 end
+assert(not Route.TryZeusJump(bot,J,a,threat(),cast) and bot.action==nil,'No passable run-up rejects walking into a cliff')
+bot.facing=180; bot.running=true; now=now+0.4
+assert(Route.TryZeusJump(bot,J,a,threat(),cast) and bot.action=='jump','Already moving and aligned can jump at the cliff edge without demanding a run-up')
 reset(); a.distance=450
 Route.TryZeusJump(bot,J,a,threat(),cast); now=now+0.7
 assert(not Route.TryZeusJump(bot,J,a,threat(),cast) and not bot.casts,'Failed alignment expires and permits normal retreat instead of locking the bot')
