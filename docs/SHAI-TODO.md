@@ -1,5 +1,18 @@
 # SHAI: aktuální revize a úkoly
 
+## Nejnovější test: Pudge (9037301618)
+
+[Rozbor posledního testu a všech časových podnětů](SHAI-MATCH-9037301618.md). Log/replay jsou zachované, 9 botů, žádná sledovaná Lua výjimka/invalid-location/helper failure. WK duch doložil hero damage ve všech 12 dočasných formách a pět skutečných stunů. Úspěšný fight není automatické ověření společného plánu; žádný defense-cast/utility-control zde nebyl doložen.
+
+- [ ] **P0 Wisdom:** dosažitelné capture místo, timeout bez pokroku a odložení cíle, skutečný capture/odchod, ochrana proti opakovanému blocked/detour. Zápas potvrzuje smyčku WK/Zeus/Axe; příčinu passability středu ověřit v enginu, neslibovat fix zvětšením radiusu.
+- [ ] **P1 konflikt boje/ústupu:** společný no-opener/hold versus native ATTACK 0,95, opakované návraty a creep cíle. Zachovat skutečný proveditelný finish a již probíhající fight; neřešit plošným zákazem nebo prostým zvýšením všech desire.
+- [ ] **P1 obranný recovery:** nezpůsobilý živý člen může k fontáně, ostatní pokračují podle síly; zvlášť WK po reinkarnaci versus dočasný duch. Nouzová akce při no-safe-local-step, nikoli nekonečné zastavení.
+- [ ] **P1 cesty/Hook:** runový návrat, linka a defend trasa; Zeus šestkrát zemřel Pudge před 10. minutou navzdory pěti Jump castům. Prověřit viditelné Hook setupy a skutečné landing/alignment.
+- [ ] **P1 pomoc/obrana:** Lich Nova creep versus WK pomoc, WK control target/follow-up, seskupení pod highground AoE, post-Swap safe místo. Doplnit skutečný spell/heal budget místo předpokladu, že hlavička skupiny zaručí kill.
+- [ ] **P2 pozorované TP:** únik po viditelném enemy stunu a Travel creep deny, jen s ověřenou dostupností informací a vlastním vision. Tormentor stále bez doloženého úspěšného společného útoku; dále ward/deward a objective revize.
+
+Starší checklisty níže zůstávají historií implementace a podrobnějšími otevřenými úkoly. Poslední zápas má nyní přednost při výběru následující opravy. Analýza nepřidala změny herních skriptů.
+
 ## Nejnovější test: Pudge (9036669208)
 
 Celý log i replay jsou zachované; [rozbor a všechny podněty](SHAI-MATCH-9036669208.md). Nový test doložil chyby společné bojové vrstvy, takže před dalším dlouhým testem má spolehlivost přednost před laděním agresivity. Starší pořadí od Silencera zůstává pro následné rozšiřování; hotová implementace není totéž co herní ověření.
