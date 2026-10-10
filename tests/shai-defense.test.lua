@@ -37,6 +37,7 @@ local function hero(name,id,x)
     function h:GetAttributeValue() return 40 end
     function h:GetActualIncomingDamage(raw) return raw end
     function h:GetAttackTarget() visible(self); return self.target end
+    function h:WasRecentlyDamagedByHero(other) visible(self); return self.hitters and self.hitters[other] or false end
     function h:GetStunDuration() return self.stun end
     function h:IsStunned() return self.stunned or false end
     function h:IsHexed() return false end
@@ -180,7 +181,7 @@ warlock.abilities.warlock_rain_of_chaos.ready=false; bot.hp=250; now=now+0.3
 p=Defense.GetPlan(wk,J)
 assert(p.ready and #p.members==3,'One wounded member drops out without canceling a controlled viable follow-through')
 assert(p.commitUntil==now-0.3+0.8,'Continuation alone does not extend its original deadline')
-assert(Defense.GetDesire(bot,J)<1,'Wounded excluded member is not forced to stand and autoattack')
+assert(Defense.GetDesire(bot,J)==nil,'Wounded excluded member releases defensive mode instead of holding at a building')
 now=now+1; assert(Defense.GetPlan(wk,J).hold,'Expired follow-through needs a new viable group assessment')
 siege(); for _,h in ipairs(allies) do h.abilities={} end
 assert(Defense.GetPlan(bot,J).hold,'Four bodies alone are not sufficient without a ready opener')
@@ -234,6 +235,47 @@ vanished.visible=false
 assert(Defense.GuardAbilities(doctor,J) and doctor.action=='witch_doctor_maledict','Follow-up safety never reads hidden backup stats')
 doctor.hp=0; assert(not Defense.HoldingCast(doctor),'Death clears short spell release lease')
 print('PASS: shared four-bot siege response, single-target golem, wounded-member continuation, no-opener/backup/protection rejection and Maledict/Death Ward')
+
+-- Spent openers do not reset a verified ongoing, still viable local fight.
+local function ongoingSiege()
+    siege(); allies={bot,wk,sniper}
+    for _,h in ipairs(allies) do h.abilities={}; h.target=enemy end
+    enemy.hitters={[bot]=true,[wk]=true}
+end
+ongoingSiege(); p=Defense.GetPlan(bot,J)
+assert(p.ready and p.reason=='group-ongoing' and p.controls==0 and p.recentHitters==2,'Two actual recent contributors allow a viable ongoing fight after stuns are spent')
+Defense.Think(bot,J); assert(bot.action=='attack' and bot.attacked==enemy,'Actual movement continues the group target instead of going back to hold')
+assert(Defense.GetDesire(bot,J)==1.02,'Ongoing group beats ordinary attack and retreat selection')
+now=now+0.3; enemy.hitters={}; p=Defense.GetPlan(bot,J)
+assert(p.hold,'Without renewed observed contribution the spent-opener exception expires')
+assert(Defense.GetDesire(bot,J)==0.99,'Safe defensive hold beats the observed ordinary ATTACK desire of 0.95')
+ongoingSiege(); enemy.hitters={[bot]=true}
+assert(Defense.GetPlan(bot,J).hold,'Multiple attack orders without two observed contributors are not an ongoing team fight')
+ongoingSiege(); wk.target=nil; sniper.target=nil
+assert(Defense.GetPlan(bot,J).hold,'Past damage alone does not renew an abandoned fight')
+ongoingSiege(); enemy.hp=20000
+assert(Defense.GetPlan(bot,J).hold,'Active attackers do not bypass insufficient current damage')
+ongoingSiege(); enemy.magicImmune=true
+assert(Defense.GetPlan(bot,J).hold,'New BKB does not inherit the no-opener exception')
+ongoingSiege(); local reinforced=hero('npc_dota_hero_kez',9,400); enemies={enemy,reinforced}
+assert(Defense.GetPlan(bot,J).hold,'Enemy reinforcement closes the isolated-fight exception')
+ongoingSiege(); wk.hp=200
+assert(Defense.GetPlan(bot,J).hold,'Insufficient remaining roster still stops the ongoing exception')
+ongoingSiege(); local fourth=hero('npc_dota_hero_luna',5,-80); fourth.damage=115; fourth.target=enemy
+allies[#allies+1]=fourth; wk.hp=200; enemy.hitters={[bot]=true,[sniper]=true}
+p=Defense.GetPlan(bot,J)
+assert(p.ready and p.reason=='group-ongoing' and #p.members==3,'One wounded member can leave while three viable contributors keep fighting')
+assert(Defense.GetDesire(wk,J)==nil and Defense.GetDesire(bot,J)==1.02,'Recovery and continued group attack are per-member decisions')
+ongoingSiege(); Defense.GetPlan(bot,J); bot.hp=250
+assert(Defense.GetDesire(bot,J)==nil and not Defense.Think(bot,J),'Immediate HP drop releases a cached defensive plan for retreat')
+assert(not Defense.GuardAbilities(bot,J),'Recovery is not suppressed by the common offensive ability guard')
+ongoingSiege(); Defense.GetPlan(bot,J); enemy.damage=5000
+assert(Defense.GetDesire(bot,J)==nil and not Defense.Think(bot,J),'Fresh fatal retaliation overrides cached readiness')
+ongoingSiege(); enemy.x=2000
+assert(Defense.GetPlan(bot,J).hold,'An escaping target out of local contributor range cannot renew pursuit')
+ongoingSiege(); Defense.GetPlan(bot,J); enemy.visible=false
+assert(Defense.GetPlan(bot,J)==nil and not Defense.Think(bot,J),'Vision loss removes the ongoing exception without hidden-stat reads')
+print('PASS: verified ongoing defense, spent openers, native attack arbitration and per-member retreat release')
 
 -- Wounded backline control contributes once without promising attack DPS.
 local controller

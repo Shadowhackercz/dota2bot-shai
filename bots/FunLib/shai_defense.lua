@@ -21,11 +21,16 @@ local function Trace(bot,p)
     bot.shaiDefensePrinted,bot.shaiDefenseReason=DotaTime(),p.reason
     print(string.format('[SHAI] defense t=%.2f; hero=%s; reason=%s; target=%s; members=%d; damage=%.0f; controls=%d; backups=%d; hp=%.0f; openerDelay=%.2f; ready=%s; excluded=%s; attacks=%.0f; spells=%.0f; summons=%.0f; mana=%.0f',
         DotaTime(),bot:GetUnitName(),p.reason,p.target:GetUnitName(),#p.members,p.damage,p.controls,p.backups,p.target:GetHealth(),p.openerDelay,p.available,p.excluded,p.budget.attacks,p.budget.spells,p.budget.summons,p.budget.mana)
-        ..'; utility='..p.utility..'; healthy='..p.healthy..'; regenBudget='..p.regenBudget..'; effectiveHP='..p.effectiveHP)
+        ..'; utility='..p.utility..'; healthy='..p.healthy..'; regenBudget='..p.regenBudget..'; effectiveHP='..p.effectiveHP
+        ..'; fighting='..p.fighting..'; recentHitters='..p.recentHitters)
 end
 local function Incoming(h,enemies,seconds)
     local n=0
-    for _,enemy in ipairs(enemies) do n=n+enemy:GetEstimatedDamageToTarget(true,h,seconds,DAMAGE_TYPE_ALL) end
+    for _,enemy in ipairs(enemies) do
+        if not enemy:IsNull() and enemy:CanBeSeen() and enemy:IsAlive() then
+            n=n+enemy:GetEstimatedDamageToTarget(true,h,seconds,DAMAGE_TYPE_ALL)
+        end
+    end
     return n
 end
 function X.GetPlan(bot,J)
@@ -148,6 +153,14 @@ function X.GetPlan(bot,J)
     end
     p.regenBudget=math.max(0,target:GetHealthRegen())*5
     p.effectiveHP=target:GetHealth()+p.regenBudget
+    p.fighting,p.recentHitters=0,0
+    for _,h in ipairs(p.members) do
+        if p.roles[h:GetPlayerID()]=='healthy' and not h:IsDisarmed() and not target:IsAttackImmune()
+            and Dist(h,target)<=h:GetAttackRange()+150 then
+            if h:GetAttackTarget()==target then p.fighting=p.fighting+1 end
+            if target:WasRecentlyDamagedByHero(h,1) then p.recentHitters=p.recentHitters+1 end
+        end
+    end
     local lethal=#p.members>=2 and p.damage>p.effectiveHP*1.2 and control and survivable>=2
     -- Pressure on an isolated diver under OUR buildings need not guarantee a
     -- kill. A safe utility controller can replace one of four healthy bodies.
@@ -157,18 +170,29 @@ function X.GetPlan(bot,J)
         and not defenses.aeon and (not defenses.bkb or controlled or p.hard>=2)
     local continuing=followThrough and #p.members>=3 and p.healthy>=2 and p.backups==0
         and survivable>=2 and control and p.damage>=p.effectiveHP*0.35
-    p.ready=not defenses.aeon and (lethal or pressure or continuing)
+    -- A verified ongoing fight is not a new initiation. Spent stun cooldowns
+    -- do not alone end it, but nearby bodies or stale attack orders cannot start it.
+    local ongoing=#p.members>=3 and p.healthy>=2 and p.backups==0 and nearBuilding
+        and p.fighting>=2 and p.recentHitters>=2 and survivable>=2
+        and p.damage>=p.effectiveHP*0.5 and not target:IsMagicImmune()
+    p.ready=not defenses.aeon and (lethal or pressure or continuing or ongoing)
     p.emergency=target:GetAttackTarget()==ancient
         and target:GetEstimatedDamageToTarget(true,ancient,6,DAMAGE_TYPE_ALL)>=ancient:GetHealth()
-    p.reason=p.emergency and 'ancient-emergency' or p.ready and (lethal and 'group-ready' or 'group-pressure')
+    p.reason=p.emergency and 'ancient-emergency' or p.ready and (lethal and 'group-ready' or ongoing and 'group-ongoing' or 'group-pressure')
         or p.backups>0 and 'enemy-backup' or #p.members<2 and 'insufficient-members'
         or not control and 'no-opener' or survivable<2 and 'unsafe-opener' or 'insufficient-damage'
     p.hold=not p.ready and not p.emergency
     -- Only a fresh viable assessment renews the deadline, not follow-through itself.
-    p.commitUntil=p.ready and ((lethal or pressure) and DotaTime()+0.8 or continuing and previous.commitUntil) or 0
+    p.commitUntil=p.ready and ((lethal or pressure or ongoing) and DotaTime()+0.8 or continuing and previous.commitUntil) or 0
     leader.shaiDefensePlan=p
     Trace(bot,p)
     return Dist(bot,target)<2200 and p or nil
+end
+local function ReleaseForRetreat(bot,J,p)
+    if p.emergency or p.roles[bot:GetPlayerID()]=='utility' then return false end
+    -- Do not hold an excluded wounded member at a building or suppress its
+    -- native retreat. Recheck present retaliation even while roster is cached.
+    return J.GetHP(bot)<0.4 or Incoming(bot,p.enemies,0.75)>=bot:GetHealth()*0.6
 end
 function X.GetDesire(bot,J)
     if X.HoldingCast(bot) then return 1.02 end
@@ -178,10 +202,13 @@ function X.GetDesire(bot,J)
         if Wave.GetAction(bot,J,false)~=nil then return 0.94 end
         return nil
     end
+    if ReleaseForRetreat(bot,J,p) then return nil end
     bot.shaiTacticalUntil=DotaTime()+0.5
     local participating=false
     for _,h in ipairs(p.members) do if h==bot then participating=true end end
-    return p.emergency and 1.1 or p.ready and participating and 1.02 or 0.82
+    -- Safe hold beats ordinary ATTACK (0.95), but action/recovery and special
+    -- emergency guards remain above it. Do not alternate hold and native poke.
+    return p.emergency and 1.1 or p.ready and participating and 1.02 or 0.99
 end
 local function Current(bot,J)
     local p=X.GetPlan(bot,J)
@@ -199,6 +226,7 @@ function X.Think(bot,J,anchor)
     if Finish.IsCommitting(bot,J) then return true end
     local p=Current(bot,J)
     if p==nil then return Wave.Think(bot,J,false) end
+    if ReleaseForRetreat(bot,J,p) then return false end
     bot.shaiTacticalUntil=DotaTime()+0.5
     if p.roles[bot:GetPlayerID()]=='utility' then
         if X.TryUtility(bot,J,p) then return true end
@@ -286,6 +314,7 @@ function X.GuardAbilities(bot,J)
     if J.CanNotUseAction(bot) then return false end
     local p=Current(bot,J)
     if p==nil then return Wave.Think(bot,J,true) end
+    if ReleaseForRetreat(bot,J,p) then return false end
     if p.roles[bot:GetPlayerID()]=='utility' then
         X.TryUtility(bot,J,p)
         return true -- no ordinary offensive damage/channel from the wounded utility role

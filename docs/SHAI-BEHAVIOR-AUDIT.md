@@ -397,3 +397,13 @@ Kontrola dat: aktuální [oficiální Valve hero feed](https://www.dota2.com/dat
 Capture dwell má konkrétního ownera. Změna mode label uvnitř bezpečného kruhu sama nestartuje pobyt od nuly; smrt, opuštění, escape/contest a nový collector jej resetují. Po 3,5 s je spot v daném cyklu označen checked a ztrácí Wisdom desire. To je dosavadní časová inference; skutečný zisk XP stále musí ověřit hra/replay. Není to automatický potvrzený pickup, kruh se nezvětšil a úplný engine pathfinding nevznikl.
 
 Regrese používají skutečný rune callback i skutečný Route s neprůchozím centrem, helper progresu/cooldownu/ownerů a analyzer. Celá sada: 29 Lua + dvě PowerShell sady, syntax 334 souborů bez chyby. Engine passability, kruh a odchod se ověřují v novém lobby.
+
+# Pokračování obranného boje po testu 9037301618
+
+Bezpečné čekání společné obrany nyní používá desire 0,99 proti pozorovanému native ATTACK 0,95. Připravený engage zůstává 1,02. Jde pouze o obranu základny po desáté minutě; ostatní střídání attack/retreat tím není vyřešené.
+
+Nové `group-ongoing` rozlišuje skutečně rozběhnutý souboj od nové iniciace. Vyžaduje alespoň tři způsobilé členy, dva zdravé útočníky v dosahu, dva nedávné zdroje hero damage během poslední sekundy, přežití alespoň dvou členů a zbývající odhad damage alespoň poloviny HP cíle včetně dosavadní regen rezervy. Cíl musí být u vlastní obranné budovy, bez viditelné zálohy, magic immunity a Aeon ochrany. Pouhé staré attack orders ani minulý damage nestačí. Nová evidence může obnovit krátký 0,8s commit; původní follow-through sám deadline neprodlužuje. Společný ability dispatcher stále předchází autoattacku.
+
+Člen mimo control-only utility roli uvolní obranný hold při HP pod 40 % nebo odhadu viditelného příchozího damage za 0,75 s alespoň 60 % současného HP. Recheck běží i s cachovaným rosterem. Ostatní mohou pokračovat podle aktuální síly. Dokončovaný cast/finish a Ancient emergency mají přednost; utility role zachovává vlastní kontrolu bezpečného spell přínosu. Uvolnění hold není nové routování k fontáně a nezaručuje správnou volbu následného native retreat. Cachovaní neviditelní nepřátelé neposkytují aktuální damage data.
+
+Trace doplňuje `fighting` a `recentHitters`, analyzer je zachovává. Regrese pokrývají spotřebované kontroly, chybějící skutečné zásahy, oslabení jednoho člena versus celé skupiny, vysoké HP cíle, backup, immunity, range a vision. Prošlo 29 Lua a dvě PowerShell sady, syntax 334 Lua souborů bez chyby. Účinek na skutečnou engine arbitráž a týmový souboj musí potvrdit nové lobby.
