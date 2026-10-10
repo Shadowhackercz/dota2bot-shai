@@ -53,6 +53,9 @@ try {
         $output -notmatch '\[defense-cast\].*reason=issued; spell=witch_doctor_maledict; target=pudge; members=2; purpose=engage; until=1525.5' -or
         $output -notmatch '\[defense\].*utility=1; healthy=3; regenBudget=500; effectiveHP=2500' -or
         $output -notmatch '\[farm-spell\].*reason=lion-spike; hits=2; damage=255; reserve=380') { throw "Analyzer lost decision reasons, objective readiness, combat budgets, memory snapshots or runtime failures: $output" }
+    '[SHAI] wisdom t=1526; hero=axe; reason=no-progress-deferred; x=-7948; y=768' | Add-Content -LiteralPath $fixture.FullName
+    $wisdomOutput = & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName | Out-String -Width 200
+    if ($wisdomOutput -notmatch '\[wisdom\].*reason=no-progress-deferred') { throw 'Analyzer lost Wisdom progress diagnostic' }
     'unrelated engine output' | Set-Content -LiteralPath $fixture.FullName
     $rejected = $false
     try { & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName } catch { $rejected = $true }

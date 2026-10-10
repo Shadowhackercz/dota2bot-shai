@@ -4,6 +4,7 @@ local J = require(GetScriptDirectory()..'/FunLib/jmz_func')
 local RuneShare = require(GetScriptDirectory()..'/FunLib/shai_rune_share')
 local Route = require(GetScriptDirectory()..'/FunLib/shai_route_safety')
 local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
+local Wisdom = require(GetScriptDirectory()..'/FunLib/shai_wisdom')
 local Customize = require(GetScriptDirectory()..'/Customize/general')
 Customize.ThinkLess = Customize.Enable and Customize.ThinkLess or 1
 
@@ -191,7 +192,7 @@ local function ModeDesireInternal()
 			if nShrineOfWisdomTeam then
 				local bChecked  = wisdom.spot[nShrineOfWisdomTeam].status
 				local vLocation = wisdom.spot[nShrineOfWisdomTeam].location
-				if bChecked == false then
+				if bChecked == false and Wisdom.Available(bot, wisdom.spot[nShrineOfWisdomTeam], nShrineOfWisdomTime) then
 					if bot == X.GetWisdomAlly(vLocation) then
 						local desire = X.GetWisdomDesire(vLocation)
 						collectingWisdom = desire > 0
@@ -310,7 +311,13 @@ function OnEnd()
 	collectingWisdom = false
 	local wisdom = bot.rune and bot.rune.wisdom and bot.rune.wisdom[nShrineOfWisdomTime]
 	if wisdom then
-		for _, spot in pairs(wisdom.spot) do spot.captureStart = nil end
+		for _, spot in pairs(wisdom.spot) do
+			-- A mode label change inside the uncontested circle is not departure.
+			if not bot:IsAlive() or GetUnitToLocationDistance(bot,spot.location)>=250
+				or bot:WasRecentlyDamagedByAnyHero(2) or #RealHeroes(J.GetEnemiesNearLoc(spot.location,300))>0 then
+				Wisdom.ResetCapture(bot,spot)
+			end
+		end
 	end
 end
 
@@ -334,7 +341,7 @@ local function ModeThinkInternal()
 	-- An interrupted capture must restart its dwell time on return.
 	if DotaTime()>=0 and FarmSafety.InterruptFarm(bot,J) then
 		local wisdom=bot.rune and bot.rune.wisdom and bot.rune.wisdom[nShrineOfWisdomTime]
-		if wisdom then for _,spot in pairs(wisdom.spot) do spot.captureStart=nil end end
+		if wisdom then for _,spot in pairs(wisdom.spot) do Wisdom.ResetCapture(bot,spot) end end
 		return
 	end
 	-- Wisdom Rune
@@ -348,15 +355,17 @@ local function ModeThinkInternal()
 			if not spot.status then
 				if GetUnitToLocationDistance(bot, vLocation) < 250
 					and #RealHeroes(J.GetEnemiesNearLoc(vLocation, 300)) == 0 then
-					spot.captureStart = spot.captureStart or DotaTime()
-					if DotaTime() >= spot.captureStart + 3.5 then spot.status = true end
+					Wisdom.ObserveCapture(bot,spot,true)
 					bot:Action_ClearActions(false)
 					return
 				end
-				spot.captureStart = nil
+				Wisdom.ResetCapture(bot,spot)
 				if #RealHeroes(J.GetEnemiesNearLoc(vLocation, 1200)) > 0 then return end
-				bot.rune.location = vLocation
-				Route.Move(bot,J,vLocation,'wisdom')
+				local approach = Wisdom.Point(bot,spot,nShrineOfWisdomTime)
+				if approach then
+					bot.rune.location = approach
+					Route.Move(bot,J,approach,'wisdom')
+				end
 				return
 			end
 		end

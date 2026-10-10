@@ -58,7 +58,8 @@ function human:GetEstimatedDamageToTarget() return state.incoming end
 function bot:GetHealth() return state.hp * 1000 end
 function bot:GetAttackRange() return 600 end
 function bot:GetAttackDamage() return 80 end
-function bot:GetLocation() return {} end
+function bot:GetLocation() return Vector(-7948.152344+(state.wisdomDistance or 900),768.207825,256) end
+IsLocationPassable=function() return not state.blockedWisdom end
 function bot:GetNearbyCreeps() return {} end
 function bot:GetNearbyTowers() return {} end
 function bot:WasRecentlyDamagedByTower() return false end
@@ -119,6 +120,7 @@ local function setup(changes)
     for key, value in pairs(changes or {}) do state[key] = value end
     bot.rune = nil
     bot.shaiBottleShare=nil
+    bot.shaiWisdomAttempt=nil
     dofile('bots/mode_rune_generic.lua')
 end
 setup()
@@ -267,7 +269,19 @@ assert(GetDesire() > 0.7 and bot.rune.wisdom[14], 'Wisdom cycle must renew after
 state.wisdomDistance = 100
 Think()
 OnEnd()
-assert(bot.rune.wisdom[14].spot[TEAM_RADIANT].captureStart == nil, 'Leaving rune mode must cancel capture memory')
+assert(bot.rune.wisdom[14].spot[TEAM_RADIANT].captureStart ~= nil, 'A label change inside the safe capture circle preserves dwell')
+state.time=845; assert(GetDesire()>0.7); Think()
+assert(bot.rune.wisdom[14].spot[TEAM_RADIANT].status,'Re-entering rune mode inside the circle completes the preserved dwell')
+assert(GetDesire()<=0.7,'Completed Wisdom no longer reserves high rune desire')
+setup({wisdom=true,time=481,wisdomDistance=100}); assert(GetDesire()>0.7); Think()
+state.wisdomDistance=400; OnEnd()
+assert(bot.rune.wisdom[7].spot[TEAM_RADIANT].captureStart==nil,'Actual departure still resets capture')
+setup({wisdom=true,time=481,blockedWisdom=true}); assert(GetDesire()>0.7); Think()
+assert(state.routePurpose==nil and GetDesire()<=0.7,'No passable capture point defers rather than repeatedly dispatching a blocked center')
+setup({wisdom=true,time=481}); assert(GetDesire()>0.7); Think()
+state.time=493.1
+assert(GetDesire()<=0.7,'No movement for twelve seconds drops the stuck Wisdom task')
+assert(bot.rune.wisdom[7].spot[TEAM_RADIANT].retryAt>state.time,'Stuck task has a bounded retry cooldown')
 setup({wisdom=true, time=421, human=true, humanWisdomDistance=100})
 assert(GetDesire() <= 0.7, 'A human inside the shrine circle has a clear claim')
 setup({wisdom=true, time=421, baseThreat=true})

@@ -108,3 +108,11 @@ assert(bot.moved and bot.moved.x<0,'Immediate danger uses existing escape before
 Reset(); Route.Move(bot,J,destination,'rune'); now=10; enemies={}; enemy.visible=false
 Route.Move(bot,J,destination,'rune'); assert(bot.moved.x==900,'Clock rollback cannot preserve an old detour')
 print('PASS: real short route, visible/fog threats, detour recheck, blocked fallback, immediate escape, expiry and action guards')
+Reset(); enemies={}; bot.shaiWisdomAttempt=nil
+local Wisdom=require('bots/FunLib/shai_wisdom')
+local shrine={location=Vector(500,0),status=false}
+passable=function(p) return Dist(p,shrine.location)>50 end
+local capturePoint=Wisdom.Point(bot,shrine,7)
+assert(capturePoint and Dist(capturePoint,shrine.location)<250)
+Route.Move(bot,J,capturePoint,'wisdom')
+assert(bot.moved==capturePoint and bot.clears==0,'Real route reaches an in-circle passable endpoint rather than rejecting an impassable shrine center')
