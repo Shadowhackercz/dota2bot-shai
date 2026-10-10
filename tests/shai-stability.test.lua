@@ -75,6 +75,7 @@ dofile = function(path)
     return actualDofile(path)
 end
 local roam = dofile('bots/mode_team_roam_generic.lua')
+local actualCoreHelp,actualAllyHelp=roam.ConsiderHelpWhenCoreIsTargeted,ConsiderHelpAlly
 roam.ConsiderHelpWhenCoreIsTargeted = function() return candidate, coreHelp end
 ConsiderHelpAlly = function() return candidate, true end
 ItemOpsDesire, ItemOpsThink = function() end, function() end
@@ -103,3 +104,30 @@ assert(attacked == tomb, 'A prior hero target must not overwrite the selected To
 specialDesire = 0
 checkTarget(b) -- no stale special-unit flag after yielding to hero combat
 print('PASS: bounded retreat stability, immediate danger/exclusions and real team-roam target lock')
+-- The actual help selectors used to reject their own target as soon as the
+-- bot entered TEAM_ROAM/ATTACK, dropping the desire on the following tick.
+local friend={distance=900,GetLocation=function() return {} end,WasRecentlyDamagedByHero=function() return false end}
+function bot:GetActiveModeDesire() return self.modeDesire or 0 end
+J.GetClosestAlly,J.GetClosestCore=function() return friend end,function() return friend end
+J.GetAlliesNearLoc=function() return {friend} end
+J.GetEnemiesNearLoc=function() return {a} end
+J.IsInLaningPhase=no; J.IsRetreating=function() return bot.retreating or false end
+J.IsGoingOnSomeone=function() return bot.engaging or false end
+J.GetProperTarget=function() return bot.properTarget end
+J.IsChasingTarget=no
+function a:GetAttackTarget() return self.victim end
+a.victim=friend
+for _,selector in ipairs({actualAllyHelp,actualCoreHelp}) do
+    bot.engaging=false; bot.retreating=false
+    assert(selector()==a,'Actual selector enters help for attacked ally')
+    bot.engaging=true; bot.properTarget=a
+    assert(selector()==a,'Entering attack mode preserves help for the same attacker')
+    bot.properTarget=b
+    assert(selector()==nil,'Helping does not steal an unrelated committed hero target')
+    bot.properTarget=a; bot.retreating=true; bot.modeDesire=0.9
+    assert(selector()==nil,'High-priority retreat still overrides continued help')
+    bot.retreating=false; a.victim=nil
+    assert(selector()==nil,'Absent attack/chase/recent damage releases help immediately')
+    a.victim=friend
+end
+print('PASS: actual ally/core help entry, same-target attack continuation, unrelated target/retreat veto and attack evidence release')

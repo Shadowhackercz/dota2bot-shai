@@ -12,6 +12,7 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Assist = require(GetScriptDirectory()..'/FunLib/shai_lich_assist')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -248,6 +249,8 @@ function X.SkillsComplement()
 		return
 
 	end
+
+	if Assist.Try(bot,J,abilityQ,abilityW,aetherRange) then return end
 
 	castQDesire, castQTarget, sMotive = X.ConsiderQ()
 	if ( castQDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityQ,castQTarget,'damage')

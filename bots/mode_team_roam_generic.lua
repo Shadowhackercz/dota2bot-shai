@@ -364,13 +364,13 @@ function ConsiderHelpAlly()
     if  nClosestAlly ~= nil
     and J.GetHP(bot) >= J.GetHP(nClosestAlly)
     and (not J.IsCore(bot) or (J.IsCore(bot) and (not J.IsInLaningPhase() or J.IsInRange(bot, nClosestAlly, 1600))))
-    and not J.IsGoingOnSomeone(bot)
     and not (J.IsRetreating(bot) and nModeDesire > 0.8) then
         local nInRangeAlly = J.GetAlliesNearLoc(nClosestAlly:GetLocation(), 1200)
         local nInRangeEnemy = J.GetEnemiesNearLoc(nClosestAlly:GetLocation(), 1600)
 
         for _, enemyHero in pairs(nInRangeEnemy) do
             if J.IsValidHero(enemyHero)
+            and (not J.IsGoingOnSomeone(bot) or J.GetProperTarget(bot)==enemyHero)
             and GetUnitToUnitDistance(enemyHero, nClosestAlly) <= 1600
             and (#nInRangeAlly + 1 >= #nInRangeEnemy) then
                 if (enemyHero:GetAttackTarget() == nClosestAlly or J.IsChasingTarget(enemyHero, nClosestAlly))
@@ -1400,13 +1400,13 @@ function X.ConsiderHelpWhenCoreIsTargeted()
     if  nClosestCore ~= nil
     and J.GetHP(nClosestCore) > 0.2
     and (not J.IsCore(bot) or bot.isBear or (J.IsCore(bot) and (not J.IsInLaningPhase() or J.IsInRange(bot, nClosestCore, 1600))))
-    and not J.IsGoingOnSomeone(bot)
     and not (J.IsRetreating(bot) and nModeDesire > 0.8) then
         local nInRangeAlly = J.GetAlliesNearLoc(nClosestCore:GetLocation(), 1200)
         local nInRangeEnemy = J.GetEnemiesNearLoc(nClosestCore:GetLocation(), 1600)
 
         for _, enemyHero in pairs(nInRangeEnemy) do
             if  J.IsValidHero(enemyHero)
+            and (not J.IsGoingOnSomeone(bot) or J.GetProperTarget(bot)==enemyHero)
             and GetUnitToUnitDistance(enemyHero, nClosestCore) <= 1600
             and (#nInRangeAlly + 1 >= #nInRangeEnemy) then
                 if (enemyHero:GetAttackTarget() == nClosestCore or J.IsChasingTarget(enemyHero, nClosestCore))

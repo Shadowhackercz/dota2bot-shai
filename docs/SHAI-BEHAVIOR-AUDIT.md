@@ -1,5 +1,15 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Lichova pomoc spojenci a pokračování stejného help cíle — 10. října
+
+Lichovy běžné Nova větve se orientovaly podle vlastního laning/going-on/teamfight/retreat módu. Nový shai_lich_assist v reálném SkillsComplement po původní R consideration a před Q reaguje na viditelného skutečného spojence a viditelného útočníka do 1200. Evidence je aktuální attack target nebo nedávný hero damage do 1,5 s, útočník musí být do attack range +350 od spojence. Pouhá blízkost soupeře není důvod k pomoci. Tento profil nezjišťuje dostupnost spellů nepřítele ani neplánuje příchod celé skupiny.
+
+Připravený Frost Shield v runtime dosahu se nabízí proti dvousekundovému fyzickému odhadu alespoň 20 % max HP spojence nebo kladnému odhadu u spojence pod 60 % HP, pokud shield už nemá. Jinak Nova v runtime dosahu může zpomalit útočníka; respektuje magic immunity/advanced target guard, probíhající disable a Nova slow. Nedává pěší příkaz do cast range. Spojenecký dočasný WK duch je z této nové záchranné větve vyloučen. Vlastní farm threat, action/ability/invisibility guard, viditelný incoming přes cast point +0,2 s alespoň 45 % vlastního HP nebo fatal cast penalty odmítnou nový assist. Shield má save purpose, Nova ally-control purpose; není zařazená jako volitelný Curse harass. Standardní R a další původní větve zůstávají; Sinister Gaze/channel a kompletní pořadí všech save/kill/control spellů tento krok neopravuje.
+
+V obecných ConsiderHelpAlly a ConsiderHelpWhenCoreIsTargeted byl blanket zákaz IsGoingOnSomeone. TEAM_ROAM/ATTACK jsou právě takové módy, takže pomoc mohla po vlastním vstupu přestat být způsobilá na dalším ticku. Nově pokračuje, pokud proper target odpovídá témuž stále doloženému útočníkovi. Jiný committed cíl, původní retreat veto, role/HP/početní kontroly a evidence útoku se zachovávají. Neprodlužuje se slepě starý závazek ani nezvyšuje celá bojová desire. Jde o nalezenou code-level příčinu; bez nového runtime trace se nepřiřazuje všem minulým změnám směru.
+
+Nová Lua sada provádí skutečný assist a Lichův SkillsComplement, včetně priority před creep Nova, range bonus, příliš vzdálený/hidden/illusion target, nulová attack evidence, ghost, self threat, cast exposure, Curse a busy guard. Stability sada provádí obě skutečné help selection funkce pro entry/continuation/retreat/other-target/evidence release. Celá Test-SHAI sada a syntax 341 Lua souborů prošly. Nová omezená safety trace reason=ally-assist zaznamenává spell a detail. Skutečná ochrana WK, timing shield/slow, bezpečný Gaze a stabilita soubojů mimo základnu vyžadují lobby.
+
 ## Kontrolovaný návrat midu od říční runy — 10. října
 
 Route kontrola se používala pro cestu k runě; po odchodu z rune módu neměl standardní pos 2 vlastní laning Think a návrat převzala původní engine logika. Nový shai_rune_return se armuje v reálném rune OnEnd pouze při živém pos 2 v prvních deseti minutách, do 650 od právě zvolené říční runy. Neprokazuje skutečné sebrání runy a platí i po ukončeném contestu. Wisdom/bounty a support rotace zůstávají mimo tento profil.
