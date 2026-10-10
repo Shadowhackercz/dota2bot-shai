@@ -138,6 +138,18 @@ local function Detour(bot,J,threat)
     bot.shaiEscapeDetour=best
     return best
 end
+function X.ForcePlan(bot,J,threat,item)
+    if bot:HasModifier('modifier_bloodseeker_rupture') then return nil end
+    local length=item:GetSpecialValueFloat('push_length')
+    if length<100 or length>1000 then return nil end
+    local c=Context(bot,J,threat)
+    if c==nil then return nil end
+    local angle=bot:GetFacing()*math.pi/180
+    local point=Vector(c.origin.x+math.cos(angle)*length,c.origin.y+math.sin(angle)*length,c.origin.z)
+    -- Conservative ground corridor: do not assume a force crosses any cliff.
+    if Score(c,point,false)==nil then return nil end
+    return {point=point}
+end
 function X.Plan(bot,J,threat,distance,jump)
     if threat==nil or type(distance)~='number' or distance<100 or distance>1000 then return nil end
     local c=Context(bot,J,threat)

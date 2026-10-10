@@ -18,6 +18,7 @@ try {
     if (-not $itemMatch.Success) { throw 'Cannot locate actual ItemUsageThink callback' }
     $itemAdapter = "return function(bot,J,Customize,RefreshBotHandle,CombatFinish,ItemUsageComplement,botName,Travel,RoshanSafety)`nTravel = Travel or {ThinkFade=function() return false end,RecheckTeleport=function() return false end}`nRoshanSafety = RoshanSafety or {GuardActions=function() return false end}`nlocal Wraith=require('bots/FunLib/shai_wraith_form')`nlocal Invisible=require('bots/FunLib/shai_invisible_escape')`nlocal Runtime=require('bots/FunLib/shai_runtime')`n" + $itemMatch.Groups[1].Value + "`nreturn ItemUsageThink`nend`n"
     $itemAdapter = $itemAdapter.Replace("local Runtime=require", "local EscapeItems=require('bots/FunLib/shai_escape_items')`nlocal Runtime=require")
+    $itemAdapter = $itemAdapter.Replace('botName,Travel,RoshanSafety)', 'botName,Travel,RoshanSafety,X)').Replace('local Runtime=require', "X = X or {SetUseItem=function() return false end}`nlocal Runtime=require")
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-item-callback.lua'), $itemAdapter, [Text.UTF8Encoding]::new($false))
     $complementMatch = [regex]::Match($abilitySource, '(?s)local function ItemUsageComplement\(\).*?\r?\nend(?=\r?\n\r?\nfunction X.SetUseItem)')
     if (-not $complementMatch.Success) { throw 'Cannot locate actual item complement' }

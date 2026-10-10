@@ -1026,7 +1026,7 @@ local function ItemUsageComplement()
 						J.SetReportMotive( bDebugMode, sItemName..'→'..sMotive )
 					end
 
-					if X.SetUseItem( hItem, hItemTarget, sCastType ) then return nSlot + 1 end
+					if EscapeItems.AllowOrdinary(bot,J,hItem,hItemTarget) and X.SetUseItem( hItem, hItemTarget, sCastType ) then return nSlot + 1 end
 				end
 			end
 		end
@@ -8328,6 +8328,7 @@ function ItemUsageThink()
 	if DotaTime() > 30 and (DotaTime() - bot.lastItemFrameProcessTime < (bot.frameProcessTime * (1 + Customize.ThinkLess))) then return end
 	bot.lastItemFrameProcessTime = DotaTime()
 	if CombatFinish.IsCommitting(bot,J) then return end
+	if Runtime.Call(bot,'escape.ghost-tp',function() return EscapeItems.TryGhostTeleport(bot,J,X.SetUseItem) end,false) then return end
 	if Runtime.Call(bot,'invis.items',function() return Invisible.Think(bot,J) end,false) then return end
 	if not J.IsNoItemIllution(bot) then Runtime.Call(bot,'items',ItemUsageComplement,nil) end
 end
