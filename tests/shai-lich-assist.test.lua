@@ -10,6 +10,7 @@ local function unit(x)
     local h={x=x,hp=1000,visible=true,mods={}}
     local function seen(self) assert(self.visible,'Hidden state read') end
     function h:IsNull() return false end
+    function h:IsAlive() seen(self); return self.hp>0 end
     function h:CanBeSeen() return self.visible end
     function h:GetHealth() seen(self); return self.hp end
     function h:GetMaxHealth() seen(self); return 1000 end
@@ -17,6 +18,7 @@ local function unit(x)
     function h:GetUnitName() seen(self); return 'npc_dota_hero_pudge' end
     function h:GetAttackRange() seen(self); return 150 end
     function h:GetAttackTarget() seen(self); return self.target end
+    function h:IsChanneling() seen(self); return self.channeling or false end
     function h:GetEstimatedDamageToTarget(_,target,time,kind)
         seen(self); return (target==bot and (self.botDps or 0) or (self.dps or 200))*time
     end
@@ -32,10 +34,11 @@ local function ability(name,range)
     function a:IsFullyCastable() return self.ready end
     function a:GetCastRange() return self.range end
     function a:GetCastPoint() return 0.3 end
+    function a:GetChannelTime() return self.channel or 0 end
     function a:IsTrained() return false end
     return a
 end
-local q,w=ability('lich_frost_nova',600),ability('lich_frost_shield',800)
+local q,w,e=ability('lich_frost_nova',600),ability('lich_frost_shield',800),ability('lich_sinister_gaze',600)
 local no=function() return false end
 local J={Skill={},Item={},Role={IsPvNMode=no,IsAllShadow=no}}
 J.IsValidHero=function(h) return h~=nil and not h.creep end
@@ -47,6 +50,7 @@ J.GetNearbyHeroes=function() return enemies end
 J.GetAlliesNearLoc=function() return allies end
 J.CanNotUseAbility,J.CanNotUseAction=function() return bot.busy end,function() return bot.busy end
 J.SetQueuePtToINT=function() end
+J.IsCastingUltimateAbility=function(h) return h.castingUltimate or false end
 J.GetModifierTime=function() return 0 end
 package.loaded['bots/FunLib/shai_farm_safety']={GetThreat=function() return threat end}
 require('bots/Customize/shai').BehaviorTrace=false
@@ -54,9 +58,13 @@ local Assist=require('bots/FunLib/shai_lich_assist')
 local function reset()
     now=now+10; bot,ally,enemy=unit(0),unit(250),unit(350)
     bot.busy=false; allies={ally}; enemies={enemy}; enemy.target=ally; threat=nil
-    q.ready,w.ready=true,true
+    q.ready,w.ready,e.ready=true,true,false; e.channel=1.7
     function bot:IsInvisible() return self.invisible or false end
     function bot:IsInvulnerable() return false end
+    function bot:GetHealthRegen() return self.regen or 0 end
+    function bot:GetNearbyTowers() return self.towers or {} end
+    function bot:GetIncomingTrackingProjectiles() return self.projectiles or {} end
+    function bot:HasScepter() return self.scepter or false end
     function bot:GetMana() return 800 end
     function bot:GetActualIncomingDamage(damage) return damage end
     function bot:GetMaxMana() return 1000 end
@@ -64,6 +72,7 @@ local function reset()
     function bot:GetUnitName() return 'npc_dota_hero_lich' end
     function bot:GetPlayerID() return 1 end
     function bot:ActionQueue_UseAbilityOnEntity(a,t) self.cast=a; self.castTarget=t end
+    function bot:ActionQueue_UseAbilityOnLocation(a,p) self.cast=a; self.castLocation=p end
 end
 reset(); local p=Assist.GetPlan(bot,J,q,w,0)
 assert(p and p.ability==w and p.target==ally,'Visible physical attack prompts an in-range ally shield')
@@ -99,7 +108,7 @@ J.SetUserHeroInit=function(...) return ... end
 J.GetProperTarget=function() return nil end
 J.IsItemAvailable=function() return nil end
 J.SetReportMotive=function() end
-function bot:GetAbilityByName(n) return n=='q' and q or n=='w' and w or ability(n,600) end
+function bot:GetAbilityByName(n) return n=='q' and q or n=='w' and w or n=='e' and e or ability(n,600) end
 GetBot=function() return bot end
 package.loaded['bots/FunLib/jmz_func']=J
 local actualDofile=dofile
@@ -116,3 +125,50 @@ bot.cast=nil; bot.mods.modifier_silencer_curse_of_the_silent=true; lich.SkillsCo
 assert(bot.cast==q,'Useful ally control remains available under Curse')
 bot.cast=nil; bot.mods={}; bot.busy=true; lich.SkillsComplement(); assert(bot.cast==nil,'Actual hero respects action guard')
 print('PASS: actual Lich ally shield/Nova dispatch before creep cast, range, visibility, attack evidence, self safety and Curse purpose')
+
+bot.busy=false; e.ready=true; enemy.channeling=true
+local rConsidered=false
+lich.ConsiderR=function() rConsidered=true; return 1,enemy end
+bot.cast=nil; lich.SkillsComplement()
+assert(bot.cast==e and bot.castTarget==enemy and not rConsidered,'Actual Gaze interrupt precedes optional R damage')
+enemy.channeling=false; lich.ConsiderR=function() return 0 end
+w.ready=false; bot.cast=nil; lich.SkillsComplement()
+assert(bot.cast==e,'Actual ally Gaze takes priority over optional Nova when shield unavailable')
+bot.cast=nil; bot.scepter=true; lich.SkillsComplement()
+assert(bot.cast==e and bot.castLocation and bot.castLocation.x==enemy.x,'Scepter uses the validated target location, no assumed extra victims')
+bot.scepter=false; bot.castLocation=nil
+enemy.disabled=true; bot.cast=nil; lich.SkillsComplement()
+assert(bot.cast~=e,'Already disabled enemy does not receive another optional Gaze')
+enemy.disabled=false
+local backup=unit(400); backup.botDps=300; enemies={enemy,backup}
+assert(not Assist.AllowGaze(bot,J,e,enemy,0),'Full channel damage from an uncontrolled second enemy is counted')
+enemies={enemy}; bot.projectiles={{}}
+assert(not Assist.AllowGaze(bot,J,e,enemy,0),'Pending tracking projectile rejects a speculative channel')
+bot.projectiles={}; bot.regen=-400
+assert(not Assist.AllowGaze(bot,J,e,enemy,0),'Ongoing negative regeneration cannot be ignored during channel')
+bot.regen=0; enemy.botDps=1000
+assert(not Assist.AllowGaze(bot,J,e,enemy,0),'Even selected target damage before control must be survivable')
+enemy.botDps=0; enemy.x=650
+assert(not Assist.AllowGaze(bot,J,e,enemy,0) and Assist.AllowGaze(bot,J,e,enemy,100),'Original inflated range cannot bypass actual Gaze range')
+enemy.x=350; enemy.protected=true
+assert(not Assist.AllowGaze(bot,J,e,enemy,0),'Advanced target protection is honored')
+enemy.protected=false; enemy.immune=true
+assert(not Assist.AllowGaze(bot,J,e,enemy,0),'Immune target is not assumed controlled')
+enemy.immune=false; enemy.visible=false
+assert(not Assist.TryGaze(bot,J,e,0,true),'Hidden channel state is never read')
+enemy.visible=true; e.channel=0
+assert(not Assist.AllowGaze(bot,J,e,enemy,0),'Unknown channel duration refuses the speculative cast')
+e.channel=1.7; threat={}
+assert(not Assist.TryGaze(bot,J,e,0,false),'Optional ally Gaze yields to concrete self escape')
+enemy.channeling=true
+assert(Assist.TryGaze(bot,J,e,0,true),'Safe urgent interrupt can still stop enemy channel during a threat')
+print('PASS: actual Gaze interrupt/ally priority, full channel exposure, real range, Scepter, target protection and self escape')
+threat=nil; enemy.channeling=false; enemy.target=nil; allies={}
+lich.ConsiderQ,lich.ConsiderW,lich.ConsiderAS=function() return 0 end,function() return 0 end,function() return 0 end
+lich.ConsiderE=function() return 1,enemy end
+bot.cast=nil; enemies={enemy,backup}; lich.SkillsComplement()
+assert(bot.cast==nil,'Actual original E dispatcher cannot bypass channel survival veto')
+enemies={enemy}; bot.towers={backup}; bot.cast=nil; lich.SkillsComplement()
+assert(bot.cast==nil,'Visible enemy tower damage is counted over the channel')
+bot.towers={}; bot.cast=nil; lich.SkillsComplement()
+assert(bot.cast==e,'Safe original E branch remains available after new guard')

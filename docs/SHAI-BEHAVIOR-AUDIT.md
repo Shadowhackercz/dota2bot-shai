@@ -1,5 +1,13 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Lich Gaze: přerušení a bezpečnost channelu — 10. října
+
+Původní E consideration rozpoznávala channel/ultimate, ale SkillsComplement ji zkoušel až po R/Q/W. Nová interrupt větev posoudí viditelné channeling nebo casting-ultimate heroes před R. Po běžném R zachovává pořadí nového ally assistu: dostupný vhodný shield, bezpečný Gaze na doloženého útočníka spojence, Nova. Nevydává pohyb do dosahu. Běžná ally Gaze pomoc ustoupí vlastnímu farm threat; urgentní interrupt ho může zastavit pouze při splněné cast/channel bezpečnosti.
+
+AllowGaze čte runtime cast range a GetChannelTime (kladný, nejvýše pět sekund), přičítá cast point +0,2 s. Započítá negativní health regen, celý engine damage od ostatních viditelných skutečných heroes a viditelných enemy towers. U vybraného susceptible cíle započte exposure do nástupu kontroly, nepředstírá další Scepter AoE catches. Odhad alespoň 45 % vlastního HP nebo aktuální tracking projectile odmítá cast. Advanced target/non-magic-immune, skutečný dosah, existing disable a CastSafety/control-chain guard se respektují. Scepter se vydá na aktuální viditelnou lokaci cíle; obyčejný Gaze na entity. Diagnostika safety ally-assist detail=gaze-control obsahuje channel. Stejný guard se přidal k původnímu E hero dispatcheru, aby původní consideration nemohla veto obejít. Původní nonhero Roshan větev tímto hero profilem není přehodnocená.
+
+Channel parametry a Scepter targeting ověřeny proti [Valve Lich datům](https://www.dota2.com/datafeed/herodata?language=english&hero_id=31). Nejde o garanci přežití: nepozorované nové útoky, ne-tracking projektily, dispel a pending AoE/dot mimo odhad nejsou kompletně simulované. Tento krok nepřidává rušení již běžícího channelu při nové hrozbě ani Scepter kouzlení během channelu. Testy skutečného SkillsComplement ověřují prioritu před R/Q, ally Gaze, Scepter location, unknown channel/range/protection/disabled/fog, druhého útočníka, tower, projectile, negativní regen, vlastní únik a nemožnost obejít veto přes starou E větev. Celá Test-SHAI sada a syntax 341 Lua souborů prošly; engine timing a allied follow-up zůstávají k ověření.
+
 ## Lichova pomoc spojenci a pokračování stejného help cíle — 10. října
 
 Lichovy běžné Nova větve se orientovaly podle vlastního laning/going-on/teamfight/retreat módu. Nový shai_lich_assist v reálném SkillsComplement po původní R consideration a před Q reaguje na viditelného skutečného spojence a viditelného útočníka do 1200. Evidence je aktuální attack target nebo nedávný hero damage do 1,5 s, útočník musí být do attack range +350 od spojence. Pouhá blízkost soupeře není důvod k pomoci. Tento profil nezjišťuje dostupnost spellů nepřítele ani neplánuje příchod celé skupiny.

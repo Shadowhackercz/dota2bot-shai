@@ -238,6 +238,8 @@ function X.SkillsComplement()
 --	if talent1:IsTrained() then aetherRange = aetherRange + talent1:GetSpecialValueInt( "value" ) end
 
 
+	if Assist.TryGaze(bot,J,abilityE,aetherRange,true) then return end
+
 	castRDesire, castRTarget, sMotive = X.ConsiderR()
 	if ( castRDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityR,castRTarget,'damage')
 	then
@@ -250,7 +252,9 @@ function X.SkillsComplement()
 
 	end
 
-	if Assist.Try(bot,J,abilityQ,abilityW,aetherRange) then return end
+	if Assist.Try(bot,J,nil,abilityW,aetherRange) then return end
+	if Assist.TryGaze(bot,J,abilityE,aetherRange,false) then return end
+	if Assist.Try(bot,J,abilityQ,nil,aetherRange) then return end
 
 	castQDesire, castQTarget, sMotive = X.ConsiderQ()
 	if ( castQDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityQ,castQTarget,'damage')
@@ -276,6 +280,7 @@ function X.SkillsComplement()
 
 	castEDesire, castETarget, sMotive = X.ConsiderE()
 	if ( castEDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityE,castETarget,'control')
+		and (not J.IsValidHero(castETarget) or Assist.AllowGaze(bot,J,abilityE,castETarget,aetherRange))
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
