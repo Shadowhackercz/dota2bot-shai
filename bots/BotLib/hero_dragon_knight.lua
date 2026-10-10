@@ -12,6 +12,7 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Interrupt = require(GetScriptDirectory()..'/FunLib/shai_spell_interrupt')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -215,6 +216,7 @@ function X.SkillsComplement()
     botTarget = J.GetProperTarget(bot)
     nAllyHeroes = bot:GetNearbyHeroes(1600, false, BOT_MODE_NONE)
     nEnemyHeroes = bot:GetNearbyHeroes(1600, true, BOT_MODE_NONE)
+	if Interrupt.Try(bot, J, DragonTail) then return end
 
 	ElderDragonFormDesire = X.ConsiderElderDragonForm()
 	if ElderDragonFormDesire> 0  and CastSafety.AllowDecision(bot,J,ElderDragonForm,nil,'engage')then
@@ -487,7 +489,7 @@ function X.ConsiderDragonTail()
 						return BOT_ACTION_DESIRE_HIGH, enemyHero
 					end
 				end
-			elseif enemyHero:IsChanneling() then
+			elseif enemyHero:IsChanneling() and J.IsInRange(bot, enemyHero, DragonTail:GetCastRange()) then
 				if fManaAfter > fManaThreshold1 then
 					return BOT_ACTION_DESIRE_HIGH, enemyHero
 				end
@@ -543,7 +545,6 @@ function X.ConsiderDragonTail()
             and J.CanCastOnTargetAdvanced(enemyHero)
             and not J.IsDisabled(enemyHero)
             and not enemyHero:IsDisarmed()
-			and not enemyHero:HasModifier('modifier_dragonknight_breathefire_reduction')
 			and not enemyHero:HasModifier('modifier_necrolyte_reapers_scythe')
 			and not enemyHero:HasModifier('modifier_oracle_false_promise_timer')
 			then
@@ -585,7 +586,6 @@ function X.ConsiderDragonTail()
             and J.CanCastOnTargetAdvanced(enemyHero)
 			and not J.IsDisabled(enemyHero)
             and not enemyHero:IsDisarmed()
-			and not enemyHero:HasModifier('modifier_dragonknight_breathefire_reduction')
 			then
 				if J.IsChasingTarget(enemyHero, bot)
 				or #nEnemyHeroes > #nAllyHeroes and enemyHero:GetAttackTarget() == bot

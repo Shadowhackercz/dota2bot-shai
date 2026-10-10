@@ -198,7 +198,10 @@ function X.SkillsComplement()
 
 	local aether = J.IsItemAvailable( "item_aether_lens" )
 	if aether ~= nil then aetherRange = 250 end
-	if abilityAS:IsTrained() then abilityASBonus = 0.09 end
+	local staticField = bot:GetAbilityByName('zuus_static_field')
+	if staticField ~= nil and staticField:IsTrained() then
+		abilityASBonus = staticField:GetSpecialValueFloat('damage_health_pct') / 100
+	end
 	if talent8:IsTrained() then talentDamage = talentDamage + talent8:GetSpecialValueInt( "value" ) end
 
 	if Escape.HoldingJump(bot) then return end
@@ -234,7 +237,7 @@ function X.SkillsComplement()
 
 	castWDesire, castWTarget = X.ConsiderW()
 	if castWDesire > 0 and CastSafety.Allow(bot, J, abilityW,
-		CastSafety.DamagePurpose(bot, J, castWTarget, abilityW:GetAbilityDamage(), abilityW:GetCastPoint(), true))
+		CastSafety.DamagePurpose(bot, J, castWTarget, abilityW:GetSpecialValueInt('damage'), abilityW:GetCastPoint(), true))
 	then
 
 		J.SetQueuePtToINT( bot, true )
@@ -419,7 +422,7 @@ function X.ConsiderW()
 	local nCastRange = abilityW:GetCastRange()
 	local nCastPoint = abilityW:GetCastPoint()
 	local manaCost = abilityW:GetManaCost()
-	local nDamage = abilityW:GetAbilityDamage() * ( 1 + bot:GetSpellAmp() )
+	local nDamage = abilityW:GetSpecialValueInt('damage') * ( 1 + bot:GetSpellAmp() )
 
 	if J.IsRetreating( bot ) and bot:WasRecentlyDamagedByAnyHero( 2.0 )
 	then
@@ -460,7 +463,7 @@ function X.ConsiderW2()
 	local nCastRange = abilityW:GetCastRange()
 	local nCastPoint = abilityW:GetCastPoint()
 	local manaCost = abilityW:GetManaCost()
-	local nDamage = abilityW:GetAbilityDamage()
+	local nDamage = abilityW:GetSpecialValueInt('damage')
 	local nRadius = 325
 
 	local nAllies = J.GetNearbyHeroes(bot, 800, false, BOT_MODE_NONE )

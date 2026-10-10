@@ -317,14 +317,19 @@ function X.ConsiderW()
 		for _, npcEnemy in pairs( nEnemyHeroes )
 		do
 			if J.IsValidHero( npcEnemy )
+				and npcEnemy:CanBeSeen() and not J.IsSuspiciousIllusion(npcEnemy)
 				and bot:WasRecentlyDamagedByHero( npcEnemy, 5.0 )
-				and J.CanCastOnNonMagicImmune( npcEnemy )
 				and not J.IsDisabled( npcEnemy )
 				and not npcEnemy:IsDisarmed()
 				and J.IsChasingTarget(npcEnemy, bot)
+				and J.IsInRange(bot, npcEnemy, npcEnemy:GetAttackRange() + 100)
 			then
-
-				return BOT_ACTION_DESIRE_HIGH
+				-- The active slows Tide. Use its attack block only in physical
+				-- contact, not merely because a spell-damage pursuer is nearby.
+				local physical = npcEnemy:GetEstimatedDamageToTarget(true, bot, 1, DAMAGE_TYPE_PHYSICAL)
+				local spells = npcEnemy:GetEstimatedDamageToTarget(true, bot, 1, DAMAGE_TYPE_MAGICAL)
+					+ npcEnemy:GetEstimatedDamageToTarget(true, bot, 1, DAMAGE_TYPE_PURE)
+				if physical > 0 and physical >= spells then return BOT_ACTION_DESIRE_HIGH end
 			end
 		end
 	end
@@ -538,7 +543,7 @@ function X.ConsiderE()
 	if not abilityE:IsFullyCastable() then return 0 end
 
 	local nSkillLV = abilityE:GetLevel()
-	local nRadius = abilityE:GetSpecialValueInt( 'radius' )
+	local nRadius = bot:GetAttackRange() + abilityE:GetSpecialValueInt('additional_range')
 	local nCastRange = nRadius	
 	local nCastPoint = abilityE:GetCastPoint()
 	local nManaCost = abilityE:GetManaCost()

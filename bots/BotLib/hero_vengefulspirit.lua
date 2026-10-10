@@ -3,6 +3,7 @@ local bot           = GetBot()
 
 local J             = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Interrupt = require(GetScriptDirectory()..'/FunLib/shai_spell_interrupt')
 local Minion        = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList   = J.Skill.GetTalentList( bot )
 local sAbilityList  = J.Skill.GetAbilityList( bot )
@@ -138,16 +139,20 @@ function X.SkillsComplement()
 	if J.CanNotUseAbility(bot) then return end
 
     botTarget = J.GetProperTarget(bot)
+    if Interrupt.Try(bot, J, MagicMissile) then return end
 
     NetherSwapDesire, NetherSwapTarget = X.ConsiderNetherSwap()
-    if NetherSwapDesire > 0 and CastSafety.AllowDecision(bot,J,NetherSwap,NetherSwapTarget,'swap')
+    if NetherSwapDesire > 0
+        and (NetherSwapTarget:GetTeam() == bot:GetTeam() or J.CanCastOnTargetAdvanced(NetherSwapTarget))
+        and CastSafety.AllowDecision(bot,J,NetherSwap,NetherSwapTarget,'swap')
     then
         bot:Action_UseAbilityOnEntity(NetherSwap, NetherSwapTarget)
         return
     end
 
     MagicMissileDesire, MagicMissileTarget = X.ConsiderMagicMissile()
-    if MagicMissileDesire > 0 and CastSafety.AllowDecision(bot,J,MagicMissile,MagicMissileTarget,'control')
+    if MagicMissileDesire > 0 and J.CanCastOnTargetAdvanced(MagicMissileTarget)
+        and CastSafety.AllowDecision(bot,J,MagicMissile,MagicMissileTarget,'control')
     then
         bot:Action_UseAbilityOnEntity(MagicMissile, MagicMissileTarget)
         return
@@ -177,7 +182,7 @@ function X.ConsiderMagicMissile()
         and J.CanCastOnNonMagicImmune(enemyHero)
         and not J.IsSuspiciousIllusion(enemyHero)
         then
-            if enemyHero:IsChanneling()
+            if enemyHero:IsChanneling() and J.IsInRange(bot, enemyHero, MagicMissile:GetCastRange())
             then
                 return BOT_ACTION_DESIRE_HIGH, enemyHero
             end
@@ -352,7 +357,7 @@ function X.ConsiderWaveOfTerror()
 
     local nCastRange = J.GetProperCastRange(false, bot, WaveOfTerror:GetCastRange())
 	local nRadius = WaveOfTerror:GetSpecialValueInt('wave_width')
-    local nDamage = WaveOfTerror:GetAbilityDamage()
+    local nDamage = WaveOfTerror:GetSpecialValueInt('damage')
 
     local nEnemyHeroes = J.GetNearbyHeroes(bot,nCastRange, true, BOT_MODE_NONE)
     for _, enemyHero in pairs(nEnemyHeroes)

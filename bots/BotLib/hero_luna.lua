@@ -3,6 +3,7 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Interrupt = require(GetScriptDirectory()..'/FunLib/shai_spell_interrupt')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -102,6 +103,7 @@ function X.SkillsComplement()
 	J.ConsiderTarget()
 
 	if talent6:IsTrained() then talent6BonusDamage = talent6:GetSpecialValueInt('value') end
+	if Interrupt.Try(bot, J, LucentBeam) then return end
 
 	-- MoonGlaivesDesire = X.ConsiderMoonGlaives()
 	-- if MoonGlaivesDesire > 0
@@ -174,7 +176,8 @@ function X.ConsiderLucentBeam()
 		and J.CanCastOnTargetAdvanced(enemyHero)
 		and not J.IsSuspiciousIllusion(enemyHero)
 		then
-			if enemyHero:IsChanneling() or J.IsCastingUltimateAbility(enemyHero)
+			if (enemyHero:IsChanneling() or J.IsCastingUltimateAbility(enemyHero))
+			and J.IsInRange(bot, enemyHero, LucentBeam:GetCastRange())
 			then
 				return BOT_ACTION_DESIRE_HIGH, enemyHero
 			end
@@ -232,7 +235,7 @@ function X.ConsiderLucentBeam()
 		and not botTarget:HasModifier('modifier_necrolyte_reapers_scythe')
 		then
 			local nInRangeAlly = J.GetNearbyHeroes(botTarget, 1200, true, BOT_MODE_NONE)
-			local nInRangeEnemy = J.GetNearbyHeroes(botTarget, 1200, true, BOT_MODE_NONE)
+			local nInRangeEnemy = J.GetNearbyHeroes(botTarget, 1200, false, BOT_MODE_NONE)
 
 			if nInRangeAlly ~= nil and nInRangeEnemy ~= nil
 			and #nInRangeAlly >= #nInRangeEnemy
@@ -431,7 +434,7 @@ function X.ConsiderLunarOrbit()
 		and (#nCreeps >= 3 or (#nCreeps >= 2 and nCreeps[1]:IsAncientCreep()))
 		and J.CanBeAttacked(nCreeps[1])
 		and J.IsAttacking(bot)
-		and J.GetManaAfter(LunarOrbit:GetManaCost()) * bot:GetMana() > Eclipse:GetManaCost() * 2
+		and bot:GetMana() - LunarOrbit:GetManaCost() > Eclipse:GetManaCost() * 2
 		then
 			return BOT_ACTION_DESIRE_HIGH
 		end
@@ -517,18 +520,18 @@ function X.ConsiderEclipse()
 
 	local nRadius = Eclipse:GetSpecialValueInt('radius')
 	local nDamage = LucentBeam:GetSpecialValueInt('beam_damage')
+	if not LucentBeam:IsTrained() or nDamage <= 0 then return BOT_ACTION_DESIRE_NONE end
 
 	if J.IsInTeamFight(bot, 1200)
 	then
 		local nInRangeEnemy = J.GetEnemiesNearLoc(bot:GetLocation(), nRadius + 75)
 		if nInRangeEnemy ~= nil and #nInRangeEnemy >= 2
 		then
-			local canKillACore = false
+			local vulnerableCount = 0
 			for _, enemyHero in pairs(nInRangeEnemy)
 			do
 				if J.IsValidHero(enemyHero)
 				and J.CanCastOnNonMagicImmune(enemyHero)
-				and J.CanKillTarget(enemyHero, nDamage, DAMAGE_TYPE_MAGICAL)
 				-- and J.IsCore(enemyHero)
 				and not J.IsSuspiciousIllusion(enemyHero)
 				and not enemyHero:HasModifier('modifier_abaddon_borrowed_time')
@@ -537,12 +540,11 @@ function X.ConsiderEclipse()
 				and not enemyHero:HasModifier('modifier_oracle_false_promise_timer')
 				and not enemyHero:HasModifier('modifier_templar_assassin_refraction_absorb')
 				then
-					canKillACore = true
-					break
+					vulnerableCount = vulnerableCount + 1
 				end
 			end
 
-			if canKillACore
+			if vulnerableCount >= 2
 			then
 				return BOT_ACTION_DESIRE_HIGH
 			end
@@ -560,7 +562,7 @@ function X.ConsiderEclipse()
 		and not (botTarget:GetHealth() <= bot:GetAttackDamage() * 4)
 		then
 			local nInRangeAlly = J.GetNearbyHeroes(botTarget, 1200, true, BOT_MODE_NONE)
-			local nInRangeEnemy = J.GetNearbyHeroes(botTarget, 1200, true, BOT_MODE_NONE)
+			local nInRangeEnemy = J.GetNearbyHeroes(botTarget, 1200, false, BOT_MODE_NONE)
 
 			if nInRangeAlly ~= nil and nInRangeEnemy ~= nil
 			and #nInRangeAlly >= #nInRangeEnemy

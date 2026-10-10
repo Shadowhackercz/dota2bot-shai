@@ -400,7 +400,7 @@ function X.ConsiderDoubleEdge()
         and J.IsAttacking(bot)
         and bot:GetHealth() > nDamage * 1.5
 		then
-			return BOT_ACTION_DESIRE_HIGH
+			return BOT_ACTION_DESIRE_HIGH, botTarget
 		end
 	end
 
@@ -412,7 +412,7 @@ function X.ConsiderDoubleEdge()
         and bot:GetHealth() > nDamage * 1.5
         and (bot:GetHealth() - nDamage) / bot:GetMaxHealth() > 0.45
         then
-            return BOT_ACTION_DESIRE_HIGH
+            return BOT_ACTION_DESIRE_HIGH, botTarget
         end
     end
 

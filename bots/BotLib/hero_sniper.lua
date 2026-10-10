@@ -248,7 +248,7 @@ function X.ConsiderQ()
 		or DotaTime() - lastAbilityQTime < 1.5
 	then return 0 end
 
-	local nCastRange = 1600	--abilityQ:GetCastRange()
+	local nCastRange = abilityQ:GetCastRange()
 	local nSkillLV = abilityQ:GetLevel()
 	local nDamage = ( 15 + 20 * ( nSkillLV -1 ) ) * 11
 	local nRadius = abilityQ:GetAOERadius()
@@ -259,7 +259,7 @@ function X.ConsiderQ()
 	local nEnemysHeroesInSkillRange = J.GetNearbyHeroes(bot, 1600, true, BOT_MODE_NONE )
 
 	local nCanHurtCreepsLocationAoE = bot:FindAoELocation( true, false, botLocation, nCastRange, nRadius, 0.8, 0 )
-	local nCanHurtCreepCount = nCanHurtCreepsLocationAoE.count
+	local nCanHurtCreepCount = nCanHurtCreepsLocationAoE and nCanHurtCreepsLocationAoE.count or 0
 	if nCanHurtCreepsLocationAoE == nil
 		or J.GetInLocLaneCreepCount( bot, 1600, nRadius, nCanHurtCreepsLocationAoE.targetloc ) <= 2	--检查半径内是否真的有小兵
 	then
@@ -269,7 +269,7 @@ function X.ConsiderQ()
 
 	--对多个敌方英雄使用
 	if #nEnemysHeroesInSkillRange >= 2
-		and ( nCanHurtHeroLocationAoE.cout ~= nil and nCanHurtHeroLocationAoE.cout >= 2 )
+		and ( nCanHurtHeroLocationAoE.count ~= nil and nCanHurtHeroLocationAoE.count >= 2 )
 		and bot:GetActiveMode() ~= BOT_MODE_LANING
 		and ( bot:GetActiveMode() ~= BOT_MODE_RETREAT or ( bot:GetActiveMode() == BOT_MODE_RETREAT and bot:GetActiveModeDesire() < 0.6 ) )
 		and not X.IsAbiltyQCastedHere( nCanHurtHeroLocationAoE.targetloc, nRadius )
@@ -499,7 +499,7 @@ function X.ConsiderR()
 	local nCastPoint = abilityR:GetCastPoint()
 	local nAttackRange = bot:GetAttackRange()
 	if nAttackRange > 1550 then nAttackRange = 1550 end
-	local nDamage	 = abilityR:GetAbilityDamage()
+	local nDamage	 = abilityR:GetSpecialValueInt('damage')
 	local nDamageType = DAMAGE_TYPE_MAGICAL
 
 	local nEnemysHerosCanSeen = GetUnitList( UNIT_LIST_ENEMY_HEROES )
@@ -636,7 +636,7 @@ function X.ShouldUseR( nAttackTarget, nEnemy, nDamage )
 				local zAbility = member:GetAbilityByName( "zuus_thundergods_wrath" )
 				if zAbility:IsFullyCastable()
 				then
-					local zAbilityDamage = zAbility:GetAbilityDamage()
+					local zAbilityDamage = zAbility:GetSpecialValueInt('damage')
 					if nEnemy:GetHealth() + 66 < nEnemy:GetActualIncomingDamage( zAbilityDamage + nDamage, DAMAGE_TYPE_MAGICAL )
 					then
 						return true

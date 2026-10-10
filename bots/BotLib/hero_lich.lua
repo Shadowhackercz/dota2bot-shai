@@ -325,7 +325,7 @@ function X.ConsiderQ()
 
 	local nCastPoint = abilityQ:GetCastPoint()
 	local nManaCost = abilityQ:GetManaCost()
-	local nMainDamage = nSkillLV * 50
+	local nMainDamage = abilityQ:GetSpecialValueInt('damage')
 	local nAoeDamage = abilityQ:GetSpecialValueInt( "aoe_damage" )
 	if talent2:IsTrained() then nAoeDamage = nAoeDamage + talent2:GetSpecialValueInt( 'value' ) end
 	local nDamage = nMainDamage + nAoeDamage
@@ -530,7 +530,7 @@ function X.ConsiderQ()
 		and J.IsAllowedToSpam( bot, 30 )
 		and nSkillLV >= 3
 		and #hEnemyList == 0
-		and #hAllyList <= 1 or J.IsCore(bot)
+		and (#hAllyList <= 1 or J.IsCore(bot))
 	then
 		local nEnemyCreeps = bot:GetNearbyLaneCreeps( 999, true )
 		local nAllyCreeps = bot:GetNearbyLaneCreeps( 888, false )

@@ -1,5 +1,9 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Revize 15 hrdinů — 10. října
+
+[Samostatná kompletní revize](SHAI-HERO-REVIEW.md) zaznamenává kontrolu všech povolených hero modulů, aktuální Valve ability zdroje, provedené opravy a konkrétní otevřené otázky každého hrdiny. Opravy zahrnují urgentní interrupt před buffem/damage u pěti hrdinů, aktuální damage/radius/DoT, Luna převahu a Eclipse, DK Breathe→Tail, WD/Warlock blokované ulti, Centaur nil objective target, Sven stale/undefined target, Venge targeted protection a Tide self-slow při magickém ústupu. CM/WD běžné channel dispatchery respektují existující počáteční CastSurvival. 44 nových scénářů načítá všech 15 skutečných modulů. Implementace vyžaduje nový herní test; nepředstavuje potvrzení optimální hry, plného channel přežití nebo dokončení všech starších TODO.
+
 ## Lich Gaze: přerušení a bezpečnost channelu — 10. října
 
 Původní E consideration rozpoznávala channel/ultimate, ale SkillsComplement ji zkoušel až po R/Q/W. Nová interrupt větev posoudí viditelné channeling nebo casting-ultimate heroes před R. Po běžném R zachovává pořadí nového ally assistu: dostupný vhodný shield, bezpečný Gaze na doloženého útočníka spojence, Nova. Nevydává pohyb do dosahu. Běžná ally Gaze pomoc ustoupí vlastnímu farm threat; urgentní interrupt ho může zastavit pouze při splněné cast/channel bezpečnosti.

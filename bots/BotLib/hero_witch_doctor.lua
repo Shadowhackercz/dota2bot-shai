@@ -12,6 +12,8 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Interrupt = require(GetScriptDirectory()..'/FunLib/shai_spell_interrupt')
+local CastSurvival = require(GetScriptDirectory()..'/FunLib/shai_cast_survival')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -203,6 +205,7 @@ function X.SkillsComplement()
 
 	local aether = J.IsItemAvailable( "item_aether_lens" )
 	if aether ~= nil then aetherRange = 250 end
+	if Interrupt.Try(bot, J, abilityQ, aetherRange) then return end
 
 	
 	castASDesire, sMotive = X.ConsiderAS()
@@ -253,6 +256,7 @@ function X.SkillsComplement()
 
 	castRDesire, castRLocation, sMotive = X.ConsiderR()
 	if ( castRDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityR,nil,'channel')
+		and CastSurvival.Allow(bot,J,abilityR,castRLocation,'channel')
 	then
 		J.SetReportMotive( bDebugMode, sMotive )
 
@@ -319,11 +323,11 @@ function X.ConsiderQ()
 	local nCastRange = abilityQ:GetCastRange() + aetherRange
 	local nCastPoint = abilityQ:GetCastPoint()
 	local nManaCost = abilityQ:GetManaCost()
-	local nDamage = 50 + nSkillLV * 25
+	local nDamage = abilityQ:GetSpecialValueInt('base_damage')
 	local nDamageType = DAMAGE_TYPE_MAGICAL
 	local nInRangeEnemyList = J.GetNearbyHeroes(bot, nCastRange + 50, true, BOT_MODE_NONE )
 
-	local nRadius = abilityR:GetSpecialValueInt( 'bounce_range' )/2
+	local nRadius = abilityQ:GetSpecialValueInt('bounce_range') / 2
 
 	--击杀
 	for _, npcEnemy in pairs( nInRangeEnemyList )
@@ -332,13 +336,14 @@ function X.ConsiderQ()
 			and J.CanCastOnNonMagicImmune( npcEnemy )
 			and J.CanCastOnTargetAdvanced( npcEnemy )
 		then
-			local nDelayTime = nCastPoint + GetUnitToUnitDistance( bot, npcEnemy )/1000
-			if J.WillMagicKillTarget( bot, npcEnemy, nDamage * 1.6, nDelayTime )
+			local nDelayTime = nCastPoint + GetUnitToUnitDistance(bot, npcEnemy) / abilityQ:GetSpecialValueInt('speed')
+			-- One impact is guaranteed; a return bounce needs another living unit.
+			if J.WillMagicKillTarget( bot, npcEnemy, nDamage, nDelayTime )
 			then
 				return BOT_ACTION_DESIRE_HIGH, npcEnemy, 'Q-Kill:'..J.Chat.GetNormName( npcEnemy )
 			end
 
-			if npcEnemy:IsChanneling()
+			if npcEnemy:IsChanneling() and J.IsInRange(bot, npcEnemy, abilityQ:GetCastRange() + aetherRange)
 			then
 				return BOT_ACTION_DESIRE_HIGH, npcEnemy, 'Q-Check:'..J.Chat.GetNormName( npcEnemy )
 			end
@@ -705,13 +710,8 @@ function X.ConsiderR()
 
 	if not abilityR:IsFullyCastable() then return 0 end
 
-	if abilityQ:IsFullyCastable()
-		and bot:GetMana() > abilityR:GetManaCost() + abilityQ:GetManaCost()
-	then return 0 end
-
-	if abilityE:IsFullyCastable()
-		and bot:GetMana() > abilityR:GetManaCost() + abilityE:GetManaCost()
-	then return 0 end
+	-- Useful Maledict/Cask decisions already precede this in SkillsComplement.
+	-- Readiness alone must not starve the ward when those spells lack a target.
 
 	local nSkillLV = abilityR:GetLevel()
 	local nCastRange = abilityR:GetCastRange() + aetherRange
@@ -753,7 +753,6 @@ function X.ConsiderR()
 			and ( J.IsDisabled( botTarget )
 				  or botTarget:GetHealth() <= botTarget:GetActualIncomingDamage( bot:GetOffensivePower() * 2, DAMAGE_TYPE_ALL ) )
 			and botTarget:GetHealth() > 500
-			and #hAllyList <= 2
 		then
 			local nTargetLocation = J.GetCastLocation( bot, botTarget, nCastRange, nRadius )
 			if nTargetLocation ~= nil

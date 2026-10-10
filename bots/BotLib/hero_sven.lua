@@ -12,6 +12,7 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local Interrupt = require(GetScriptDirectory()..'/FunLib/shai_spell_interrupt')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -143,17 +144,19 @@ function X.SkillsComplement()
 
 
 	J.ConsiderForMkbDisassembleMask( bot )
-	X.SvenConsiderTarget()
 
 
 	if J.CanNotUseAbility( bot ) or bot:IsInvisible() then return end
 
+	botTarget = J.GetProperTarget( bot )
+	X.SvenConsiderTarget()
 	botTarget = J.GetProperTarget( bot )
 	nKeepMana = 400
 	nLV = bot:GetLevel()
 	nMP = bot:GetMana()/bot:GetMaxMana()
 	nHP = bot:GetHealth()/bot:GetMaxHealth()
 	hEnemyHeroList = J.GetNearbyHeroes(bot, 1600, true, BOT_MODE_NONE )
+	if Interrupt.Try(bot, J, abilityQ) then return end
 
 
 	castRDesire = X.ConsiderR()
@@ -202,8 +205,8 @@ function X.ConsiderQ()
 	local nCastPoint = abilityQ:GetCastPoint()
 	local nManaCost = abilityQ:GetManaCost()
 	local nSkillLV = abilityQ:GetLevel()
-	local nDamage = 80 * nSkillLV
-	local nRadius = 255
+	local nDamage = abilityQ:GetAbilityDamage()
+	local nRadius = abilityQ:GetAOERadius()
 	local nDamageType = DAMAGE_TYPE_MAGICAL
 
 	local nAllies =  J.GetNearbyHeroes(bot, 1200, false, BOT_MODE_NONE )
@@ -255,7 +258,8 @@ function X.ConsiderQ()
 				then
 					--打断或击杀更优目标
 					return BOT_ACTION_DESIRE_HIGH, nBetterTarget
-				else
+				elseif J.IsInRange(npcEnemy, bot, abilityQ:GetCastRange())
+					or J.CanKillTarget(npcEnemy, nDamage, nDamageType) then
 					--打断或击杀目标
 					return BOT_ACTION_DESIRE_HIGH, npcEnemy
 				end
@@ -635,12 +639,12 @@ function X.SvenConsiderTarget()
 
 	local nInAttackRangeNearestEnemyHero = nEnemyHeroInRange[1]
 
-	if J.IsValidHero( nInAttackRangeWeakestEnemyHero )
-		and J.CanBeAttacked( nInAttackRangeWeakestEnemyHero )
+	if J.IsValidHero( nInAttackRangeNearestEnemyHero )
+		and J.CanBeAttacked( nInAttackRangeNearestEnemyHero )
 		and ( GetUnitToUnitDistance( botTarget, bot ) >  350 or J.HasForbiddenModifier( botTarget ) )
 	then
 		--更改目标为
-		bot:SetTarget( nInAttackRangeWeakestEnemyHero )
+		bot:SetTarget( nInAttackRangeNearestEnemyHero )
 		return
 	end
 

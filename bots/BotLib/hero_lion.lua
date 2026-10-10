@@ -811,11 +811,10 @@ function X.ConsiderR()
 	local nCastPoint = abilityR:GetCastPoint()
 	local nManaCost = abilityR:GetManaCost()
 	local nDamageBonus = X.GetAbilityRDamageBonus()
-	local nRawDamage = 475 + 125 * nSkillLV
+	local nRawDamage = abilityR:GetSpecialValueInt('damage')
 	if bot:HasScepter()
 	then
-		nRadius = abilityR:GetSpecialValueInt( 'splash_radius_scepter' )
-		nRawDamage = 575 + 125 * nSkillLV
+		nRadius = abilityR:GetSpecialValueInt('splash_radius')
 	end
 
 	local nDamage = nRawDamage + nDamageBonus

@@ -210,7 +210,9 @@ function X.ConsiderQ()
 	local nCastPoint = abilityQ:GetCastPoint()
 	local nManaCost = abilityQ:GetManaCost()
 	local nSkillLV = abilityQ:GetLevel()
-	local nDamage = 40 * ( nSkillLV - 1 ) + 100
+	local nDamage = abilityQ:GetSpecialValueInt('damage')
+	local nDotDuration = abilityQ:GetSpecialValueFloat('blast_dot_duration')
+	local nTotalDamage = nDamage + abilityQ:GetSpecialValueInt('blast_dot_damage') * nDotDuration
 	local nDamageType = DAMAGE_TYPE_MAGICAL
 
 	local allyList =  J.GetNearbyHeroes(bot, 1200, false, BOT_MODE_NONE )
@@ -244,7 +246,8 @@ function X.ConsiderQ()
 			end
 
 			if GetUnitToUnitDistance( bot, npcEnemy ) <= nCastRange + 80
-				and J.CanKillTarget( npcEnemy, nDamage * 1.68, nDamageType )
+				and J.WillMagicKillTarget(bot, npcEnemy, nTotalDamage,
+					nCastPoint + nDotDuration + GetUnitToUnitDistance(bot, npcEnemy) / abilityQ:GetSpecialValueInt('blast_speed'))
 			then
 				return BOT_ACTION_DESIRE_HIGH, npcEnemy
 			end

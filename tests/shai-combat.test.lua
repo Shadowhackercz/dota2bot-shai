@@ -14,6 +14,7 @@ function ability:GetCastPoint() return 0.2 end
 function ability:GetManaCost() return 80 end
 function ability:GetAbilityDamage() return 100 end
 function ability:GetSpecialValueInt() return 100 end
+function ability:GetSpecialValueFloat() return 0 end
 function ability:IsTrained() return false end
 function ability:IsHidden() return false end
 function ability:GetName() return 'spell' end
@@ -54,6 +55,7 @@ J.Role.IsPvNMode, J.Role.IsAllShadow = no, no
 J.SetUserHeroInit = function(...) return ... end
 J.CanNotUseAbility, J.IsInTeamFight, J.IsGoingOnSomeone, J.IsRetreating = no, no, no, no
 J.IsFarming, J.IsPushing, J.IsDefending, J.IsDoingRoshan, J.CanKillTarget = no, no, no, no, no
+J.WillMagicKillTarget = no
 J.IsValid, J.IsValidHero, J.CanCastOnNonMagicImmune, J.CanCastOnTargetAdvanced = function(u) return u ~= nil end,
     function(u) return u ~= nil end, function() return true end, function() return true end
 J.GetNearbyHeroes = function(_, range) return state.distance <= range and {enemy} or {} end

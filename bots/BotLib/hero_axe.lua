@@ -231,7 +231,7 @@ function X.ConsiderQ()
 	for _, npcEnemy in pairs( nInRangeEnemyList )
 	do 
 		if npcEnemy:IsChanneling()
-			and not npcEnemy:IsMagicImmune()
+			and J.CanCastOnMagicImmune( npcEnemy )
 		then
 			hCastTarget = npcEnemy
 			sCastMotive = 'Q-打断'..J.Chat.GetNormName( hCastTarget )
@@ -245,7 +245,7 @@ function X.ConsiderQ()
 	then
 		if J.IsValidHero( botTarget )
 			and J.IsInRange( botTarget, bot, nRadius - 90 )
-			and J.CanCastOnNonMagicImmune( botTarget )			
+			and J.CanCastOnMagicImmune( botTarget )
 			and not J.IsDisabled( botTarget )
 		then			
 			hCastTarget = botTarget
@@ -356,7 +356,7 @@ function X.ConsiderW()
 		if J.IsValid( npcEnemy )
 			and J.CanCastOnNonMagicImmune( npcEnemy )
 			and J.CanCastOnTargetAdvanced( npcEnemy )
-			and J.WillMagicKillTarget( bot, npcEnemy, nDamage , nDuration )
+			and J.WillKillTarget( npcEnemy, nDamage * (1 + bot:GetSpellAmp()), DAMAGE_TYPE_PURE, nDuration )
 			and not npcEnemy:HasModifier( 'modifier_axe_battle_hunger_self' )
 		then
 			hCastTarget = npcEnemy
@@ -515,7 +515,7 @@ function X.ConsiderR()
 	local nCastPoint = abilityR:GetCastPoint()
 	local nManaCost = abilityR:GetManaCost()
 	
-	local nKillDamage = 150 + 100 * nSkillLV
+	local nKillDamage = abilityR:GetSpecialValueInt('damage')
 	if talent5:IsTrained() then nKillDamage = nKillDamage + talent5:GetSpecialValueInt( 'value' ) end
 	
 	local nDamageType = DAMAGE_TYPE_PURE
@@ -533,9 +533,7 @@ function X.ConsiderR()
 			and npcEnemy:GetHealth() + npcEnemy:GetHealthRegen() * 0.8 < nKillDamage
 			and not J.IsHaveAegis( npcEnemy )
 			and not npcEnemy:IsInvulnerable()
-			and not npcEnemy:IsMagicImmune() --V BUG
 			and not X.HasSpecialModifier( npcEnemy )
-			and not X.IsKillBotAntiMage( npcEnemy )
 		then
 			hCastTarget = npcEnemy
 			sCastMotive = 'R-击杀'..J.Chat.GetNormName( hCastTarget )

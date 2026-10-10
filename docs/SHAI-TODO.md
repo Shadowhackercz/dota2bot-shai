@@ -1,5 +1,16 @@
 # SHAI: aktuální revize a úkoly
 
+## Revize všech 15 hrdinů — 10. října
+
+[Kompletní přehled spellů, komb, oprav a otevřených omezení](SHAI-HERO-REVIEW.md).
+
+- [x] Revize SkillsComplement/Consider/buildů/minion routing všech 15 povolených hrdinů, porovnání s aktuálními Valve ability daty. Opravené interrupt priority, runtime damage/radius, Luna group comparison/Eclipse, DK Breathe→Tail, WD/Warlock ready-spell starvation, Centaur objective target, Axe immunity/pure forecast, CM DoT/channel guard, Sven target a Tide Kraken retreat profil. 44 nových scénářů nad skutečnými hero moduly; implementace zatím bez nového herního testu.
+- [ ] P1 potvrdit skutečný disable→damage follow-up v normálních fightech, nejen společném defense/gank dispatcheru. DK/CM/WD musí zvolit control první, pokud by damage umožnil cíli uniknout; běžný WK harass nesmí ignorovat dominanci soupeře.
+- [ ] P1 útočný Zeus Jump / Sniper Grenade: skutečný směr, landing, bezpečnost, následná akce. Post-Swap follow-up Venge a obranný Kraken profil ověřit v klientu.
+- [ ] P1 Lich Death Charge není implementovaný. Doplnit vhodný allied creep, mana/XP hodnotu, spoluhráčovy last hity a bezpečnost castu; zkontrolovat skutečné skill slots/upgrades všech hrdinů.
+- [ ] P1 dlouhé CM/WD/Warlock channelování: konkrétní enemy disable, průběžné recheck/cancel, celá combo mana. Počáteční CastSurvival není garance celé ulti.
+- [ ] P2 podmíněné pořadí komb/status resistance, Eclipse/Chain Frost bounce value, Scepter targetování, Death Ward/golem/minion focus, Assassinate attack složka a rozšířená herní matrix všech 15 hrdinů. Detaily v revizi.
+
 ## Nejnovější test: Pudge (9037301618)
 
 [Rozbor posledního testu a všech časových podnětů](SHAI-MATCH-9037301618.md). Log/replay jsou zachované, 9 botů, žádná sledovaná Lua výjimka/invalid-location/helper failure. WK duch doložil hero damage ve všech 12 dočasných formách a pět skutečných stunů. Úspěšný fight není automatické ověření společného plánu; žádný defense-cast/utility-control zde nebyl doložen.

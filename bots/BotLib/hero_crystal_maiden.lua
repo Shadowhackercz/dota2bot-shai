@@ -4,6 +4,7 @@ local bot = GetBot()
 
 local J = require( GetScriptDirectory()..'/FunLib/jmz_func' )
 local CastSafety = require(GetScriptDirectory()..'/FunLib/shai_cast_safety')
+local CastSurvival = require(GetScriptDirectory()..'/FunLib/shai_cast_survival')
 local Minion = dofile( GetScriptDirectory()..'/FunLib/aba_minion' )
 local sTalentList = J.Skill.GetTalentList( bot )
 local sAbilityList = J.Skill.GetAbilityList( bot )
@@ -161,7 +162,7 @@ function X.SkillsComplement()
 
 	if J.CanNotUseAbility( bot ) or bot:IsInvisible() then return end
 
-	botTarget = bot:GetAttackTarget()
+	botTarget = J.GetProperTarget(bot)
 	nKeepMana = 220
 	aetherRange = 0
 	nMP = bot:GetMana()/bot:GetMaxMana()
@@ -209,6 +210,7 @@ function X.SkillsComplement()
 
 	castRDesire = X.ConsiderR()
 	if ( castRDesire > 0 ) and CastSafety.AllowDecision(bot,J,abilityR,nil,'channel')
+		and CastSurvival.Allow(bot,J,abilityR,bot:GetLocation(),'channel')
 	then
 		J.SetQueuePtToINT( bot, false )
 
@@ -600,7 +602,7 @@ function X.ConsiderW()
 	local nCastPoint = abilityW:GetCastPoint()
 	local nManaCost = abilityW:GetManaCost()
 	local nSkillLV = abilityW:GetLevel()
-	local nDamage = ( 100 + nSkillLV * 50 )
+	local nDamage = abilityW:GetSpecialValueInt('damage_per_second') * abilityW:GetSpecialValueFloat('duration')
 
 	local nAllies =  J.GetNearbyHeroes(bot, 1200, false, BOT_MODE_NONE )
 
@@ -624,7 +626,8 @@ function X.ConsiderW()
 	if J.IsValid( nWeakestEnemyHeroInRange )
 		and J.CanCastOnTargetAdvanced( nWeakestEnemyHeroInRange )
 	then
-		if J.WillMagicKillTarget( bot, nWeakestEnemyHeroInRange, nDamage, nCastPoint )
+		if J.WillMagicKillTarget( bot, nWeakestEnemyHeroInRange, nDamage,
+			nCastPoint + abilityW:GetSpecialValueFloat('duration') )
 		then
 			return BOT_ACTION_DESIRE_HIGH, nWeakestEnemyHeroInRange
 		end
@@ -899,7 +902,6 @@ function X.ConsiderR()
 			and npcTarget:GetHealth() <= npcTarget:GetActualIncomingDamage( bot:GetOffensivePower() * 1.5, DAMAGE_TYPE_MAGICAL )
 			and GetUnitToUnitDistance( npcTarget, bot ) <= nRadius
 			and npcTarget:GetHealth() > 400
-			and #nAllies <= 2
 		then
 			return BOT_ACTION_DESIRE_HIGH
 		end

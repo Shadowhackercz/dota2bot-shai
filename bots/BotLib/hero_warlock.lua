@@ -238,7 +238,7 @@ modifier_warlock_golem_permanent_immolation_debuff
 
 
 function X.SkillsComplement()
-	X.WarlockShouldMove()
+	if X.WarlockShouldMove() then return end
 	if J.CanNotUseAbility( bot ) or bot:IsInvisible() then return end
 
 	nKeepMana = 400
@@ -252,8 +252,23 @@ function X.SkillsComplement()
 	local aether = J.IsItemAvailable( "item_aether_lens" )
 	if aether ~= nil then aetherRange = 250 end
 
-
+	-- Prepare Bonds only when its consideration found a real, funded target.
+	-- A ready Q with no useful target must not prevent Chaotic Offering.
+	castQDesire, castQTarget = X.ConsiderQ()
 	castRFRDesire, castRFRLocation = X.ConsiderRFR()
+	castRDesire, castRLocation = X.ConsiderR()
+	local offeringCost = abilityR:GetManaCost()
+	if castRFRDesire > 0 then offeringCost = offeringCost * 2 + abilityRef:GetManaCost() end
+	if castQDesire > 0 and (castRFRDesire > 0 or castRDesire > 0) and nHP > 0.5
+		and bot:GetMana() >= abilityQ:GetManaCost() + offeringCost
+		and J.IsValidHero(castQTarget) and J.IsInRange(bot, castQTarget, abilityQ:GetCastRange() + aetherRange)
+		and CastSafety.Allow(bot, J, abilityQ, 'teamfight') then
+		J.SetQueuePtToINT(bot, true)
+		bot:ActionQueue_UseAbilityOnEntity(abilityQ, castQTarget)
+		return
+	end
+
+
 	if castRFRDesire > 0 and J.GetHP(bot)>=0.5 and CastSafety.Allow(bot, J, abilityR, 'teamfight')
 		and CastSurvival.Allow(bot,J,abilityR,castRFRLocation,'golem')
 	then
@@ -268,7 +283,6 @@ function X.SkillsComplement()
 	end
 
 
-	castRDesire, castRLocation = X.ConsiderR()
 	if castRDesire > 0 and CastSafety.Allow(bot, J, abilityR, 'teamfight')
 		and CastSurvival.Allow(bot,J,abilityR,castRLocation,'golem')
 	then
@@ -281,7 +295,6 @@ function X.SkillsComplement()
 	end
 
 
-	castQDesire, castQTarget = X.ConsiderQ()
 	if castQDesire > 0 and CastSafety.Allow(bot, J, abilityQ,
 		J.IsValidHero(castQTarget) and (J.IsInTeamFight(bot, 1200) and 'teamfight' or 'harass') or 'farm')
 	then
@@ -330,20 +343,13 @@ function X.WarlockShouldMove()
 	then
 		bot:Action_ClearActions( true )
 		bot:Action_MoveToLocation(J.GetTeamFountain())
-		return
+		return true
 	end
 end
 
 function X.ConsiderR()
 
 	if not abilityR:IsFullyCastable() then return BOT_ACTION_DESIRE_NONE, nil	end
-
-	if abilityQ:IsFullyCastable()
-		and bot:GetMana() >= ( abilityQ:GetManaCost() + abilityR:GetManaCost() )
-		and nHP > 0.5
-	then
-		return BOT_ACTION_DESIRE_NONE, nil
-	end
 
 	local nCastRange = abilityR:GetCastRange() + aetherRange
 	local nCastPoint = abilityR:GetCastPoint()
@@ -388,13 +394,6 @@ function X.ConsiderRFR()
 		or not abilityRef:IsFullyCastable()
 	then return BOT_ACTION_DESIRE_NONE, nil end
 
-	if abilityQ:IsFullyCastable()
-		and bot:GetMana() >= ( abilityQ:GetManaCost() + abilityR:GetManaCost() )
-		and nHP > 0.5
-	then
-		return BOT_ACTION_DESIRE_NONE, nil
-	end
-
 	if bot:GetMana() < abilityR:GetManaCost() * 2 + abilityRef:GetManaCost()
 	then
 		return BOT_ACTION_DESIRE_NONE, nil
@@ -427,12 +426,8 @@ function X.ConsiderE()
 
 	if not abilityE:IsFullyCastable() then return BOT_ACTION_DESIRE_NONE, nil end
 
-	if abilityR:IsFullyCastable()
-		or abilityQ:IsFullyCastable()
-		or abilityW:IsFullyCastable()
-	then
-		return BOT_ACTION_DESIRE_NONE, nil
-	end
+	-- Earlier decisions already declined Q/W/R. Readiness alone must not
+	-- prevent a useful slow when none of those spells has a suitable target.
 
 	local nCastRange = abilityE:GetCastRange() + 30 + aetherRange
 	local nCastPoint = abilityE:GetCastPoint()
@@ -481,6 +476,7 @@ function X.ConsiderW()
 		local weakest = nil
 		local minHP = 100000
 		local allies = J.GetNearbyHeroes(bot, nCastRange, false, BOT_MODE_NONE )
+		table.insert(allies, bot) -- nearby queries do not include the caster
 		if #allies > 0 then
 			for i=1, #allies do
 				if not allies[i]:HasModifier( "modifier_warlock_shadow_word" )
