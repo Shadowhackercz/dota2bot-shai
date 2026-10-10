@@ -29,8 +29,9 @@ function X.Move(bot,J,destination,purpose)
         local steps=math.max(1,math.ceil(length/120))
         for i=1,steps do
             local p=Vector(origin.x+(point.x-origin.x)*i/steps,origin.y+(point.y-origin.y)*i/steps,origin.z)
-            -- Terrain between samples is left to the engine's ground pathing;
-            -- straight-line threat samples do not reconstruct that path.
+            -- Reject a sampled cliff/tree barrier; a passable endpoint alone
+            -- could make engine pathing take an unexamined route around it.
+            if not IsLocationPassable(p) then return false end
             if Safety.GetLocationConcern(bot,J,p,threats) then return false end
         end
         return true
@@ -40,12 +41,16 @@ function X.Move(bot,J,destination,purpose)
     if lease and DotaTime()>=lease.created and DotaTime()-lease.created<0.65
         and Distance(lease.destination,destination)<150 and Distance(origin,lease.point)>100
         and distance-Distance(lease.point,destination)>=50 and Safe(lease.point) then
-        bot:Action_MoveToLocation(lease.point); return
+        bot.shaiRouteBlockedAt=nil; bot:Action_MoveToLocation(lease.point); return
     end
     bot.shaiRouteStep=nil
     local length=math.min(900,distance)
     local straight=distance<=900 and destination or Vector(origin.x+ux*length,origin.y+uy*length,origin.z)
-    if Safe(straight) then bot:Action_MoveToLocation(straight); return end
+    if Safe(straight) then
+        bot.shaiRouteBlockedAt=nil; bot:Action_MoveToLocation(straight)
+        if purpose=='rune-return' then Trace(bot,'return-step',purpose,straight) end
+        return
+    end
     local best,progress
     for _,step in ipairs({600,300}) do
         for _,degrees in ipairs({45,-45,70,-70,90,-90}) do
@@ -57,12 +62,13 @@ function X.Move(bot,J,destination,purpose)
         end
     end
     if best then
+        bot.shaiRouteBlockedAt=nil
         bot.shaiRouteStep={point=best,destination=Vector(destination.x,destination.y,destination.z),created=DotaTime()}
         bot:Action_MoveToLocation(best); Trace(bot,'route-detour',purpose,best)
     else
         -- Never fall through to the rejected direct move or an old pickup path.
         local now=DotaTime()
-        if bot.shaiRouteBlockedAt==nil or now<bot.shaiRouteBlockedAt or now-bot.shaiRouteBlockedAt>=0.5 then
+        if bot.shaiRouteBlockedAt==nil or now<bot.shaiRouteBlockedAt then
             bot:Action_ClearActions(false); bot.shaiRouteBlockedAt=now
         end
         Trace(bot,'route-blocked',purpose,destination)

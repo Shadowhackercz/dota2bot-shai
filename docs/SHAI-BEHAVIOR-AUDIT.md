@@ -1,5 +1,13 @@
 # SHAI: audit rozhodování a první měřitelné opravy
 
+## Kontrolovaný návrat midu od říční runy — 10. října
+
+Route kontrola se používala pro cestu k runě; po odchodu z rune módu neměl standardní pos 2 vlastní laning Think a návrat převzala původní engine logika. Nový shai_rune_return se armuje v reálném rune OnEnd pouze při živém pos 2 v prvních deseti minutách, do 650 od právě zvolené říční runy. Neprokazuje skutečné sebrání runy a platí i po ukončeném contestu. Wisdom/bounty a support rotace zůstávají mimo tento profil.
+
+Návrat používá team-roam desire 1,01 bez lane capu, až po existující prioritě finish/defense/recovery/gank/escape/objektivu. Aktuální teamfight či nedávný hero damage nechává bojové rozhodování pokračovat. Cíl je aktuální vlastní lane front −600; do 450 se návrat ukončí a pokračuje běžná micro. Šest sekund bez zlepšení vzdálenosti alespoň o 60 nebo celkových dvacet sekund pokus ukončí. Smrt a rollback jej zruší. Před cestou se znovu ověří hrozba, při nové hrozbě Think použije Escape a krátkou escape lease pro Zeusovy schopnosti. Rune pickup, cast a channel se nepřepisují.
+
+Společný Route.Move nyní odmítá také neprůchozí mezivzorky po nejvýše 120 jednotkách: průchozí endpoint nesmí vynutit obcházení překážky přes nezkontrolovanou oblast. Bezpečný detour se stále hledá lokálně, nikoli globálním pathfinderem. Zablokovaná epizoda ruší stale akci pouze jednou; přijetí nové cesty ji resetuje. Trace travel purpose=rune-return zachytí return-step/detour/blocked. Testy skutečného controlleru a rune/roam callbacků pokrývají lifecycle, role, arrival/progress/timeout, bojové priority, nové nebezpečí, pickup/channel a blokované mezisegmenty. Kompletní Test-SHAI a syntax 339 Lua souborů prošly; engine návrat, Hook setupy a skutečné pathing odchylky zůstávají k ověření v lobby.
+
 ## Zeus Jump: skutečné natočení a rozběh u překážky — 10. října
 
 Uživatel doplnil špatné skoky a nevyužívání cliffů. Kód dosud ověřoval plánovaný endpoint, zatímco tolerance facing 12 stupňů připouštěla jiný skutečný dopad; alignment zároveň posílal pozemní direct move až na druhou stranu překážky. To jsou nalezené mezery, nikoli zpětný důkaz příčiny každého úmrtí.

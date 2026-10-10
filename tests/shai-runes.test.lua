@@ -110,6 +110,8 @@ J.GetDistanceFromEnemyFountain = function() return 9000 end
 package.loaded['bots/FunLib/jmz_func'] = J
 package.loaded['bots/Customize/general'] = {Enable=true,ThinkLess=1}
 package.loaded['bots/FunLib/shai_farm_safety']={InterruptFarm=function() return state.escape or false end}
+local armedReturn
+package.loaded['bots/FunLib/shai_rune_return']={Arm=function(_,_,rune) armedReturn=rune end}
 package.loaded['bots/FunLib/shai_route_safety']={Move=function(h,_,p,purpose)
     state.routePurpose=purpose; h:Action_MoveToLocation(p)
 end}
@@ -287,3 +289,5 @@ assert(GetDesire() <= 0.7, 'A human inside the shrine circle has a clear claim')
 setup({wisdom=true, time=421, baseThreat=true})
 assert(GetDesire() == 0, 'Wisdom must not override ancient defense')
 originalPrint('PASS: real rune mode pickup, human claims, 1v1 contests, danger, spawn preparation, last hits and scout memory')
+setup({time=241}); GetDesire(); Think(); OnEnd()
+assert(armedReturn==bot.rune.normal.location,'Actual rune OnEnd arms the post-river return with the chosen rune')

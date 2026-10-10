@@ -5,6 +5,7 @@ local RuneShare = require(GetScriptDirectory()..'/FunLib/shai_rune_share')
 local Route = require(GetScriptDirectory()..'/FunLib/shai_route_safety')
 local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
 local Wisdom = require(GetScriptDirectory()..'/FunLib/shai_wisdom')
+local RuneReturn = require(GetScriptDirectory()..'/FunLib/shai_rune_return')
 local Customize = require(GetScriptDirectory()..'/Customize/general')
 Customize.ThinkLess = Customize.Enable and Customize.ThinkLess or 1
 
@@ -308,6 +309,9 @@ end
 
 function OnEnd()
 	Bottle = nil
+	if not collectingWisdom and bot.rune and bot.rune.normal then
+		RuneReturn.Arm(bot,J,bot.rune.normal.location)
+	end
 	collectingWisdom = false
 	local wisdom = bot.rune and bot.rune.wisdom and bot.rune.wisdom[nShrineOfWisdomTime]
 	if wisdom then

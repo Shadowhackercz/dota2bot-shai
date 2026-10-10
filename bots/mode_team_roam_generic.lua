@@ -19,6 +19,7 @@ local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local Tormentor = require(GetScriptDirectory()..'/FunLib/shai_tormentor')
 local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
 local Recovery = require(GetScriptDirectory()..'/FunLib/shai_recovery')
+local RuneReturn = require(GetScriptDirectory()..'/FunLib/shai_rune_return')
 local Item = require(GetScriptDirectory()..'/FunLib/aba_item')
 local Roles = require(GetScriptDirectory()..'/FunLib/aba_role')
 local AttackSpecialUnit = dofile(GetScriptDirectory()..'/FunLib/aba_special_units')
@@ -45,6 +46,7 @@ local defendingBase = false
 local coordinatedTormentor = false
 local escapingThreat = false
 local recovering = false
+local returningFromRune = false
 
 -- Pickup / swap timers
 local PickedItem = nil
@@ -84,6 +86,7 @@ end
 
 function GetDesire()
     recovering=false
+    returningFromRune=false
     if Travel.HoldFade(bot,J) then return 1.08 end
     local specialDesire
     if Runtime.Call(bot,'wraith.desire',function() return Wraith.GetPlan(bot,J) end,nil)~=nil then specialDesire=1.07
@@ -98,7 +101,7 @@ function GetDesire()
     -- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
 
     local res = Runtime.Call(bot,'roam.desire',GetDesireHelper,0)
-    if coordinatedGank or immediateFinish or defendingBase or coordinatedTormentor or escapingThreat or recovering then return res end
+    if coordinatedGank or immediateFinish or defendingBase or coordinatedTormentor or escapingThreat or recovering or returningFromRune then return res end
     res = CapForLanePush(res)
 
     -- J.Utils.SetCachedVars(cacheKey, res)
@@ -201,6 +204,13 @@ function GetDesireHelper()
             hTargetCreep,targetUnit=nil,nil
             return desire
         end
+    end
+
+    local returnDesire=RuneReturn.GetDesire(bot,J)
+    if returnDesire~=nil and not HasModifierThatNeedToAvoidEffects() then
+        returningFromRune=true
+        hTargetCreep,targetUnit=nil,nil
+        return returnDesire
     end
 
     ItemOpsDesire()
@@ -381,6 +391,7 @@ function OnStart() end
 
 function OnEnd()
     recovering=false
+    returningFromRune=false
     Tormentor.OnEnd()
     bot.shaiEscapeUntil=nil
     targetUnit, targetLockUntil = nil, -90
@@ -431,6 +442,7 @@ local function TeamRoamThinkInternal()
     end
     if defendingBase then Defense.Think(bot,J); return end
     if coordinatedGank and TeamGank.Think(bot,J) then return end
+    if returningFromRune then RuneReturn.Think(bot,J); return end
 
     ItemOpsThink()
 
