@@ -2,6 +2,12 @@
 local X={}
 local Runtime=require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local SHAI=require(GetScriptDirectory()..'/Customize/shai')
+function X.ResetGround(bot)
+    bot.shaiEscapeMove=nil
+    bot.shaiEscapeDetour=nil
+    bot.shaiEscapeDetourRetry=nil
+    bot.shaiEscapeBlockedAt=nil
+end
 function X.HoldingJump(bot)
     local p=bot.shaiJumpRelease
     if p==nil then return false end
@@ -37,11 +43,11 @@ local function Context(bot,J,threat)
     end
     return c
 end
-local function Score(c,point,jump)
+local function Score(c,point,jump,minGain)
     if not IsLocationPassable(point) then return nil end
     local initial=Distance(c.origin,c.threat)
     local gain=Distance(point,c.threat)-initial
-    if gain<100 then return nil end
+    if gain<(minGain or 100) then return nil end
     local steps=math.max(1,math.ceil(Distance(c.origin,point)/90))
     local terrain=false
     for i=1,steps do
@@ -75,6 +81,56 @@ local function Score(c,point,jump)
     end
     for _,h in ipairs(c.enemies) do score=score-math.max(0,h.reach-Distance(point,h.location))*0.5 end
     return score,terrain
+end
+-- A sideways first step can be useful even when it does not immediately gain
+-- 100 separation. Require a sampled second leg that actually escapes, rather
+-- than relaxing safety for an arbitrary walk into a corner.
+local function Detour(bot,J,threat)
+    local now=DotaTime()
+    local c=Context(bot,J,threat)
+    if c==nil then return nil end
+    local old=bot.shaiEscapeDetour
+    if old and now<old.created then old=nil; bot.shaiEscapeDetour=nil; bot.shaiEscapeDetourRetry=nil end
+    local function ExitContext(point)
+        return {origin=point,threat=c.threat,enemies=c.enemies,towers=c.towers,fountain=c.fountain}
+    end
+    if old then
+        if now-old.created<2 and Distance(c.origin,old.point)>60
+            and Distance(c.threat,old.threat)<200
+            and Score(c,old.point,false,0)~=nil
+            and Score(ExitContext(old.point),old.exit,false)~=nil then return old end
+        bot.shaiEscapeDetour=nil
+        bot.shaiEscapeDetourRetry=now+2
+    end
+    if now<(bot.shaiEscapeDetourRetry or -math.huge) then return nil end
+    local dx,dy=c.origin.x-c.threat.x,c.origin.y-c.threat.y
+    local length=math.sqrt(dx*dx+dy*dy)
+    if length<1 then return nil end
+    dx,dy=dx/length,dy/length
+    local best
+    for _,step in ipairs({150,250,350}) do
+        for _,degrees in ipairs({60,-60,90,-90}) do
+            local a=degrees*math.pi/180
+            local point=Vector(c.origin.x+(dx*math.cos(a)-dy*math.sin(a))*step,c.origin.y+(dx*math.sin(a)+dy*math.cos(a))*step,c.origin.z)
+            local first=Score(c,point,false,0)
+            if first~=nil then
+                local second=ExitContext(point)
+                local ex,ey=point.x-c.threat.x,point.y-c.threat.y
+                local dist=math.sqrt(ex*ex+ey*ey)
+                ex,ey=ex/dist,ey/dist
+                for _,turn in ipairs({0,30,-30,60,-60}) do
+                    local b=turn*math.pi/180
+                    local exit=Vector(point.x+(ex*math.cos(b)-ey*math.sin(b))*650,point.y+(ex*math.sin(b)+ey*math.cos(b))*650,point.z)
+                    local score=Score(second,exit,false)
+                    if score~=nil and (best==nil or first+score>best.score) then
+                        best={point=point,exit=exit,score=first+score,created=now,threat=Vector(c.threat.x,c.threat.y,c.threat.z)}
+                    end
+                end
+            end
+        end
+    end
+    bot.shaiEscapeDetour=best
+    return best
 end
 function X.Plan(bot,J,threat,distance,jump)
     if threat==nil or type(distance)~='number' or distance<100 or distance>1000 then return nil end
@@ -120,14 +176,25 @@ local function Trace(bot,reason,plan)
         ..'; x='..tostring(plan and plan.point.x or '-')..'; y='..tostring(plan and plan.point.y or '-'))
 end
 function X.Move(bot,J,threat)
+    local now=DotaTime()
+    if bot.shaiEscapeChecked~=nil and now<bot.shaiEscapeChecked then X.ResetGround(bot) end
+    bot.shaiEscapeChecked=now
+    if J.CanNotUseAction(bot) or X.HoldingJump(bot) or X.HoldingAlignment(bot) then return true end
     if bot.shaiEscapeBlockedAt~=nil and DotaTime()<bot.shaiEscapeBlockedAt then bot.shaiEscapeBlockedAt=nil end
     local plan=X.Plan(bot,J,threat,650,false) or X.Plan(bot,J,threat,300,false) or X.Plan(bot,J,threat,150,false)
     if plan~=nil then
+        bot.shaiEscapeBlockedAt=nil; bot.shaiEscapeDetour=nil
         bot:Action_MoveToLocation(plan.point); Trace(bot,'local-retreat',plan)
     else
+        local detour=Detour(bot,J,threat)
+        if detour then
+            bot.shaiEscapeBlockedAt=nil
+            bot:Action_MoveToLocation(detour.point); Trace(bot,'local-detour',detour)
+            return true
+        end
         -- Do not reinstate the very straight-line destination rejected above.
         -- Keep normal item/hero save callbacks available, cancel stale farming.
-        if DotaTime()-(bot.shaiEscapeBlockedAt or -math.huge)>0.5 then
+        if bot.shaiEscapeBlockedAt==nil then
             bot:Action_ClearActions(false); bot.shaiEscapeBlockedAt=DotaTime()
         end
         Trace(bot,'no-safe-local-step')

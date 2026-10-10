@@ -17,6 +17,7 @@ function X.GetThreat(bot, J)
         or bot:HasModifier('modifier_abaddon_borrowed_time')
         or bot:HasModifier('modifier_dazzle_shallow_grave') then
         states[bot] = nil
+        Escape.ResetGround(bot)
         return nil
     end
     local s = states[bot]
@@ -78,6 +79,7 @@ function X.GetThreat(bot, J)
     elseif now >= s.untilTime or s.threat~=nil and s.threat.memory then
         s.threat = nil
     end
+    if s.threat==nil then Escape.ResetGround(bot) end
     return s.threat
 end
 

@@ -97,4 +97,41 @@ assert(not Route.TryZeusJump(bot,J,a,threat(),cast),'Unknown ability distance is
 reset(); blocked=function() return true end
 Route.Move(bot,J,threat()); Route.Move(bot,J,threat())
 assert(bot.action=='clear' and bot.clears==1,'Blocked escape cancels stale attacks once without a clear-action loop')
+now=now+2; bot.action='save-spell'
+Route.Move(bot,J,threat())
+assert(bot.action=='save-spell' and bot.clears==1,'Persistent blockage never periodically clears a rescue issued by another callback')
+bot.busy=true; now=now+1; Route.Move(bot,J,threat())
+assert(bot.action=='save-spell' and bot.clears==1,'Blocked path respects queued/channel action guard')
+reset()
+blocked=function(v) return v.x< -10 and math.abs(v.y)<120 or math.abs(v.y)>250 end
+assert(Route.Plan(bot,J,threat(),650,false)==nil and Route.Plan(bot,J,threat(),300,false)==nil
+    and Route.Plan(bot,J,threat(),150,false)==nil,'Fixture needs a sideways step before any separating leg')
+Route.Move(bot,J,threat())
+assert(bot.action=='move' and bot.shaiEscapeDetour,'A sampled two-leg path escapes the corner without arbitrary threat approach')
+local detour=bot.shaiEscapeDetour
+assert(math.abs(detour.point.y)>=120 and detour.exit.x< -100,'First step clears corner and second actually gains separation')
+now=now+0.1; Route.Move(bot,J,threat())
+assert(bot.destination==detour.point,'Selected sideways step remains stable while safe')
+bot.location=detour.point; Route.Move(bot,J,threat())
+assert(bot.destination.x<bot.location.x and bot.shaiEscapeDetour==nil,'After reaching waypoint normal retreat takes over')
+reset(); blocked=function(v) return v.x< -10 and math.abs(v.y)<120 or math.abs(v.y)>250 end
+Route.Move(bot,J,threat()); now=now+2.1; Route.Move(bot,J,threat())
+assert(bot.action=='clear' and bot.shaiEscapeDetour==nil,'Unreached sideways waypoint expires instead of renewing forever')
+local clears=bot.clears; now=now+0.5; Route.Move(bot,J,threat())
+assert(bot.clears==clears and bot.shaiEscapeDetour==nil,'Expired detour has retry delay and no repeated clearing')
+now=now-10; Route.Move(bot,J,threat())
+assert(bot.shaiEscapeDetour,'Clock reset discards future detour retry')
+reset(); blocked=function(v) return v.x< -10 and math.abs(v.y)<120 or math.abs(v.y)>250 end
+Route.Move(bot,J,threat()); blocked=function() return true end
+now=now+0.1; Route.Move(bot,J,threat())
+assert(bot.action=='clear' and bot.shaiEscapeDetour==nil,'New terrain blockage invalidates cached two-leg path')
+reset(); blocked=function(v) return v.x< -10 and math.abs(v.y)<120 or math.abs(v.y)>250 end
+enemies[2]=hero(-100,150)
+enemies[3]=hero(-100,-150)
+Route.Move(bot,J,threat())
+assert(bot.shaiEscapeDetour==nil,'No sideways shortcut into a second visible enemy')
+enemies[2].visible=false; enemies[3].visible=false; now=now+3; Route.Move(bot,J,threat())
+assert(bot.shaiEscapeDetour,'Hidden enemy stats are not read by new fallback')
+Route.ResetGround(bot)
+assert(bot.shaiEscapeDetour==nil and bot.shaiEscapeBlockedAt==nil and bot.shaiEscapeDetourRetry==nil,'New threat episode starts without old ground locks')
 print('PASS: sampled escape routes, secondary visible threats/towers, fog, stable direction, terrain landing/exit, learned jump range, alignment/recheck/expiry, release and cast guards')
