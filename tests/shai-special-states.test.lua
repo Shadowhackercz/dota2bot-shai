@@ -160,6 +160,11 @@ assert(guards.CanNotUseAction(bot) and guards.CanNotUseAbility(bot),'Ordinary in
 bot.mods[Wraith.Modifier]=true; bot.hp=0
 assert(guards.CanNotUseAction(bot),'Dead units remain blocked despite a stale ghost modifier')
 -- Actual team-roam selection and Think, rather than just generic callbacks.
+bot.hp=500; bot.invulnerable=false; bot.mods={}
+bot.shaiEscapeSave={created=now,expires=now+0.2}
+assert(guards.CanNotUseAction(bot) and guards.CanNotUseAbility(bot),'Actual shared guards protect pending escape item before engine cast flags update')
+now=now+0.3
+assert(not guards.CanNotUseAction(bot) and not guards.CanNotUseAbility(bot),'Save release cannot become a permanent action lock')
 reset()
 GetBot=function() return bot end
 package.loaded['bots/FunLib/jmz_func']=J

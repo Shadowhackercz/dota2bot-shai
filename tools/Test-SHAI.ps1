@@ -12,11 +12,17 @@ try {
     $callbackMatch = [regex]::Match($abilitySource, '(?s)(function AbilityUsageThink\(\).*?\r?\nend)\r?\n\r?\nfunction BuybackUsageThink')
     if (-not $callbackMatch.Success) { throw 'Cannot locate actual AbilityUsageThink callback' }
     $adapter = "return function(bot,J,TeamGank,BehaviorTrace,SHAI,Customize,BotBuild,RefreshBotHandle,bInstallChatCallbackDone,botName,ObjectiveCommands,RoshanCommands,X,CombatFinish,Defense,Travel,ThreatMemory,RoshanSafety,UseGlyph)`nUseGlyph = UseGlyph or function() end`nCombatFinish = CombatFinish or {TryAction=function() return false end, IsCommitting=function() return false end}`nDefense = Defense or {GuardAbilities=function() return false end}`nTravel = Travel or {ThinkFade=function() return false end}`nThreatMemory = ThreatMemory or {Observe=function() end}`nRoshanSafety = RoshanSafety or {GuardActions=function() return false end}`nlocal Wraith=require('bots/FunLib/shai_wraith_form')`nlocal Invisible=require('bots/FunLib/shai_invisible_escape')`nlocal Runtime=require('bots/FunLib/shai_runtime')`n" + $callbackMatch.Groups[1].Value + "`nreturn AbilityUsageThink`nend`n"
+    $adapter = $adapter.Replace("local Runtime=require", "local EscapeItems=require('bots/FunLib/shai_escape_items')`nlocal Runtime=require")
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-ability-callback.lua'), $adapter, [Text.UTF8Encoding]::new($false))
     $itemMatch = [regex]::Match($abilitySource, '(?s)(function ItemUsageThink\(\).*?\r?\nend)\r?\n\r?\nfunction AbilityUsageThink')
     if (-not $itemMatch.Success) { throw 'Cannot locate actual ItemUsageThink callback' }
     $itemAdapter = "return function(bot,J,Customize,RefreshBotHandle,CombatFinish,ItemUsageComplement,botName,Travel,RoshanSafety)`nTravel = Travel or {ThinkFade=function() return false end,RecheckTeleport=function() return false end}`nRoshanSafety = RoshanSafety or {GuardActions=function() return false end}`nlocal Wraith=require('bots/FunLib/shai_wraith_form')`nlocal Invisible=require('bots/FunLib/shai_invisible_escape')`nlocal Runtime=require('bots/FunLib/shai_runtime')`n" + $itemMatch.Groups[1].Value + "`nreturn ItemUsageThink`nend`n"
+    $itemAdapter = $itemAdapter.Replace("local Runtime=require", "local EscapeItems=require('bots/FunLib/shai_escape_items')`nlocal Runtime=require")
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-item-callback.lua'), $itemAdapter, [Text.UTF8Encoding]::new($false))
+    $complementMatch = [regex]::Match($abilitySource, '(?s)local function ItemUsageComplement\(\).*?\r?\nend(?=\r?\n\r?\nfunction X.SetUseItem)')
+    if (-not $complementMatch.Success) { throw 'Cannot locate actual item complement' }
+    [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-item-complement.lua'),
+        "return function(bot,J,X,EscapeItems,Runtime)`nlocal hNearbyEnemyHeroList,hNearbyEnemyTowerList,botTarget,nMode,aetherRange`n" + $complementMatch.Value + "`nreturn ItemUsageComplement`nend`n", [Text.UTF8Encoding]::new($false))
     $helperSource = Get-Content -LiteralPath 'bots/FunLib/jmz_func.lua' -Raw
     $locationBodies = foreach ($name in @('GetAlliesNearLoc', 'GetEnemiesNearLoc')) {
         $locationMatch = [regex]::Match($helperSource, "(?s)function J\.$name\([^)]*\).*?\r?\nend")
@@ -73,7 +79,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-objective-helpers.lua'), $helperAdapter, [Text.UTF8Encoding]::new($false))
     foreach ($testFile in @('tests/shai-runtime-api.test.lua', 'tests/shai-camp.test.lua', 'tests/shai-objective-integration.test.lua', 'tests/shai-selection.test.lua', 'tests/shai-roshan.test.lua',
         'tests/shai-combat.test.lua', 'tests/shai-lion-farm.test.lua', 'tests/shai-centaur-escape.test.lua', 'tests/shai-tactics.test.lua', 'tests/shai-runes.test.lua', 'tests/shai-route.test.lua', 'tests/shai-pings.test.lua', 'tests/shai-escape.test.lua', 'tests/shai-special-states.test.lua',
-        'tests/shai-recovery.test.lua', 'tests/shai-wisdom.test.lua', 'tests/shai-stability.test.lua', 'tests/shai-objectives.test.lua', 'tests/shai-tombstone.test.lua', 'tests/shai-trace.test.lua',
+        'tests/shai-escape-items.test.lua', 'tests/shai-recovery.test.lua', 'tests/shai-wisdom.test.lua', 'tests/shai-stability.test.lua', 'tests/shai-objectives.test.lua', 'tests/shai-tombstone.test.lua', 'tests/shai-trace.test.lua',
         'tests/shai-roshan-chat.test.lua', 'tests/shai-safety.test.lua', 'tests/shai-memory.test.lua', 'tests/shai-gank.test.lua', 'tests/shai-budget.test.lua', 'tests/shai-glyph.test.lua', 'tests/shai-objective-chat.test.lua', 'tests/shai-finish.test.lua', 'tests/shai-defense.test.lua', 'tests/shai-travel.test.lua')) {
         # Fresh VM per test; explicit exit because Fengari otherwise swallows errors.
         & $luaCli -e "local ok, err = pcall(dofile, '$testFile'); if not ok then print(err); os.exit(1) end"

@@ -23,6 +23,7 @@ local Glyph = require(GetScriptDirectory()..'/FunLib/shai_glyph')
 local ThreatMemory = require(GetScriptDirectory()..'/FunLib/shai_threat_memory')
 local RoshanSafety = require(GetScriptDirectory()..'/FunLib/shai_roshan_safety')
 local ObjectiveCommands = require(GetScriptDirectory()..'/FunLib/shai_objective_commands')
+local EscapeItems = require(GetScriptDirectory()..'/FunLib/shai_escape_items')
 local BotBuild = dofile( GetScriptDirectory().."/BotLib/"..string.gsub( botName, "npc_dota_", "" ) )
 local Localization = require( GetScriptDirectory()..'/FunLib/localization' )
 local Customize = require(GetScriptDirectory()..'/Customize/general')
@@ -995,6 +996,7 @@ local function ItemUsageComplement()
 	hNearbyEnemyTowerList = bot:GetNearbyTowers( 888, true )
 	botTarget = J.GetProperTarget( bot )
 	nMode = bot:GetActiveMode()
+	if EscapeItems.Try(bot,J,X.ConsiderItemDesire,X.SetUseItem) then return 1 end
 
 	local aether = J.IsItemAvailable( "item_aether_lens" )
 	if aether ~= nil then aetherRange = 250 else aetherRange = 0 end
@@ -8319,6 +8321,7 @@ function ItemUsageThink()
 	if RefreshBotHandle() then return end
 	if Travel.RecheckTeleport(bot,J) or Travel.ThinkFade(bot,J) then return end
 	if Wraith.Active(bot) then return end
+	if EscapeItems.Holding(bot) then return end
 	if bot:IsInvulnerable() or not bot:IsHero() or not bot:IsAlive() or not string.find(botName, "hero") or bot:IsIllusion() then return end
 	if Runtime.Call(bot,'roshan.items',function() return RoshanSafety.GuardActions(bot,J) end,false) then return end
 	if bot.lastItemFrameProcessTime == nil then bot.lastItemFrameProcessTime = DotaTime() end
@@ -8349,6 +8352,7 @@ function AbilityUsageThink()
 	Runtime.Call(bot,'threat.observe',function() ThreatMemory.Observe(bot,J) end)
 	if Travel.ThinkFade(bot,J) then return end
 	if Runtime.Call(bot,'wraith.abilities',function() return Wraith.Think(bot,J) end,false) then return end
+	if EscapeItems.Holding(bot) then return end
 	if Runtime.Call(bot,'invis.abilities',function() return Invisible.Think(bot,J) end,false) then return end
 	ObjectiveCommands.ReleaseObjective(bot,J)
 	if Runtime.Call(bot,'roshan.abilities',function() return RoshanSafety.GuardActions(bot,J) end,false) then return end

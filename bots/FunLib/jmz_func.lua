@@ -97,7 +97,10 @@ function J.IsTryingtoUseAbility(bot)
 end
 
 function J.CanNotUseAction( bot )
+	local save=bot.shaiEscapeSave
+	local holdingSave=save~=nil and DotaTime()>=save.created and DotaTime()<save.expires
 	return not bot:IsAlive()
+			or holdingSave
 			or J.HasQueuedAction( bot )
 			or (bot:IsInvulnerable() and not bot:HasModifier('modifier_fountain_invulnerability') and not bot:HasModifier('modifier_dazzle_nothl_projection_soul_debuff') and not bot:HasModifier('modifier_skeleton_king_reincarnation_scepter_active'))
 			or bot:IsCastingAbility()
@@ -113,7 +116,10 @@ function J.CanNotUseAction( bot )
 end
 
 function J.CanNotUseAbility( bot )
+	local save=bot.shaiEscapeSave
+	local holdingSave=save~=nil and DotaTime()>=save.created and DotaTime()<save.expires
 	return not bot:IsAlive()
+			or holdingSave
 			or J.HasQueuedAction( bot )
 			or (bot:IsInvulnerable() and not bot:HasModifier('modifier_fountain_invulnerability') and not bot:HasModifier('modifier_dazzle_nothl_projection_soul_debuff') and not bot:HasModifier('modifier_skeleton_king_reincarnation_scepter_active'))
 			or bot:IsCastingAbility()

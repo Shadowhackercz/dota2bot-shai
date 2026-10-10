@@ -2,6 +2,12 @@
 local X={}
 local Runtime=require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local SHAI=require(GetScriptDirectory()..'/Customize/shai')
+function X.HoldingSave(bot)
+    local p=bot.shaiEscapeSave
+    if p==nil then return false end
+    if not bot:IsAlive() or DotaTime()<p.created or DotaTime()>=p.expires then bot.shaiEscapeSave=nil; return false end
+    return true
+end
 function X.ResetGround(bot)
     bot.shaiEscapeMove=nil
     bot.shaiEscapeDetour=nil
@@ -179,7 +185,7 @@ function X.Move(bot,J,threat)
     local now=DotaTime()
     if bot.shaiEscapeChecked~=nil and now<bot.shaiEscapeChecked then X.ResetGround(bot) end
     bot.shaiEscapeChecked=now
-    if J.CanNotUseAction(bot) or X.HoldingJump(bot) or X.HoldingAlignment(bot) then return true end
+    if J.CanNotUseAction(bot) or X.HoldingJump(bot) or X.HoldingAlignment(bot) or X.HoldingSave(bot) then return true end
     if bot.shaiEscapeBlockedAt~=nil and DotaTime()<bot.shaiEscapeBlockedAt then bot.shaiEscapeBlockedAt=nil end
     local plan=X.Plan(bot,J,threat,650,false) or X.Plan(bot,J,threat,300,false) or X.Plan(bot,J,threat,150,false)
     if plan~=nil then

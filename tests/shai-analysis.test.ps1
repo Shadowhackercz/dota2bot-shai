@@ -62,6 +62,9 @@ try {
     '[SHAI] recovery t=1528; hero=skeleton_king; reason=return-to-fountain' | Add-Content -LiteralPath $fixture.FullName
     $recoveryOutput = & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName | Out-String -Width 200
     if ($recoveryOutput -notmatch '\[recovery\].*reason=return-to-fountain') { throw 'Analyzer lost fountain recovery diagnostic' }
+    '[SHAI] escape-item t=1529; hero=lion; reason=blocked-self-save; item=item_glimmer_cape; physical=50; magical=400' | Add-Content -LiteralPath $fixture.FullName
+    $saveOutput = & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName | Out-String -Width 200
+    if ($saveOutput -notmatch '\[escape-item\].*item=item_glimmer_cape; physical=50; magical=400') { throw 'Analyzer lost emergency item diagnostic' }
     'unrelated engine output' | Set-Content -LiteralPath $fixture.FullName
     $rejected = $false
     try { & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName } catch { $rejected = $true }
