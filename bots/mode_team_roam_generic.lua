@@ -18,6 +18,7 @@ local Invisible = require(GetScriptDirectory()..'/FunLib/shai_invisible_escape')
 local Runtime = require(GetScriptDirectory()..'/FunLib/shai_runtime')
 local Tormentor = require(GetScriptDirectory()..'/FunLib/shai_tormentor')
 local FarmSafety = require(GetScriptDirectory()..'/FunLib/shai_farm_safety')
+local Recovery = require(GetScriptDirectory()..'/FunLib/shai_recovery')
 local Item = require(GetScriptDirectory()..'/FunLib/aba_item')
 local Roles = require(GetScriptDirectory()..'/FunLib/aba_role')
 local AttackSpecialUnit = dofile(GetScriptDirectory()..'/FunLib/aba_special_units')
@@ -43,6 +44,7 @@ local immediateFinish = false
 local defendingBase = false
 local coordinatedTormentor = false
 local escapingThreat = false
+local recovering = false
 
 -- Pickup / swap timers
 local PickedItem = nil
@@ -81,6 +83,7 @@ local function CapForLanePush(desire)
 end
 
 function GetDesire()
+    recovering=false
     if Travel.HoldFade(bot,J) then return 1.08 end
     local specialDesire
     if Runtime.Call(bot,'wraith.desire',function() return Wraith.GetPlan(bot,J) end,nil)~=nil then specialDesire=1.07
@@ -95,7 +98,7 @@ function GetDesire()
     -- if DotaTime() > 30 and cachedVar ~= nil then return cachedVar end
 
     local res = Runtime.Call(bot,'roam.desire',GetDesireHelper,0)
-    if coordinatedGank or immediateFinish or defendingBase or coordinatedTormentor or escapingThreat then return res end
+    if coordinatedGank or immediateFinish or defendingBase or coordinatedTormentor or escapingThreat or recovering then return res end
     res = CapForLanePush(res)
 
     -- J.Utils.SetCachedVars(cacheKey, res)
@@ -156,6 +159,15 @@ function GetDesireHelper()
 
     if not HasModifierThatNeedToAvoidEffects() then
         local defenseDesire=Defense.GetDesire(bot,J)
+        -- A passive base hold must not strand a member already recovering.
+        -- A viable group engagement, utility cast or Ancient emergency still wins.
+        local recoveryDesire
+        if defenseDesire==nil or defenseDesire<=0.99 then recoveryDesire=Recovery.GetDesire(bot,J) end
+        if recoveryDesire~=nil then
+            recovering=true
+            hTargetCreep,targetUnit=nil,nil
+            return recoveryDesire
+        end
         if defenseDesire~=nil then
             bot.shaiEscapeUntil=nil
             defendingBase=true
@@ -368,6 +380,7 @@ end
 function OnStart() end
 
 function OnEnd()
+    recovering=false
     Tormentor.OnEnd()
     bot.shaiEscapeUntil=nil
     targetUnit, targetLockUntil = nil, -90
@@ -407,6 +420,13 @@ local function TeamRoamThinkInternal()
     if immediateFinish then
         -- A stale finish must not fall through to an unrelated attack/farm order.
         CombatFinish.TryAction(bot,J)
+        return
+    end
+    if recovering then
+        if CombatFinish.IsCommitting(bot,J) or CombatFinish.TryAction(bot,J) then return end
+        local desire=Defense.GetDesire(bot,J)
+        if desire~=nil and desire>1.03 then Defense.Think(bot,J); return end
+        Recovery.Think(bot,J)
         return
     end
     if defendingBase then Defense.Think(bot,J); return end

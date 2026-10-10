@@ -59,6 +59,9 @@ try {
     '[SHAI] wisdom t=1527; hero=axe; reason=no-progress-deferred; x=-7948; y=768' | Add-Content -LiteralPath $fixture.FullName
     $wisdomOutput = & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName | Out-String -Width 200
     if ($wisdomOutput -notmatch '\[wisdom\].*reason=no-progress-deferred') { throw 'Analyzer lost Wisdom progress diagnostic' }
+    '[SHAI] recovery t=1528; hero=skeleton_king; reason=return-to-fountain' | Add-Content -LiteralPath $fixture.FullName
+    $recoveryOutput = & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName | Out-String -Width 200
+    if ($recoveryOutput -notmatch '\[recovery\].*reason=return-to-fountain') { throw 'Analyzer lost fountain recovery diagnostic' }
     'unrelated engine output' | Set-Content -LiteralPath $fixture.FullName
     $rejected = $false
     try { & "$PSScriptRoot\..\tools\Analyze-SHAI.ps1" -LogPath $fixture.FullName } catch { $rejected = $true }

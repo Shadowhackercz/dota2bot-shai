@@ -73,7 +73,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $projectRoot '.tools/lua/shai-objective-helpers.lua'), $helperAdapter, [Text.UTF8Encoding]::new($false))
     foreach ($testFile in @('tests/shai-runtime-api.test.lua', 'tests/shai-camp.test.lua', 'tests/shai-objective-integration.test.lua', 'tests/shai-selection.test.lua', 'tests/shai-roshan.test.lua',
         'tests/shai-combat.test.lua', 'tests/shai-lion-farm.test.lua', 'tests/shai-centaur-escape.test.lua', 'tests/shai-tactics.test.lua', 'tests/shai-runes.test.lua', 'tests/shai-route.test.lua', 'tests/shai-pings.test.lua', 'tests/shai-escape.test.lua', 'tests/shai-special-states.test.lua',
-        'tests/shai-wisdom.test.lua', 'tests/shai-stability.test.lua', 'tests/shai-objectives.test.lua', 'tests/shai-tombstone.test.lua', 'tests/shai-trace.test.lua',
+        'tests/shai-recovery.test.lua', 'tests/shai-wisdom.test.lua', 'tests/shai-stability.test.lua', 'tests/shai-objectives.test.lua', 'tests/shai-tombstone.test.lua', 'tests/shai-trace.test.lua',
         'tests/shai-roshan-chat.test.lua', 'tests/shai-safety.test.lua', 'tests/shai-memory.test.lua', 'tests/shai-gank.test.lua', 'tests/shai-budget.test.lua', 'tests/shai-glyph.test.lua', 'tests/shai-objective-chat.test.lua', 'tests/shai-finish.test.lua', 'tests/shai-defense.test.lua', 'tests/shai-travel.test.lua')) {
         # Fresh VM per test; explicit exit because Fengari otherwise swallows errors.
         & $luaCli -e "local ok, err = pcall(dofile, '$testFile'); if not ok then print(err); os.exit(1) end"
